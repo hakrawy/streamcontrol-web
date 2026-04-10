@@ -1,0 +1,2 @@
+series_key,title,description,poster,backdrop,trailer_url,genre,year,rating,cast_members,is_featured,is_trending,is_new,is_exclusive,is_published,view_count,category_id
+series-demo,Example Series,"Series synopsis here",https://cdn.example.com/posters/series-1.jpg,https://cdn.example.com/backdrops/series-1.jpg,https://cdn.example.com/trailers/series-1.mp4,"Drama|Sci-Fi",2026,9.1,"Actor One|Actor Two",true,true,true,false,true,0,scifi

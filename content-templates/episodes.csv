@@ -1,0 +1,2 @@
+series_key,season_number,season_title,episode_number,title,description,thumbnail,stream_url,subtitle_url,duration
+series-demo,1,"Season 1",1,"Pilot","Episode synopsis here",https://cdn.example.com/thumbs/series-1-s1e1.jpg,https://cdn.example.com/streams/series-1-s1e1.m3u8,https://cdn.example.com/subtitles/series-1-s1e1.vtt,48m

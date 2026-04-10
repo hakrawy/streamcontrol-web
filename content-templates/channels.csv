@@ -1,0 +1,2 @@
+name,logo,stream_url,category,current_program,is_live,is_featured,viewers,sort_order
+Example Sports,https://cdn.example.com/logos/channel-1.png,https://cdn.example.com/live/channel-1.m3u8,sports,"Live Match",true,true,0,1

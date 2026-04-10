@@ -1,0 +1,2 @@
+title,subtitle,backdrop,content_lookup_type,content_lookup_value,badge,genre,rating,year,sort_order,is_active
+Example Hero,"Big release this week",https://cdn.example.com/backdrops/movie-1-banner.jpg,movie,Example Movie,NEW,"Action|Thriller",8.4,2026,1,true

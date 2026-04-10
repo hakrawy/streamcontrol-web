@@ -1,0 +1,2 @@
+title,description,poster,backdrop,trailer_url,stream_url,genre,year,duration,rating,cast_members,quality,subtitle_url,is_featured,is_trending,is_new,is_exclusive,is_published,view_count,category_id
+Example Movie,"Short synopsis here",https://cdn.example.com/posters/movie-1.jpg,https://cdn.example.com/backdrops/movie-1.jpg,https://cdn.example.com/trailers/movie-1.mp4,https://cdn.example.com/streams/movie-1.m3u8,"Action|Thriller",2026,"2h 05m",8.4,"Actor One|Actor Two","4K|1080p|720p",https://cdn.example.com/subtitles/movie-1.vtt,true,true,false,false,true,0,action

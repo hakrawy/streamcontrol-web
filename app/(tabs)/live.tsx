@@ -1,0 +1,153 @@
+import React, { useState, useMemo } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { theme } from '../../constants/theme';
+import { config } from '../../constants/config';
+import { useAppContext } from '../../contexts/AppContext';
+import { formatViewers } from '../../services/api';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+export default function LiveScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { channels } = useAppContext();
+  const [activeCategory, setActiveCategory] = useState('all');
+  const openChannel = (channel: typeof channels[number]) => {
+    Haptics.selectionAsync();
+    router.push({
+      pathname: '/player',
+      params: {
+        title: channel.name,
+        url: channel.stream_url,
+        sources: JSON.stringify(channel.stream_sources || []),
+        viewerContentId: channel.id,
+        viewerContentType: 'channel',
+      },
+    });
+  };
+
+  const filtered = useMemo(() => {
+    const live = channels.filter(c => c.is_live);
+    if (activeCategory === 'all') return live;
+    return live.filter(c => c.category === activeCategory);
+  }, [channels, activeCategory]);
+
+  const featuredChannels = channels.filter(c => c.is_featured && c.is_live);
+
+  return (
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Live TV</Text>
+        <View style={styles.liveIndicator}>
+          <View style={styles.liveRedDot} />
+          <Text style={styles.liveCount}>{channels.filter(c => c.is_live).length} Live</Text>
+        </View>
+      </View>
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+        {featuredChannels.length > 0 && (
+          <Animated.View entering={FadeInDown.duration(400)}>
+            <Text style={styles.sectionTitle}>Featured Channels</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
+              {featuredChannels.map(ch => (
+                <Pressable key={ch.id} style={styles.featuredCard} onPress={() => openChannel(ch)}>
+                  <Image source={{ uri: ch.logo }} style={styles.featuredImage} contentFit="cover" transition={200} />
+                  <View style={styles.featuredOverlay}>
+                    <View style={styles.featuredLiveBadge}><View style={styles.featuredLiveDot} /><Text style={styles.featuredLiveText}>LIVE</Text></View>
+                    <View style={styles.featuredInfo}>
+                      <Text style={styles.featuredName} numberOfLines={1}>{ch.name}</Text>
+                      <Text style={styles.featuredProgram} numberOfLines={1}>{ch.current_program}</Text>
+                      <View style={styles.featuredViewers}>
+                        <MaterialIcons name="visibility" size={14} color="rgba(255,255,255,0.7)" />
+                        <Text style={styles.featuredViewerCount}>{formatViewers(ch.live_viewers ?? ch.viewers)}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+          {config.liveCategories.map(cat => (
+            <Pressable key={cat.id} onPress={() => { Haptics.selectionAsync(); setActiveCategory(cat.id); }} style={[styles.categoryChip, activeCategory === cat.id && styles.categoryChipActive]}>
+              <Text style={[styles.categoryText, activeCategory === cat.id && styles.categoryTextActive]}>{cat.name}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        <View style={styles.channelGrid}>
+          {filtered.map((ch, index) => (
+            <Animated.View key={ch.id} entering={FadeInDown.delay(index * 50).duration(300)}>
+              <Pressable style={styles.channelCard} onPress={() => openChannel(ch)}>
+                <View style={styles.channelLogoWrap}><Image source={{ uri: ch.logo }} style={styles.channelLogo} contentFit="cover" transition={200} /></View>
+                <View style={styles.channelInfo}>
+                  <Text style={styles.channelName} numberOfLines={1}>{ch.name}</Text>
+                  <Text style={styles.channelProgram} numberOfLines={1}>{ch.current_program}</Text>
+                  <View style={styles.channelMeta}>
+                    <View style={styles.channelCatBadge}><Text style={styles.channelCatText}>{ch.category.toUpperCase()}</Text></View>
+                    <Text style={styles.channelViewers}>{formatViewers(ch.live_viewers ?? ch.viewers)} watching</Text>
+                  </View>
+                </View>
+                <MaterialIcons name="play-circle-filled" size={36} color={theme.primary} />
+              </Pressable>
+            </Animated.View>
+          ))}
+        </View>
+
+        {filtered.length === 0 && (
+          <View style={styles.emptyState}>
+            <MaterialIcons name="live-tv" size={56} color={theme.textMuted} />
+            <Text style={styles.emptyTitle}>No channels in this category</Text>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
+  liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  liveRedDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.live },
+  liveCount: { fontSize: 14, fontWeight: '600', color: theme.live },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', letterSpacing: -0.3, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  featuredCard: { width: SCREEN_WIDTH * 0.75, height: 180, borderRadius: 14, overflow: 'hidden', backgroundColor: theme.surface },
+  featuredImage: { width: '100%', height: '100%' },
+  featuredOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'space-between', padding: 14 },
+  featuredLiveBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(239,68,68,0.9)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  featuredLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFF' },
+  featuredLiveText: { fontSize: 11, fontWeight: '700', color: '#FFF', letterSpacing: 0.5 },
+  featuredInfo: { gap: 2 },
+  featuredName: { fontSize: 18, fontWeight: '700', color: '#FFF' },
+  featuredProgram: { fontSize: 13, color: 'rgba(255,255,255,0.8)' },
+  featuredViewers: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  featuredViewerCount: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
+  categoryRow: { paddingHorizontal: 16, gap: 8, paddingTop: 20, paddingBottom: 16 },
+  categoryChip: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  categoryChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  categoryText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
+  categoryTextActive: { color: '#FFF' },
+  channelGrid: { paddingHorizontal: 16, gap: 10 },
+  channelCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: 14, padding: 14, gap: 14, borderWidth: 1, borderColor: theme.border },
+  channelLogoWrap: { width: 60, height: 60, borderRadius: 12, overflow: 'hidden', backgroundColor: theme.surfaceLight },
+  channelLogo: { width: '100%', height: '100%' },
+  channelInfo: { flex: 1, gap: 2 },
+  channelName: { fontSize: 15, fontWeight: '700', color: '#FFF' },
+  channelProgram: { fontSize: 13, color: theme.textSecondary },
+  channelMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  channelCatBadge: { backgroundColor: 'rgba(99,102,241,0.15)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  channelCatText: { fontSize: 10, fontWeight: '700', color: theme.primary, letterSpacing: 0.5 },
+  channelViewers: { fontSize: 11, color: theme.textMuted },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#FFF' },
+});
