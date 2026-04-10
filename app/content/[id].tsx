@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Share, ActivityIndicator, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -129,14 +129,20 @@ export default function ContentDetailScreen() {
     ...(viewerParams || {}),
   });
 
-  const addonOptions = useMemo(() => Array.from(new Set(playbackSources.map((source) => source.addon || 'Direct'))), [playbackSources]);
-  const serverOptions = useMemo(
-    () => Array.from(new Set(playbackSources.filter((source) => (source.addon || 'Direct') === selectedAddon).map((source) => source.server || source.label))),
-    [playbackSources, selectedAddon]
+  const addonOptions = Array.from(new Set(playbackSources.map((source) => source.addon || 'Direct')));
+  const serverOptions = Array.from(
+    new Set(
+      playbackSources
+        .filter((source) => (source.addon || 'Direct') === selectedAddon)
+        .map((source) => source.server || source.label)
+    )
   );
-  const qualityOptions = useMemo(
-    () => Array.from(new Set(playbackSources.filter((source) => (source.addon || 'Direct') === selectedAddon && (source.server || source.label) === selectedServer).map((source) => source.quality || 'Auto'))),
-    [playbackSources, selectedAddon, selectedServer]
+  const qualityOptions = Array.from(
+    new Set(
+      playbackSources
+        .filter((source) => (source.addon || 'Direct') === selectedAddon && (source.server || source.label) === selectedServer)
+        .map((source) => source.quality || 'Auto')
+    )
   );
 
   const openSourcePicker = (sources: StreamSource[]) => {
