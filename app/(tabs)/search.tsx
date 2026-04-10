@@ -11,6 +11,7 @@ import { theme } from '../../constants/theme';
 import { useAppContext } from '../../contexts/AppContext';
 import * as api from '../../services/api';
 import type { ContentItem } from '../../services/api';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_GAP = 12;
@@ -24,6 +25,7 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ q?: string }>();
+  const { language, isRTL, direction } = useLocale();
   const { allMovies, allSeries } = useAppContext();
   const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -61,15 +63,39 @@ export default function SearchScreen() {
   }, [query, searchResults, allContent, activeFilter, activeGenre]);
 
   const filters: { key: FilterType; label: string }[] = [
-    { key: 'all', label: 'All' }, { key: 'movie', label: 'Movies' }, { key: 'series', label: 'Series' },
+    { key: 'all', label: language === 'Arabic' ? 'الكل' : 'All' },
+    { key: 'movie', label: language === 'Arabic' ? 'أفلام' : 'Movies' },
+    { key: 'series', label: language === 'Arabic' ? 'مسلسلات' : 'Series' },
   ];
+  const localizedGenreList = language === 'Arabic'
+    ? ['أكشن', 'كوميديا', 'دراما', 'خيال علمي', 'رعب', 'رومانسي', 'إثارة', 'فانتازيا', 'مغامرة', 'وثائقي']
+    : genreList;
+  const copy = language === 'Arabic'
+    ? {
+        searchPlaceholder: 'ابحث عن الأفلام والمسلسلات والممثلين...',
+        new: 'جديد',
+        movie: 'فيلم',
+        series: 'مسلسل',
+        featured: 'مميز',
+        noResults: 'لا توجد نتائج',
+        noResultsSubtitle: 'جرّب كلمة بحث أو تصنيفًا مختلفًا',
+      }
+    : {
+        searchPlaceholder: 'Search movies, series, actors...',
+        new: 'NEW',
+        movie: 'Movie',
+        series: 'Series',
+        featured: 'Featured',
+        noResults: 'No results found',
+        noResultsSubtitle: 'Try a different search term or genre',
+      };
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background, direction }]}>
       <View style={styles.searchBarWrap}>
         <View style={styles.searchBar}>
           <MaterialIcons name="search" size={22} color={theme.textMuted} />
-          <TextInput style={styles.searchInput} placeholder="Search movies, series, actors..." placeholderTextColor={theme.textMuted} value={query} onChangeText={setQuery} returnKeyType="search" autoCorrect={false} />
+          <TextInput style={styles.searchInput} placeholder={copy.searchPlaceholder} placeholderTextColor={theme.textMuted} value={query} onChangeText={setQuery} returnKeyType="search" autoCorrect={false} textAlign={isRTL ? 'right' : 'left'} />
           {query.length > 0 ? <Pressable onPress={() => setQuery('')}><MaterialIcons name="close" size={20} color={theme.textMuted} /></Pressable> : null}
         </View>
       </View>
@@ -83,9 +109,9 @@ export default function SearchScreen() {
       </View>
 
       <View style={styles.genreWrap}>
-        {genreList.map(g => (
+        {genreList.map((g, index) => (
           <Pressable key={g} onPress={() => { Haptics.selectionAsync(); setActiveGenre(activeGenre === g ? null : g); }} style={[styles.genreChip, activeGenre === g && styles.genreChipActive]}>
-            <Text style={[styles.genreText, activeGenre === g && styles.genreTextActive]}>{g}</Text>
+            <Text style={[styles.genreText, activeGenre === g && styles.genreTextActive]}>{localizedGenreList[index]}</Text>
           </Pressable>
         ))}
       </View>
@@ -104,7 +130,7 @@ export default function SearchScreen() {
                   <View style={styles.gridShell}>
                     <View style={styles.gridCard}>
                     <Image source={{ uri: item.poster }} style={styles.gridPoster} contentFit="cover" transition={200} />
-                    {item.is_new ? <View style={styles.gridBadge}><Text style={styles.gridBadgeText}>NEW</Text></View> : null}
+                    {item.is_new ? <View style={styles.gridBadge}><Text style={styles.gridBadgeText}>{copy.new}</Text></View> : null}
                     </View>
                     <View style={styles.gridInfo}>
                       <Text style={styles.gridTitle} numberOfLines={1}>{item.title}</Text>
@@ -112,9 +138,9 @@ export default function SearchScreen() {
                         <MaterialIcons name="star" size={11} color={theme.accent} />
                         <Text style={styles.gridRating}>{item.rating}</Text>
                         <Text style={styles.gridMetaDot}>•</Text>
-                        <Text style={styles.gridType}>{item.type === 'movie' ? 'Movie' : 'Series'}</Text>
+                        <Text style={styles.gridType}>{item.type === 'movie' ? copy.movie : copy.series}</Text>
                       </View>
-                      <Text style={styles.gridGenre} numberOfLines={1}>{item.genre?.[0] || 'Featured'}</Text>
+                      <Text style={styles.gridGenre} numberOfLines={1}>{item.genre?.[0] || copy.featured}</Text>
                     </View>
                   </View>
                 </Pressable>
@@ -125,8 +151,8 @@ export default function SearchScreen() {
         ) : (
           <View style={styles.emptyState}>
             <MaterialIcons name="search-off" size={56} color={theme.textMuted} />
-            <Text style={styles.emptyTitle}>No results found</Text>
-            <Text style={styles.emptySubtitle}>Try a different search term or genre</Text>
+            <Text style={styles.emptyTitle}>{copy.noResults}</Text>
+            <Text style={styles.emptySubtitle}>{copy.noResultsSubtitle}</Text>
           </View>
         )}
       </View>

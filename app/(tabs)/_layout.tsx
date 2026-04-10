@@ -14,6 +14,9 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
+          width: '100%',
+          maxWidth: 980,
+          alignSelf: 'center',
           height: Platform.select({ ios: insets.bottom + 62, android: insets.bottom + 62, default: 72 }),
           paddingTop: 8,
           paddingBottom: Platform.select({ ios: insets.bottom + 8, android: insets.bottom + 8, default: 8 }),
@@ -28,6 +31,7 @@ export default function TabLayout() {
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarItemStyle: {
           minHeight: 46,
+          maxWidth: 180,
         },
       }}
     >

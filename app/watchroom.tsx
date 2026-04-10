@@ -12,6 +12,7 @@ import { theme } from '../constants/theme';
 import * as api from '../services/api';
 import type { WatchRoom, RoomMessage, StreamSource } from '../services/api';
 import { useAppContext } from '../contexts/AppContext';
+import { useLocale } from '../contexts/LocaleContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -32,6 +33,7 @@ export default function WatchRoomScreen() {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const { allMovies, isAdmin } = useAppContext();
+  const { language, isRTL, direction } = useLocale();
   const [activeRooms, setActiveRooms] = useState<WatchRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<WatchRoom | null>(null);
   const [joinedRoom, setJoinedRoom] = useState(false);
@@ -42,6 +44,79 @@ export default function WatchRoomScreen() {
   const [roomName, setRoomName] = useState('');
   const chatScrollRef = useRef<ScrollView>(null);
   const roomId = selectedRoom?.id;
+
+  const copy = language === 'Arabic'
+    ? {
+        error: 'خطأ',
+        joinFailed: 'تعذر الانضمام إلى الغرفة',
+        deleteRoom: 'حذف الغرفة',
+        deleteRoomConfirm: 'هل تريد حذف الغرفة "{name}" لجميع المشاركين؟',
+        cancel: 'إلغاء',
+        delete: 'حذف',
+        deleted: 'تم الحذف',
+        deletedDesc: 'تم إغلاق غرفة المشاهدة.',
+        contentUnavailable: 'المحتوى غير متاح',
+        contentUnavailableDesc: 'أضف فيلمًا واحدًا على الأقل قبل إنشاء غرفة مشاهدة.',
+        createFailed: 'فشل إنشاء الغرفة',
+        playbackUnavailable: 'التشغيل غير متاح',
+        playbackUnavailableDesc: 'لا يوجد رابط بث صالح لهذه الغرفة حتى الآن.',
+        playbackError: 'خطأ في التشغيل',
+        host: 'المضيف',
+        unknown: 'غير معروف',
+        noMessages: 'لا توجد رسائل بعد. ابدأ المحادثة!',
+        saySomething: 'اكتب رسالة...',
+        create: 'إنشاء',
+        createRoomTitle: 'إنشاء غرفة مشاهدة',
+        selectedContent: 'المحتوى المحدد: {title}',
+        fallbackContent: 'المحتوى المحدد: أول فيلم متاح',
+        roomName: 'اسم الغرفة...',
+        watchTogether: 'شاهدوا معًا',
+        watchTogetherDesc: 'انضم إلى غرفة أو أنشئ واحدة للمشاهدة مع الأصدقاء',
+        activeRooms: 'غرف نشطة',
+        code: 'الرمز',
+        public: 'عامة',
+        private: 'خاصة',
+        join: 'انضمام',
+        noRooms: 'لا توجد غرف نشطة',
+        noRoomsDesc: 'أنشئ غرفة جديدة لبدء المشاهدة الجماعية!',
+        room: 'الغرفة',
+      }
+    : {
+        error: 'Error',
+        joinFailed: 'Failed to join room',
+        deleteRoom: 'Delete room',
+        deleteRoomConfirm: 'Delete "{name}" for all participants?',
+        cancel: 'Cancel',
+        delete: 'Delete',
+        deleted: 'Deleted',
+        deletedDesc: 'The watch room has been closed.',
+        contentUnavailable: 'Content unavailable',
+        contentUnavailableDesc: 'Add at least one movie before creating a watch room.',
+        createFailed: 'Failed to create room',
+        playbackUnavailable: 'Playback unavailable',
+        playbackUnavailableDesc: 'No playable stream URL is configured for this room yet.',
+        playbackError: 'Playback error',
+        host: 'Host',
+        unknown: 'Unknown',
+        noMessages: 'No messages yet. Start the conversation!',
+        saySomething: 'Say something...',
+        create: 'Create',
+        createRoomTitle: 'Create Watch Room',
+        selectedContent: 'Selected content: {title}',
+        fallbackContent: 'Selected content: first available movie',
+        roomName: 'Room name...',
+        watchTogether: 'Watch Together',
+        watchTogetherDesc: 'Join a room or create one to watch with friends',
+        activeRooms: 'ACTIVE ROOMS',
+        code: 'Code',
+        public: 'Public',
+        private: 'Private',
+        join: 'Join',
+        noRooms: 'No active rooms',
+        noRoomsDesc: 'Create one to start watching together!',
+        room: 'Room',
+      };
+
   const getPlayerParams = (sources: StreamSource[], fallbackUrl: string, title: string, subtitleUrl?: string) => ({
     title,
     url: fallbackUrl,
@@ -52,12 +127,7 @@ export default function WatchRoomScreen() {
   });
 
   const selectedContent = contentId && contentType && contentTitle && contentPoster
-    ? {
-        id: contentId,
-        type: contentType,
-        title: contentTitle,
-        poster: contentPoster,
-      }
+    ? { id: contentId, type: contentType, title: contentTitle, poster: contentPoster }
     : null;
 
   const loadRooms = useCallback(async () => {
@@ -70,7 +140,6 @@ export default function WatchRoomScreen() {
 
   useEffect(() => { loadRooms(); }, [loadRooms]);
 
-  // Poll messages when in room
   useEffect(() => {
     if (!joinedRoom || !roomId) return;
     const loadMessages = async () => {
@@ -92,7 +161,7 @@ export default function WatchRoomScreen() {
       setSelectedRoom(room);
       setJoinedRoom(true);
     } catch (err: any) {
-      showAlert('Error', err.message || 'Failed to join room');
+      showAlert(copy.error, err.message || copy.joinFailed);
     }
   };
 
@@ -106,10 +175,10 @@ export default function WatchRoomScreen() {
   };
 
   const handleDeleteRoom = async (room: WatchRoom) => {
-    showAlert('Delete room', `Delete "${room.name}" for all participants?`, [
-      { text: 'Cancel', style: 'cancel' },
+    showAlert(copy.deleteRoom, copy.deleteRoomConfirm.replace('{name}', room.name), [
+      { text: copy.cancel, style: 'cancel' },
       {
-        text: 'Delete',
+        text: copy.delete,
         style: 'destructive',
         onPress: async () => {
           try {
@@ -120,9 +189,9 @@ export default function WatchRoomScreen() {
               setMessages([]);
             }
             await loadRooms();
-            showAlert('Deleted', 'The watch room has been closed.');
+            showAlert(copy.deleted, copy.deletedDesc);
           } catch (err: any) {
-            showAlert('Delete failed', err.message || 'Could not close this room.');
+            showAlert(copy.error, err.message || copy.error);
           }
         },
       },
@@ -155,7 +224,7 @@ export default function WatchRoomScreen() {
       );
 
       if (!roomContent) {
-        showAlert('Content unavailable', 'Add at least one movie before creating a watch room.');
+        showAlert(copy.contentUnavailable, copy.contentUnavailableDesc);
         return;
       }
 
@@ -174,13 +243,12 @@ export default function WatchRoomScreen() {
       setSelectedRoom(room);
       setJoinedRoom(true);
     } catch (err: any) {
-      showAlert('Error', err.message || 'Failed to create room');
+      showAlert(copy.error, err.message || copy.createFailed);
     }
   };
 
   const handlePlayRoomContent = async () => {
     if (!selectedRoom) return;
-
     try {
       let url = '';
       let sources: StreamSource[] = [];
@@ -211,7 +279,7 @@ export default function WatchRoomScreen() {
       }
 
       if (!url) {
-        showAlert('Playback unavailable', 'No playable stream URL is configured for this room yet.');
+        showAlert(copy.playbackUnavailable, copy.playbackUnavailableDesc);
         return;
       }
 
@@ -225,21 +293,23 @@ export default function WatchRoomScreen() {
         },
       });
     } catch (err: any) {
-      showAlert('Playback error', err.message || 'Failed to open room content.');
+      showAlert(copy.playbackError, err.message || copy.playbackError);
     }
   };
 
-  // Room view
   if (joinedRoom && selectedRoom) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.background, direction }]}>
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <View style={styles.roomHeader}>
-              <Pressable onPress={handleLeaveRoom}><MaterialIcons name="arrow-back" size={24} color="#FFF" /></Pressable>
-              <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={[styles.roomHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Pressable onPress={handleLeaveRoom}><MaterialIcons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color="#FFF" /></Pressable>
+              <View style={{ flex: 1, marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 }}>
                 <Text style={styles.roomHeaderTitle} numberOfLines={1}>{selectedRoom.name}</Text>
-                <View style={styles.roomHeaderMeta}><View style={styles.roomLiveDot} /><Text style={styles.roomHeaderSub}>Room: {selectedRoom.room_code}</Text></View>
+                <View style={[styles.roomHeaderMeta, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <View style={styles.roomLiveDot} />
+                  <Text style={styles.roomHeaderSub}>{copy.room}: {selectedRoom.room_code}</Text>
+                </View>
               </View>
               {(isAdmin || selectedRoom.host_id === user?.id) ? (
                 <Pressable style={styles.deleteRoomBtn} onPress={() => handleDeleteRoom(selectedRoom)}>
@@ -258,12 +328,12 @@ export default function WatchRoomScreen() {
               </View>
               <View style={styles.hostBadge}>
                 <MaterialIcons name="admin-panel-settings" size={14} color={theme.accent} />
-                <Text style={styles.hostBadgeText}>Host: {selectedRoom.host?.username || 'Unknown'}</Text>
+                <Text style={styles.hostBadgeText}>{copy.host}: {selectedRoom.host?.username || copy.unknown}</Text>
               </View>
             </View>
 
             <View style={styles.reactionsRow}>
-              {['😂', '😮', '👏', '❤️', '🔥', '😢'].map(emoji => (
+              {['👏', '😂', '🔥', '❤️', '😮', '🎉'].map(emoji => (
                 <Pressable key={emoji} style={styles.reactionBtn} onPress={() => Haptics.selectionAsync()}>
                   <Text style={styles.reactionEmoji}>{emoji}</Text>
                 </Pressable>
@@ -273,23 +343,23 @@ export default function WatchRoomScreen() {
             <View style={styles.chatContainer}>
               <ScrollView ref={chatScrollRef} style={{ flex: 1 }} contentContainerStyle={{ padding: 12, gap: 12 }} showsVerticalScrollIndicator={false}>
                 {messages.map(msg => (
-                  <View key={msg.id} style={styles.chatMsg}>
+                  <View key={msg.id} style={[styles.chatMsg, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <View style={styles.chatAvatarFallback}>
                       <Text style={styles.chatAvatarText}>{(msg.user?.username?.[0] || 'U').toUpperCase()}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <View style={styles.chatNameRow}>
+                      <View style={[styles.chatNameRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                         <Text style={styles.chatName}>{msg.user?.username || 'User'}</Text>
                         <Text style={styles.chatTime}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
                       </View>
-                      <Text style={styles.chatText}>{msg.message}</Text>
+                      <Text style={[styles.chatText, { textAlign: isRTL ? 'right' : 'left' }]}>{msg.message}</Text>
                     </View>
                   </View>
                 ))}
-                {messages.length === 0 ? <Text style={{ color: theme.textMuted, textAlign: 'center', marginTop: 40, fontSize: 14 }}>No messages yet. Start the conversation!</Text> : null}
+                {messages.length === 0 ? <Text style={{ color: theme.textMuted, textAlign: 'center', marginTop: 40, fontSize: 14 }}>{copy.noMessages}</Text> : null}
               </ScrollView>
-              <View style={[styles.chatInputRow, { paddingBottom: insets.bottom + 8 }]}>
-                <TextInput style={styles.chatInput} placeholder="Say something..." placeholderTextColor={theme.textMuted} value={chatMessage} onChangeText={setChatMessage} returnKeyType="send" onSubmitEditing={handleSendMessage} />
+              <View style={[styles.chatInputRow, { paddingBottom: insets.bottom + 8, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <TextInput style={styles.chatInput} placeholder={copy.saySomething} placeholderTextColor={theme.textMuted} value={chatMessage} onChangeText={setChatMessage} returnKeyType="send" onSubmitEditing={handleSendMessage} textAlign={isRTL ? 'right' : 'left'} />
                 <Pressable style={styles.chatSendBtn} onPress={handleSendMessage}><MaterialIcons name="send" size={20} color="#FFF" /></Pressable>
               </View>
             </View>
@@ -299,29 +369,27 @@ export default function WatchRoomScreen() {
     );
   }
 
-  // Room listing
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background, direction }]}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-        <View style={styles.listHeader}>
+        <View style={[styles.listHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Pressable onPress={() => router.back()}><MaterialIcons name="close" size={28} color="#FFF" /></Pressable>
-          <Text style={styles.listTitle}>Watch Rooms</Text>
-          <Pressable style={styles.createRoomBtn} onPress={() => setShowCreate(true)}>
-            <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.createRoomText}>Create</Text>
+          <Text style={styles.listTitle}>{copy.watchTogether}</Text>
+          <Pressable style={[styles.createRoomBtn, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={() => setShowCreate(true)}>
+            <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.createRoomText}>{copy.create}</Text>
           </Pressable>
         </View>
 
-        {/* Create Room Modal */}
         {showCreate ? (
           <Animated.View entering={FadeIn.duration(200)} style={styles.createCard}>
-            <Text style={styles.createTitle}>Create Watch Room</Text>
+            <Text style={styles.createTitle}>{copy.createRoomTitle}</Text>
             <Text style={styles.selectedContentText}>
-              {selectedContent ? `Selected content: ${selectedContent.title}` : 'Selected content: first available movie'}
+              {selectedContent ? copy.selectedContent.replace('{title}', selectedContent.title) : copy.fallbackContent}
             </Text>
-            <TextInput style={styles.createInput} placeholder="Room name..." placeholderTextColor={theme.textMuted} value={roomName} onChangeText={setRoomName} />
-            <View style={styles.createActions}>
-              <Pressable style={styles.createCancelBtn} onPress={() => setShowCreate(false)}><Text style={styles.createCancelText}>Cancel</Text></Pressable>
-              <Pressable style={styles.createSubmitBtn} onPress={handleCreateRoom}><Text style={styles.createSubmitText}>Create Room</Text></Pressable>
+            <TextInput style={styles.createInput} placeholder={copy.roomName} placeholderTextColor={theme.textMuted} value={roomName} onChangeText={setRoomName} textAlign={isRTL ? 'right' : 'left'} />
+            <View style={[styles.createActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Pressable style={styles.createCancelBtn} onPress={() => setShowCreate(false)}><Text style={styles.createCancelText}>{copy.cancel}</Text></Pressable>
+              <Pressable style={styles.createSubmitBtn} onPress={handleCreateRoom}><Text style={styles.createSubmitText}>{copy.createRoomTitle}</Text></Pressable>
             </View>
           </Animated.View>
         ) : null}
@@ -330,8 +398,8 @@ export default function WatchRoomScreen() {
           <Image source={require('../assets/images/watchroom-hero.jpg')} style={styles.heroImage} contentFit="cover" transition={300} />
           <LinearGradient colors={['transparent', theme.background]} style={[StyleSheet.absoluteFillObject, { top: 80 }]} />
           <View style={styles.heroOverlay}>
-            <Text style={styles.heroTitle}>Watch Together</Text>
-            <Text style={styles.heroSubtitle}>Join a room or create one to watch with friends</Text>
+            <Text style={styles.heroTitle}>{copy.watchTogether}</Text>
+            <Text style={styles.heroSubtitle}>{copy.watchTogetherDesc}</Text>
           </View>
         </Animated.View>
 
@@ -339,23 +407,23 @@ export default function WatchRoomScreen() {
           <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 16, gap: 12 }} showsVerticalScrollIndicator={false}>
-            <Text style={styles.sectionLabel}>{activeRooms.length} ACTIVE ROOMS</Text>
+            <Text style={styles.sectionLabel}>{activeRooms.length} {copy.activeRooms}</Text>
             {activeRooms.map((room, index) => (
               <Animated.View key={room.id} entering={FadeInDown.delay(index * 80).duration(350)}>
-                <Pressable style={styles.roomListCard} onPress={() => handleJoinRoom(room)}>
+                <Pressable style={[styles.roomListCard, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={() => handleJoinRoom(room)}>
                   <Image source={{ uri: room.content_poster }} style={styles.roomListPoster} contentFit="cover" transition={200} />
                   <View style={styles.roomListInfo}>
                     <Text style={styles.roomListName} numberOfLines={1}>{room.name}</Text>
                     <Text style={styles.roomListContent} numberOfLines={1}>{room.content_title}</Text>
-                    <Text style={styles.roomListCode}>Code: {room.room_code}</Text>
-                    <View style={styles.roomListBottom}>
-                      <View style={styles.roomListParticipants}>
+                    <Text style={styles.roomListCode}>{copy.code}: {room.room_code}</Text>
+                    <View style={[styles.roomListBottom, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <View style={[styles.roomListParticipants, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                         <MaterialIcons name="people" size={14} color={theme.primary} />
                         <Text style={styles.roomListParticipantText}>{room.member_count || 0}/{room.max_participants}</Text>
                       </View>
-                      <View style={[styles.roomPrivacyBadge, room.privacy === 'public' ? styles.privacyPublic : styles.privacyPrivate]}>
+                      <View style={[styles.roomPrivacyBadge, room.privacy === 'public' ? styles.privacyPublic : styles.privacyPrivate, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                         <MaterialIcons name={room.privacy === 'public' ? 'public' : 'lock'} size={12} color={room.privacy === 'public' ? theme.success : theme.warning} />
-                        <Text style={{ fontSize: 10, fontWeight: '600', color: room.privacy === 'public' ? theme.success : theme.warning }}>{room.privacy === 'public' ? 'Public' : 'Private'}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '600', color: room.privacy === 'public' ? theme.success : theme.warning }}>{room.privacy === 'public' ? copy.public : copy.private}</Text>
                       </View>
                     </View>
                   </View>
@@ -365,7 +433,7 @@ export default function WatchRoomScreen() {
                         <MaterialIcons name="delete-outline" size={18} color={theme.error} />
                       </Pressable>
                     ) : null}
-                    <View style={styles.joinBtn}><Text style={styles.joinBtnText}>Join</Text></View>
+                    <View style={styles.joinBtn}><Text style={styles.joinBtnText}>{copy.join}</Text></View>
                   </View>
                 </Pressable>
               </Animated.View>
@@ -373,8 +441,8 @@ export default function WatchRoomScreen() {
             {activeRooms.length === 0 ? (
               <View style={{ alignItems: 'center', paddingTop: 40, gap: 12 }}>
                 <MaterialIcons name="groups" size={56} color={theme.textMuted} />
-                <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFF' }}>No active rooms</Text>
-                <Text style={{ fontSize: 14, color: theme.textSecondary }}>Create one to start watching together!</Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFF' }}>{copy.noRooms}</Text>
+                <Text style={{ fontSize: 14, color: theme.textSecondary }}>{copy.noRoomsDesc}</Text>
               </View>
             ) : null}
           </ScrollView>
@@ -386,9 +454,9 @@ export default function WatchRoomScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  listHeader: { alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   listTitle: { fontSize: 20, fontWeight: '700', color: '#FFF' },
-  createRoomBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  createRoomBtn: { alignItems: 'center', gap: 4, backgroundColor: theme.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   createRoomText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
   heroImage: { width: SCREEN_WIDTH, height: 160 },
   heroOverlay: { position: 'absolute', bottom: 16, left: 16, right: 16 },
@@ -399,30 +467,30 @@ const styles = StyleSheet.create({
   createTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
   selectedContentText: { fontSize: 13, color: theme.textSecondary, marginBottom: 12 },
   createInput: { height: 48, backgroundColor: theme.surfaceLight, borderRadius: 12, paddingHorizontal: 16, fontSize: 15, color: '#FFF', borderWidth: 1, borderColor: theme.border, marginBottom: 16 },
-  createActions: { flexDirection: 'row', gap: 12 },
+  createActions: { gap: 12 },
   createCancelBtn: { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
   createCancelText: { fontSize: 14, fontWeight: '600', color: theme.textSecondary },
   createSubmitBtn: { flex: 1, height: 44, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
   createSubmitText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
-  roomListCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: 14, padding: 12, gap: 12, borderWidth: 1, borderColor: theme.border },
+  roomListCard: { alignItems: 'center', backgroundColor: theme.surface, borderRadius: 14, padding: 12, gap: 12, borderWidth: 1, borderColor: theme.border },
   roomListPoster: { width: 70, height: 100, borderRadius: 8 },
   roomListInfo: { flex: 1, gap: 4 },
   roomListName: { fontSize: 15, fontWeight: '700', color: '#FFF' },
   roomListContent: { fontSize: 12, color: theme.textSecondary },
   roomListCode: { fontSize: 11, fontWeight: '600', color: theme.primary },
-  roomListBottom: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
-  roomListParticipants: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  roomListBottom: { alignItems: 'center', gap: 10, marginTop: 4 },
+  roomListParticipants: { alignItems: 'center', gap: 4 },
   roomListParticipantText: { fontSize: 12, fontWeight: '600', color: theme.primary },
-  roomPrivacyBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  roomPrivacyBadge: { alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   privacyPublic: { backgroundColor: 'rgba(16,185,129,0.12)' },
   privacyPrivate: { backgroundColor: 'rgba(245,158,11,0.12)' },
   roomListActions: { alignItems: 'center', gap: 10 },
   inlineDeleteBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239,68,68,0.12)' },
   joinBtn: { backgroundColor: theme.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 },
   joinBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  roomHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
+  roomHeader: { alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
   roomHeaderTitle: { fontSize: 16, fontWeight: '700', color: '#FFF' },
-  roomHeaderMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  roomHeaderMeta: { alignItems: 'center', gap: 6, marginTop: 2 },
   roomLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.live },
   roomHeaderSub: { fontSize: 12, color: theme.textSecondary },
   deleteRoomBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(239,68,68,0.22)', alignItems: 'center', justifyContent: 'center' },
@@ -435,14 +503,14 @@ const styles = StyleSheet.create({
   reactionBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' },
   reactionEmoji: { fontSize: 20 },
   chatContainer: { flex: 1, backgroundColor: theme.backgroundSecondary },
-  chatMsg: { flexDirection: 'row', gap: 10 },
+  chatMsg: { gap: 10 },
   chatAvatarFallback: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
   chatAvatarText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  chatNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  chatNameRow: { alignItems: 'center', gap: 8 },
   chatName: { fontSize: 13, fontWeight: '700', color: '#FFF' },
   chatTime: { fontSize: 11, color: theme.textMuted },
   chatText: { fontSize: 14, color: '#D1D5DB', lineHeight: 20, marginTop: 2 },
-  chatInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background },
+  chatInputRow: { alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background },
   chatInput: { flex: 1, height: 42, backgroundColor: theme.surface, borderRadius: 21, paddingHorizontal: 16, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
   chatSendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
 });

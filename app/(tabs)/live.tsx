@@ -10,6 +10,7 @@ import { theme } from '../../constants/theme';
 import { config } from '../../constants/config';
 import { useAppContext } from '../../contexts/AppContext';
 import { formatViewers } from '../../services/api';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -17,8 +18,28 @@ export default function LiveScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { channels } = useAppContext();
+  const { language, isRTL, direction } = useLocale();
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const copy = language === 'Arabic'
+    ? {
+        title: 'البث المباشر',
+        liveCount: 'مباشر',
+        searchPlaceholder: 'ابحث عن القنوات المباشرة...',
+        featured: 'قنوات مميزة',
+        watching: 'يشاهدون الآن',
+        noChannels: 'لا توجد قنوات في هذا التصنيف',
+        live: 'مباشر',
+      }
+    : {
+        title: 'Live TV',
+        liveCount: 'Live',
+        searchPlaceholder: 'Search live channels...',
+        featured: 'Featured Channels',
+        watching: 'watching',
+        noChannels: 'No channels in this category',
+        live: 'LIVE',
+      };
   const openChannel = (channel: typeof channels[number]) => {
     Haptics.selectionAsync();
     router.push({
@@ -46,24 +67,25 @@ export default function LiveScreen() {
   const featuredChannels = channels.filter(c => c.is_featured && c.is_live);
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Live TV</Text>
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background, direction }]}>
+      <View style={[styles.header, styles.pageShell, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <Text style={styles.headerTitle}>{copy.title}</Text>
         <View style={styles.liveIndicator}>
           <View style={styles.liveRedDot} />
-          <Text style={styles.liveCount}>{channels.filter(c => c.is_live).length} Live</Text>
+          <Text style={styles.liveCount}>{channels.filter(c => c.is_live).length} {copy.liveCount}</Text>
         </View>
       </View>
 
-      <View style={styles.searchWrap}>
+      <View style={[styles.searchWrap, styles.pageShell]}>
         <View style={styles.searchBar}>
           <MaterialIcons name="search" size={20} color={theme.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search live channels..."
+            placeholder={copy.searchPlaceholder}
             placeholderTextColor={theme.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            textAlign={isRTL ? 'right' : 'left'}
           />
           {searchQuery ? <Pressable onPress={() => setSearchQuery('')}><MaterialIcons name="close" size={18} color={theme.textMuted} /></Pressable> : null}
         </View>
@@ -72,13 +94,13 @@ export default function LiveScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
         {featuredChannels.length > 0 && (
           <Animated.View entering={FadeInDown.duration(400)}>
-            <Text style={styles.sectionTitle}>Featured Channels</Text>
+            <Text style={[styles.sectionTitle, styles.pageShell]}>{copy.featured}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
               {featuredChannels.map(ch => (
                 <Pressable key={ch.id} style={styles.featuredCard} onPress={() => openChannel(ch)}>
                   <Image source={{ uri: ch.logo }} style={styles.featuredImage} contentFit="cover" transition={200} />
                   <View style={styles.featuredOverlay}>
-                    <View style={styles.featuredLiveBadge}><View style={styles.featuredLiveDot} /><Text style={styles.featuredLiveText}>LIVE</Text></View>
+                    <View style={styles.featuredLiveBadge}><View style={styles.featuredLiveDot} /><Text style={styles.featuredLiveText}>{copy.live}</Text></View>
                     <View style={styles.featuredInfo}>
                       <Text style={styles.featuredName} numberOfLines={1}>{ch.name}</Text>
                       <Text style={styles.featuredProgram} numberOfLines={1}>{ch.current_program}</Text>
@@ -128,9 +150,9 @@ export default function LiveScreen() {
         {filtered.length === 0 && (
           <View style={styles.emptyState}>
             <MaterialIcons name="live-tv" size={56} color={theme.textMuted} />
-            <Text style={styles.emptyTitle}>No channels in this category</Text>
-          </View>
-        )}
+          <Text style={styles.emptyTitle}>{copy.noChannels}</Text>
+        </View>
+      )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -138,7 +160,8 @@ export default function LiveScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+  pageShell: { width: '100%', maxWidth: 1180, alignSelf: 'center' },
+  header: { justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
   liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   liveRedDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.live },

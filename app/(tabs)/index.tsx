@@ -16,6 +16,7 @@ import { formatViewers } from '../../services/api';
 import type { ContentItem, Banner, WatchHistory } from '../../services/api';
 import * as api from '../../services/api';
 import { useAuth } from '@/template';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 460;
@@ -24,6 +25,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
+  const { language, isRTL, direction } = useLocale();
   const {
     banners, trendingMovies, featuredMovies, newContent, allSeries, allMovies,
     channels, activeRooms, isFavorite, addToFavorites, loading, refreshHome, watchHistory,
@@ -33,6 +35,43 @@ export default function HomeScreen() {
   const [homeSearch, setHomeSearch] = useState('');
   const [continueWatching, setContinueWatching] = useState<(ContentItem & { progress: number; watch_duration: number })[]>([]);
   const heroRef = useRef<ScrollView>(null);
+  const copy = language === 'Arabic'
+    ? {
+        loading: 'جارٍ تحميل علي كنترول...',
+        searchPlaceholder: 'ابحث عن الأفلام والمسلسلات والقنوات...',
+        play: 'تشغيل',
+        myList: 'قائمتي',
+        continueWatching: 'أكمل المشاهدة',
+        trending: 'الأكثر رواجًا',
+        featuredMovies: 'أفلام مميزة',
+        newReleases: 'إصدارات جديدة',
+        topSeries: 'أفضل المسلسلات',
+        liveNow: 'يبث الآن',
+        watchRooms: 'غرف المشاهدة النشطة',
+        allMovies: 'جميع الأفلام',
+        watched: 'تمت مشاهدته',
+        watching: 'يشاهدون الآن',
+        live: 'مباشر',
+        host: 'المضيف',
+      }
+    : {
+        loading: 'Loading Ali Control...',
+        searchPlaceholder: 'Search movies, series, and channels...',
+        play: 'Play',
+        myList: 'My List',
+        continueWatching: 'Continue Watching',
+        trending: 'Trending Now',
+        featuredMovies: 'Featured Movies',
+        newReleases: 'New Releases',
+        topSeries: 'Top Series',
+        liveNow: 'Live Now',
+        watchRooms: 'Active Watch Rooms',
+        allMovies: 'All Movies',
+        watched: 'watched',
+        watching: 'watching',
+        live: 'LIVE',
+        host: 'Host',
+      };
 
   useEffect(() => {
     if (banners.length === 0) return;
@@ -83,13 +122,13 @@ export default function HomeScreen() {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={{ color: theme.textSecondary, marginTop: 16, fontSize: 14 }}>Loading Ali Control...</Text>
+        <Text style={{ color: theme.textSecondary, marginTop: 16, fontSize: 14 }}>{copy.loading}</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background, direction }]}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: insets.top + 72, paddingBottom: insets.bottom + 16 }}
@@ -101,13 +140,14 @@ export default function HomeScreen() {
             <MaterialIcons name="search" size={20} color={theme.textMuted} />
             <TextInput
               style={styles.homeSearchInput}
-              placeholder="Search movies, series, and channels..."
+              placeholder={copy.searchPlaceholder}
               placeholderTextColor={theme.textMuted}
               value={homeSearch}
               onChangeText={setHomeSearch}
               onFocus={() => router.push({ pathname: '/(tabs)/search', params: homeSearch ? { q: homeSearch } : {} })}
+              textAlign={isRTL ? 'right' : 'left'}
             />
-            <MaterialIcons name="north-east" size={18} color={theme.textMuted} />
+            <MaterialIcons name={isRTL ? 'north-west' : 'north-east'} size={18} color={theme.textMuted} />
           </Pressable>
         </View>
 
@@ -133,11 +173,11 @@ export default function HomeScreen() {
                     <View style={styles.heroActions}>
                       <Pressable style={styles.playButton} onPress={() => { if (banner.content_id) navigateToContent(banner.content_id); }}>
                         <MaterialIcons name="play-arrow" size={24} color="#000" />
-                        <Text style={styles.playButtonText}>Play</Text>
+                        <Text style={styles.playButtonText}>{copy.play}</Text>
                       </Pressable>
                       <Pressable style={styles.listButton} onPress={() => { Haptics.selectionAsync(); if (banner.content_id) addToFavorites(banner.content_id, banner.content_type); }}>
                         <MaterialIcons name={banner.content_id && isFavorite(banner.content_id) ? 'check' : 'add'} size={24} color="#FFF" />
-                        <Text style={styles.listButtonText}>My List</Text>
+                        <Text style={styles.listButtonText}>{copy.myList}</Text>
                       </Pressable>
                     </View>
                   </View>
@@ -155,8 +195,8 @@ export default function HomeScreen() {
         {/* Continue Watching */}
         {continueWatching.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(50).duration(400)}>
-            <SectionHeader title="Continue Watching" icon="history" />
-            <HorizontalShelf>
+            <SectionHeader title={copy.continueWatching} icon="history" isRTL={isRTL} />
+            <HorizontalShelf isRTL={isRTL}>
               {continueWatching.map((item) => {
                 const pct = item.watch_duration > 0 ? Math.round((item.progress / item.watch_duration) * 100) : 0;
                 return (
@@ -172,7 +212,7 @@ export default function HomeScreen() {
                       </View>
                     </View>
                     <Text style={styles.continueTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.continueMeta}>{pct}% watched</Text>
+                    <Text style={styles.continueMeta}>{pct}% {copy.watched}</Text>
                   </Pressable>
                 );
               })}
@@ -183,8 +223,8 @@ export default function HomeScreen() {
         {/* Trending Now */}
         {trendingMovies.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-            <SectionHeader title="Trending Now" icon="trending-up" />
-            <HorizontalShelf>
+            <SectionHeader title={copy.trending} icon="trending-up" isRTL={isRTL} />
+            <HorizontalShelf isRTL={isRTL}>
               {trendingMovies.map((item, index) => (
                 <Pressable key={item.id} onPress={() => navigateToContent(item.id)} style={styles.trendingCard}>
                   <View style={styles.trendingNumberWrap}>
@@ -200,8 +240,8 @@ export default function HomeScreen() {
         {/* Featured Movies */}
         {featuredMovies.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-            <SectionHeader title="Featured Movies" />
-            <HorizontalShelf>
+            <SectionHeader title={copy.featuredMovies} isRTL={isRTL} />
+            <HorizontalShelf isRTL={isRTL}>
               {featuredMovies.map(movie => (
                 <ContentCard key={movie.id} item={movie} onPress={() => navigateToContent(movie.id)} />
               ))}
@@ -212,8 +252,8 @@ export default function HomeScreen() {
         {/* New Releases */}
         {newContent.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-            <SectionHeader title="New Releases" icon="fiber-new" />
-            <HorizontalShelf>
+            <SectionHeader title={copy.newReleases} icon="fiber-new" isRTL={isRTL} />
+            <HorizontalShelf isRTL={isRTL}>
               {newContent.map(item => (
                 <ContentCard key={item.id} item={item} onPress={() => navigateToContent(item.id)} showBadge />
               ))}
@@ -224,8 +264,8 @@ export default function HomeScreen() {
         {/* Top Series */}
         {allSeries.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(350).duration(400)}>
-            <SectionHeader title="Top Series" />
-            <HorizontalShelf>
+            <SectionHeader title={copy.topSeries} isRTL={isRTL} />
+            <HorizontalShelf isRTL={isRTL}>
               {allSeries.map(s => (
                 <ContentCard key={s.id} item={s} onPress={() => navigateToContent(s.id)} />
               ))}
@@ -236,17 +276,17 @@ export default function HomeScreen() {
         {/* Live Now */}
         {featuredChannels.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(400).duration(400)}>
-            <SectionHeader title="Live Now" icon="sensors" iconColor={theme.live} />
-            <HorizontalShelf>
+            <SectionHeader title={copy.liveNow} icon="sensors" iconColor={theme.live} isRTL={isRTL} />
+            <HorizontalShelf isRTL={isRTL}>
               {featuredChannels.map(ch => (
                 <Pressable key={ch.id} style={styles.liveCard}>
                   <View style={styles.liveImageWrap}>
                     <Image source={{ uri: ch.logo }} style={styles.liveLogo} contentFit="cover" transition={200} />
-                    <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>LIVE</Text></View>
+                    <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>{copy.live}</Text></View>
                   </View>
                   <Text style={styles.liveChannelName} numberOfLines={1}>{ch.name}</Text>
                   <Text style={styles.liveProgram} numberOfLines={1}>{ch.current_program}</Text>
-                  <Text style={styles.liveViewers}>{formatViewers(ch.live_viewers ?? ch.viewers)} watching</Text>
+                  <Text style={styles.liveViewers}>{formatViewers(ch.live_viewers ?? ch.viewers)} {copy.watching}</Text>
                 </Pressable>
               ))}
             </HorizontalShelf>
@@ -256,8 +296,8 @@ export default function HomeScreen() {
         {/* Watch Rooms */}
         {activeRooms.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(450).duration(400)}>
-            <SectionHeader title="Active Watch Rooms" icon="groups" />
-            <HorizontalShelf>
+            <SectionHeader title={copy.watchRooms} icon="groups" isRTL={isRTL} />
+            <HorizontalShelf isRTL={isRTL}>
               {activeRooms.map(room => (
                 <Pressable key={room.id} style={styles.roomCard} onPress={() => { Haptics.selectionAsync(); router.push('/watchroom'); }}>
                   <View style={styles.roomPosterWrap}>
@@ -269,7 +309,7 @@ export default function HomeScreen() {
                     </View>
                   </View>
                   <Text style={styles.roomName} numberOfLines={1}>{room.name}</Text>
-                  <Text style={styles.roomHost}>{room.host?.username || 'Host'}</Text>
+                  <Text style={styles.roomHost}>{room.host?.username || copy.host}</Text>
                 </Pressable>
               ))}
             </HorizontalShelf>
@@ -279,8 +319,8 @@ export default function HomeScreen() {
         {/* All Movies */}
         {allMovies.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(500).duration(400)}>
-            <SectionHeader title="All Movies" />
-            <HorizontalShelf>
+            <SectionHeader title={copy.allMovies} isRTL={isRTL} />
+            <HorizontalShelf isRTL={isRTL}>
               {allMovies.map(movie => (
                 <ContentCard key={movie.id} item={movie} onPress={() => navigateToContent(movie.id)} />
               ))}
@@ -290,8 +330,8 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Floating Header */}
-      <View style={[styles.floatingHeader, { paddingTop: insets.top + 8 }]}>
-            <Text style={styles.appTitle}>Ali Control</Text>
+      <View style={[styles.floatingHeader, { paddingTop: insets.top + 8, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <Text style={styles.appTitle}>Ali Control</Text>
         <View style={styles.headerIcons}>
           <Pressable style={styles.headerIcon} onPress={() => router.push('/watchroom')}>
             <MaterialIcons name="groups" size={24} color="#FFF" />
@@ -305,7 +345,7 @@ export default function HomeScreen() {
   );
 }
 
-function HorizontalShelf({ children }: { children: ReactNode }) {
+function HorizontalShelf({ children, isRTL }: { children: ReactNode; isRTL: boolean }) {
   const railRef = useRef<ScrollView>(null);
   const currentOffset = useRef(0);
 
@@ -318,8 +358,8 @@ function HorizontalShelf({ children }: { children: ReactNode }) {
 
   return (
     <View style={styles.railWrap}>
-      <Pressable style={[styles.railArrow, styles.railArrowLeft]} onPress={() => scrollBy(-1)}>
-        <MaterialIcons name="chevron-left" size={22} color="#FFF" />
+      <Pressable style={[styles.railArrow, styles.railArrowLeft]} onPress={() => scrollBy(isRTL ? 1 : -1)}>
+        <MaterialIcons name={isRTL ? 'chevron-right' : 'chevron-left'} size={22} color="#FFF" />
       </Pressable>
       <ScrollView
         ref={railRef}
@@ -335,19 +375,19 @@ function HorizontalShelf({ children }: { children: ReactNode }) {
       >
         {children}
       </ScrollView>
-      <Pressable style={[styles.railArrow, styles.railArrowRight]} onPress={() => scrollBy(1)}>
-        <MaterialIcons name="chevron-right" size={22} color="#FFF" />
+      <Pressable style={[styles.railArrow, styles.railArrowRight]} onPress={() => scrollBy(isRTL ? -1 : 1)}>
+        <MaterialIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color="#FFF" />
       </Pressable>
     </View>
   );
 }
 
-function SectionHeader({ title, icon, iconColor }: { title: string; icon?: string; iconColor?: string }) {
+function SectionHeader({ title, icon, iconColor, isRTL }: { title: string; icon?: string; iconColor?: string; isRTL: boolean }) {
   return (
-    <View style={styles.sectionHeader}>
-      {icon ? <MaterialIcons name={icon as any} size={20} color={iconColor || theme.primary} style={{ marginRight: 6 }} /> : null}
+    <View style={[styles.sectionHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      {icon ? <MaterialIcons name={icon as any} size={20} color={iconColor || theme.primary} style={isRTL ? { marginLeft: 6 } : { marginRight: 6 }} /> : null}
       <Text style={styles.sectionTitle}>{title}</Text>
-      <MaterialIcons name="chevron-right" size={22} color={theme.textMuted} />
+      <MaterialIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color={theme.textMuted} />
     </View>
   );
 }
