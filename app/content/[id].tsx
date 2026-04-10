@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Share, ActivityIndicator } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Share, ActivityIndicator, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +27,12 @@ export default function ContentDetailScreen() {
   const [selectedSeason, setSelectedSeason] = useState(0);
   const [loading, setLoading] = useState(true);
   const [relatedContent, setRelatedContent] = useState<ContentItem[]>([]);
+  const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
+  const [playbackSources, setPlaybackSources] = useState<StreamSource[]>([]);
+  const [sourcesLoading, setSourcesLoading] = useState(false);
+  const [selectedAddon, setSelectedAddon] = useState<string | null>(null);
+  const [selectedServer, setSelectedServer] = useState<string | null>(null);
+  const [selectedQuality, setSelectedQuality] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -83,38 +89,142 @@ export default function ContentDetailScreen() {
     ...(viewerParams || {}),
   });
 
+  const addonOptions = useMemo(() => Array.from(new Set(playbackSources.map((source) => source.addon || 'Direct'))), [playbackSources]);
+  const serverOptions = useMemo(
+    () => Array.from(new Set(playbackSources.filter((source) => (source.addon || 'Direct') === selectedAddon).map((source) => source.server || source.label))),
+    [playbackSources, selectedAddon]
+  );
+  const qualityOptions = useMemo(
+    () => Array.from(new Set(playbackSources.filter((source) => (source.addon || 'Direct') === selectedAddon && (source.server || source.label) === selectedServer).map((source) => source.quality || 'Auto'))),
+    [playbackSources, selectedAddon, selectedServer]
+  );
+
+  const openSourcePicker = (sources: StreamSource[]) => {
+    if (sources.length === 0) {
+      showAlert('No sources available', 'No playable sources were found for this title yet.');
+      return;
+    }
+
+    if (sources.length === 1) {
+      const only = sources[0];
+      router.push({
+        pathname: '/player',
+        params: getPlayerParams(sources, only.url, content.title, isMovie ? movieData.subtitle_url : undefined, isMovie
+          ? { viewerContentId: content.id, viewerContentType: 'movie' }
+          : { viewerContentId: content.id, viewerContentType: 'series' }),
+      });
+      return;
+    }
+
+    const defaultAddon = sources[0].addon || 'Direct';
+    const defaultServer = sources.find((source) => (source.addon || 'Direct') === defaultAddon)?.server || sources[0].label;
+    const defaultQuality = sources.find((source) => (source.addon || 'Direct') === defaultAddon && (source.server || source.label) === defaultServer)?.quality || 'Auto';
+    setPlaybackSources(sources);
+    setSelectedAddon(defaultAddon);
+    setSelectedServer(defaultServer);
+    setSelectedQuality(defaultQuality);
+    setSourcePickerOpen(true);
+  };
+
+  const playSelectedSource = () => {
+    const filteredSources = playbackSources.filter((source) =>
+      (source.addon || 'Direct') === selectedAddon &&
+      (source.server || source.label) === selectedServer &&
+      (source.quality || 'Auto') === selectedQuality
+    );
+    const activeSource = filteredSources[0];
+    if (!activeSource) {
+      showAlert('Selection unavailable', 'Please choose another source combination.');
+      return;
+    }
+
+    setSourcePickerOpen(false);
+    router.push({
+      pathname: '/player',
+      params: getPlayerParams(
+        playbackSources,
+        activeSource.url,
+        content.title,
+        isMovie ? movieData.subtitle_url : undefined,
+        isMovie
+          ? { viewerContentId: content.id, viewerContentType: 'movie' }
+          : { viewerContentId: content.id, viewerContentType: 'series' }
+      ),
+    });
+  };
+
+  const loadPlayableSources = async (target: { contentType: 'movie' | 'series' | 'episode'; contentId: string; fallbackSources: StreamSource[]; fallbackUrl?: string; subtitleUrl?: string; title: string; viewerContentType: api.ViewerContentType; viewerContentId: string }) => {
+    setSourcesLoading(true);
+    try {
+      const addonSources = await api.fetchPlaybackSourcesForContent(target.contentType, target.contentId).catch(() => []);
+      const fallbackSources = target.fallbackSources.length > 0
+        ? target.fallbackSources
+        : target.fallbackUrl
+          ? [{ label: 'Server 1', url: target.fallbackUrl }]
+          : [];
+      const combinedSources = api.parseStreamSources(JSON.stringify([...fallbackSources, ...addonSources]));
+      if (combinedSources.length === 0) {
+        showAlert('No sources available', 'No playable sources were found for this title yet.');
+        return;
+      }
+      if (combinedSources.length === 1) {
+        router.push({
+          pathname: '/player',
+          params: getPlayerParams(combinedSources, combinedSources[0].url, target.title, target.subtitleUrl, {
+            viewerContentId: target.viewerContentId,
+            viewerContentType: target.viewerContentType,
+          }),
+        });
+        return;
+      }
+
+      setPlaybackSources(combinedSources);
+      const defaultAddon = combinedSources[0]?.addon || 'Direct';
+      const defaultServer = combinedSources[0]?.server || combinedSources[0]?.label || 'Server 1';
+      const defaultQuality = combinedSources[0]?.quality || 'Auto';
+      setSelectedAddon(defaultAddon);
+      setSelectedServer(defaultServer);
+      setSelectedQuality(defaultQuality);
+      setSourcePickerOpen(true);
+    } catch (error: any) {
+      showAlert('Playback failed', error?.message || 'Could not prepare playback sources.');
+    } finally {
+      setSourcesLoading(false);
+    }
+  };
+
   const handlePlay = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const selectedEpisode = seasons[selectedSeason]?.episodes?.[0];
     const sources = isMovie ? (movieData.stream_sources || []) : (selectedEpisode?.stream_sources || []);
     const streamUrl = isMovie ? movieData.stream_url : selectedEpisode?.stream_url;
-    if (streamUrl) {
-      router.push({
-        pathname: '/player',
-        params: getPlayerParams(
-          sources,
-          streamUrl,
-          content.title,
-          isMovie ? movieData.subtitle_url : selectedEpisode?.subtitle_url,
-          isMovie
-            ? { viewerContentId: content.id, viewerContentType: 'movie' }
-            : { viewerContentId: content.id, viewerContentType: 'series' }
-        ),
-      });
-    }
+    const targetId = isMovie ? content.id : selectedEpisode?.id;
+    if (!targetId && !streamUrl) return;
+    void loadPlayableSources({
+      contentType: isMovie ? 'movie' : 'episode',
+      contentId: targetId || content.id,
+      fallbackSources: sources,
+      fallbackUrl: streamUrl,
+      subtitleUrl: isMovie ? movieData.subtitle_url : selectedEpisode?.subtitle_url,
+      title: content.title,
+      viewerContentId: content.id,
+      viewerContentType: isMovie ? 'movie' : 'series',
+    });
   };
 
   const handlePlayEpisode = (epStreamUrl: string, epTitle: string, epSources: StreamSource[], epSubtitleUrl?: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (epStreamUrl) {
-      router.push({
-        pathname: '/player',
-        params: getPlayerParams(epSources, epStreamUrl, `${content.title} - ${epTitle}`, epSubtitleUrl, {
-          viewerContentId: content.id,
-          viewerContentType: 'series',
-        }),
-      });
-    }
+    const selectedEpisode = seasons.flatMap((season) => season.episodes || []).find((episode) => episode.title === epTitle && episode.stream_url === epStreamUrl);
+    void loadPlayableSources({
+      contentType: 'episode',
+      contentId: selectedEpisode?.id || content.id,
+      fallbackSources: epSources,
+      fallbackUrl: epStreamUrl,
+      subtitleUrl: epSubtitleUrl,
+      title: `${content.title} - ${epTitle}`,
+      viewerContentId: content.id,
+      viewerContentType: 'series',
+    });
   };
 
   const handleShare = async () => {
@@ -204,7 +314,10 @@ export default function ContentDetailScreen() {
           </View>
 
           <View style={styles.actionRow}>
-            <Pressable style={styles.playBtn} onPress={handlePlay}><MaterialIcons name="play-arrow" size={26} color="#000" /><Text style={styles.playBtnText}>Play</Text></Pressable>
+            <Pressable style={styles.playBtn} onPress={handlePlay}>
+              {sourcesLoading ? <ActivityIndicator size="small" color="#000" /> : <MaterialIcons name="play-arrow" size={26} color="#000" />}
+              <Text style={styles.playBtnText}>{sourcesLoading ? 'Loading...' : 'Play'}</Text>
+            </Pressable>
             <Pressable style={styles.trailerBtn} onPress={handlePlayTrailer}><MaterialIcons name="movie" size={20} color="#FFF" /><Text style={styles.trailerBtnText}>Trailer</Text></Pressable>
           </View>
 
@@ -291,9 +404,64 @@ export default function ContentDetailScreen() {
         <LinearGradient colors={['transparent', theme.background]} style={StyleSheet.absoluteFill} />
         <Pressable style={styles.stickyPlayBtn} onPress={handlePlay}>
           <MaterialIcons name="play-arrow" size={24} color="#000" />
-          <Text style={styles.stickyPlayText}>{isMovie ? 'Play Movie' : 'Play S1 E1'}</Text>
+          <Text style={styles.stickyPlayText}>{sourcesLoading ? 'Loading sources...' : isMovie ? 'Play Movie' : 'Play S1 E1'}</Text>
         </Pressable>
       </Animated.View>
+
+      <Modal visible={sourcePickerOpen} transparent animationType="fade" onRequestClose={() => setSourcePickerOpen(false)}>
+        <View style={styles.modalScrim}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Choose Playback Source</Text>
+            <Text style={styles.modalHint}>Select the add-on, server, and quality you want to play.</Text>
+
+            <Text style={styles.modalSection}>Add-on</Text>
+            <View style={styles.optionWrap}>
+              {addonOptions.map((addon) => (
+                <Pressable key={addon} style={[styles.optionChip, selectedAddon === addon && styles.optionChipActive]} onPress={() => {
+                  setSelectedAddon(addon);
+                  const nextServer = Array.from(new Set(playbackSources.filter((source) => (source.addon || 'Direct') === addon).map((source) => source.server || source.label)))[0] || 'Server 1';
+                  const nextQuality = Array.from(new Set(playbackSources.filter((source) => (source.addon || 'Direct') === addon && (source.server || source.label) === nextServer).map((source) => source.quality || 'Auto')))[0] || 'Auto';
+                  setSelectedServer(nextServer);
+                  setSelectedQuality(nextQuality);
+                }}>
+                  <Text style={[styles.optionChipText, selectedAddon === addon && styles.optionChipTextActive]}>{addon}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.modalSection}>Server</Text>
+            <View style={styles.optionWrap}>
+              {serverOptions.map((server) => (
+                <Pressable key={server} style={[styles.optionChip, selectedServer === server && styles.optionChipActive]} onPress={() => {
+                  setSelectedServer(server);
+                  const nextQuality = Array.from(new Set(playbackSources.filter((source) => (source.addon || 'Direct') === selectedAddon && (source.server || source.label) === server).map((source) => source.quality || 'Auto')))[0] || 'Auto';
+                  setSelectedQuality(nextQuality);
+                }}>
+                  <Text style={[styles.optionChipText, selectedServer === server && styles.optionChipTextActive]}>{server}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.modalSection}>Quality</Text>
+            <View style={styles.optionWrap}>
+              {qualityOptions.map((quality) => (
+                <Pressable key={quality} style={[styles.optionChip, selectedQuality === quality && styles.optionChipActive]} onPress={() => setSelectedQuality(quality)}>
+                  <Text style={[styles.optionChipText, selectedQuality === quality && styles.optionChipTextActive]}>{quality}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalSecondaryBtn} onPress={() => setSourcePickerOpen(false)}>
+                <Text style={styles.modalSecondaryBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalPrimaryBtn} onPress={playSelectedSource}>
+                <Text style={styles.modalPrimaryBtnText}>Play</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -351,4 +519,19 @@ const styles = StyleSheet.create({
   stickyBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 16, paddingTop: 30 },
   stickyPlayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FFF', height: 52, borderRadius: 12 },
   stickyPlayText: { fontSize: 16, fontWeight: '700', color: '#000' },
+  modalScrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.68)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  modalCard: { width: '100%', maxWidth: 540, borderRadius: 18, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, padding: 20, gap: 14 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#FFF' },
+  modalHint: { fontSize: 13, color: theme.textSecondary, lineHeight: 20 },
+  modalSection: { fontSize: 12, fontWeight: '700', color: theme.textMuted, letterSpacing: 0.7, marginTop: 4 },
+  optionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  optionChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border },
+  optionChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  optionChipText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
+  optionChipTextActive: { color: '#FFF' },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalSecondaryBtn: { flex: 1, height: 46, borderRadius: 12, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
+  modalSecondaryBtnText: { fontSize: 14, fontWeight: '700', color: theme.textSecondary },
+  modalPrimaryBtn: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center' },
+  modalPrimaryBtnText: { fontSize: 14, fontWeight: '700', color: '#000' },
 });

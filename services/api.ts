@@ -6,6 +6,73 @@ const supabase = getSupabaseClient();
 export interface StreamSource {
   label: string;
   url: string;
+  addon?: string;
+  addonId?: string;
+  server?: string;
+  quality?: string;
+  externalUrl?: string;
+}
+
+export interface AddonCatalog {
+  type: string;
+  id: string;
+  name?: string;
+  extra?: Array<{ name: string; isRequired?: boolean; options?: string[] }>;
+}
+
+export interface AddonManifest {
+  id: string;
+  name: string;
+  description?: string;
+  logo?: string;
+  version?: string;
+  catalogs?: AddonCatalog[];
+  resources?: string[];
+  types?: string[];
+  idPrefixes?: string[];
+}
+
+export interface AddonRecord {
+  id: string;
+  addon_key: string;
+  manifest_url: string;
+  name: string;
+  description: string;
+  logo: string;
+  version: string;
+  catalogs: AddonCatalog[];
+  resources: string[];
+  types: string[];
+  enabled: boolean;
+  last_tested_at?: string | null;
+  last_imported_at?: string | null;
+  manifest_json?: AddonManifest | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AddonImportSummary {
+  addonName: string;
+  importedMovies: number;
+  importedSeries: number;
+  importedEpisodes: number;
+  mergedMovies: number;
+  mergedSeries: number;
+  skipped: number;
+  errors: string[];
+}
+
+interface AddonExternalRef {
+  id: string;
+  addon_id: string;
+  content_type: 'movie' | 'series' | 'episode';
+  content_id: string;
+  external_type: string;
+  external_id: string;
+  imdb_id?: string | null;
+  title?: string | null;
+  year?: number | null;
+  meta_json?: any;
 }
 
 export interface M3UEntry {
@@ -223,7 +290,12 @@ function buildSourceLabel(index: number, label?: string | null) {
 function uniqueSources(sources: StreamSource[]) {
   const seen = new Set<string>();
   return sources.filter((source) => {
-    const key = source.url.trim();
+    const key = [
+      source.url.trim(),
+      source.addon?.trim() || '',
+      source.server?.trim() || '',
+      source.quality?.trim() || '',
+    ].join('|');
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -238,6 +310,11 @@ export function parseStreamSources(rawValue: unknown): StreamSource[] {
         .map((source, index) => ({
           label: buildSourceLabel(index, source.label),
           url: source.url.trim(),
+          addon: source.addon?.trim() || undefined,
+          addonId: source.addonId?.trim() || undefined,
+          server: source.server?.trim() || undefined,
+          quality: source.quality?.trim() || undefined,
+          externalUrl: source.externalUrl?.trim() || undefined,
         }))
     );
   }
@@ -255,6 +332,11 @@ export function parseStreamSources(rawValue: unknown): StreamSource[] {
           .map((source, index) => ({
             label: buildSourceLabel(index, source.label),
             url: source.url.trim(),
+            addon: source.addon?.trim() || undefined,
+            addonId: source.addonId?.trim() || undefined,
+            server: source.server?.trim() || undefined,
+            quality: source.quality?.trim() || undefined,
+            externalUrl: source.externalUrl?.trim() || undefined,
           }))
       );
     }
@@ -273,13 +355,18 @@ export function parseStreamSources(rawValue: unknown): StreamSource[] {
         const [labelPart, ...urlParts] = line.split('|');
         const url = (urlParts.length > 0 ? urlParts.join('|') : labelPart).trim();
         const label = urlParts.length > 0 ? labelPart.trim() : '';
-        return {
-          label: buildSourceLabel(index, label),
-          url,
-        };
-      })
-    );
-  }
+      return {
+        label: buildSourceLabel(index, label),
+        url,
+        addon: undefined,
+        addonId: undefined,
+        server: undefined,
+        quality: undefined,
+        externalUrl: undefined,
+      };
+    })
+  );
+}
 
   return [{ label: 'Server 1', url: trimmed }];
 }
@@ -290,6 +377,11 @@ export function serializeStreamSources(sources: StreamSource[] | undefined, fall
       .map((source, index) => ({
         label: buildSourceLabel(index, source.label),
         url: source.url.trim(),
+        addon: source.addon?.trim() || undefined,
+        addonId: source.addonId?.trim() || undefined,
+        server: source.server?.trim() || undefined,
+        quality: source.quality?.trim() || undefined,
+        externalUrl: source.externalUrl?.trim() || undefined,
       }))
       .filter((source) => source.url)
   );
@@ -485,6 +577,199 @@ async function validatePlaylistEntries(entries: M3UEntry[]) {
   };
 }
 
+function sanitizeManifestUrl(manifestUrl: string) {
+  return manifestUrl.trim().replace(/\/+$/, '');
+}
+
+function getAddonBaseUrl(manifestUrl: string) {
+  return sanitizeManifestUrl(manifestUrl).replace(/\/manifest\.json$/i, '');
+}
+
+function buildAddonResourceUrl(manifestUrl: string, resourcePath: string) {
+  const baseUrl = getAddonBaseUrl(manifestUrl);
+  return `${baseUrl}/${resourcePath.replace(/^\/+/, '')}`;
+}
+
+function normalizeAddonRecord(row: any): AddonRecord {
+  return {
+    ...row,
+    catalogs: Array.isArray(row?.catalogs) ? row.catalogs : [],
+    resources: Array.isArray(row?.resources) ? row.resources : [],
+    types: Array.isArray(row?.types) ? row.types : [],
+    manifest_json: row?.manifest_json || null,
+  } as AddonRecord;
+}
+
+function getManifestDescription(manifest: AddonManifest) {
+  return manifest.description?.trim() || '';
+}
+
+function getManifestLogo(manifest: AddonManifest) {
+  return manifest.logo?.trim() || '';
+}
+
+function toNumericYear(rawValue: unknown) {
+  if (typeof rawValue === 'number' && Number.isFinite(rawValue)) return rawValue;
+  if (typeof rawValue === 'string') {
+    const match = rawValue.match(/(19|20)\d{2}/);
+    if (match) return parseInt(match[0], 10);
+  }
+  return new Date().getFullYear();
+}
+
+function inferLocalContentType(input: { catalogId?: string; catalogType?: string; name?: string }) {
+  const haystack = `${input.catalogId || ''} ${input.catalogType || ''} ${input.name || ''}`.toLowerCase();
+  if (/(series|season|episode|show|tv|مسلسلات|مسلسل|حلقات)/i.test(haystack)) return 'series' as const;
+  return 'movie' as const;
+}
+
+function extractImdbId(meta: any) {
+  const candidates = [meta?.imdb_id, meta?.imdbId, meta?.imdb, meta?.id];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && /^tt\d+$/i.test(candidate.trim())) {
+      return candidate.trim();
+    }
+  }
+  return null;
+}
+
+function buildImportLookupKey(input: { imdbId?: string | null; title?: string | null; year?: number | null }) {
+  if (input.imdbId) return `imdb:${input.imdbId.toLowerCase()}`;
+  const title = (input.title || '').trim().toLowerCase();
+  const year = input.year || 0;
+  return title ? `title:${title}:${year}` : null;
+}
+
+function extractQualityFromText(rawValue: string) {
+  const match = rawValue.match(/\b(4k|2160p|1440p|1080p|720p|480p|360p)\b/i);
+  return match ? match[1].toUpperCase() : 'Auto';
+}
+
+function buildServerName(stream: any, fallbackIndex: number) {
+  const candidates = [stream?.name, stream?.description, stream?.title];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      const firstLine = candidate.trim().split('\n')[0].trim();
+      if (firstLine) return firstLine;
+    }
+  }
+  return `Server ${fallbackIndex + 1}`;
+}
+
+function normalizeAddonStreamUrl(stream: any) {
+  if (typeof stream?.url === 'string' && isHttpUrl(stream.url)) return stream.url.trim();
+  if (typeof stream?.externalUrl === 'string' && isHttpUrl(stream.externalUrl)) return stream.externalUrl.trim();
+  if (typeof stream?.ytId === 'string' && stream.ytId.trim()) return `https://www.youtube.com/watch?v=${stream.ytId.trim()}`;
+  return '';
+}
+
+function normalizeStreamSourceFromAddon(addon: AddonRecord, stream: any, fallbackIndex: number): StreamSource | null {
+  const url = normalizeAddonStreamUrl(stream);
+  if (!url) return null;
+  const server = buildServerName(stream, fallbackIndex);
+  const quality = extractQualityFromText(`${stream?.title || ''} ${stream?.description || ''} ${stream?.name || ''}`);
+  return {
+    label: `${addon.name} · ${server}${quality ? ` · ${quality}` : ''}`,
+    url,
+    addon: addon.name,
+    addonId: addon.id,
+    server,
+    quality,
+    externalUrl: typeof stream?.externalUrl === 'string' ? stream.externalUrl.trim() : undefined,
+  };
+}
+
+async function fetchAddonJson<T>(url: string): Promise<T> {
+  const response = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow' }, 20000);
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status})`);
+  }
+  return response.json() as Promise<T>;
+}
+
+export async function readAddonManifest(manifestUrl: string) {
+  const sanitizedUrl = sanitizeManifestUrl(manifestUrl);
+  if (!/manifest\.json$/i.test(sanitizedUrl)) {
+    throw new Error('Manifest URL must end with manifest.json');
+  }
+
+  const manifest = await fetchAddonJson<AddonManifest>(sanitizedUrl);
+  if (!manifest?.id || !manifest?.name) {
+    throw new Error('This manifest is missing required fields.');
+  }
+
+  return {
+    manifestUrl: sanitizedUrl,
+    manifest: {
+      ...manifest,
+      catalogs: Array.isArray(manifest.catalogs) ? manifest.catalogs : [],
+      resources: Array.isArray(manifest.resources) ? manifest.resources : [],
+      types: Array.isArray(manifest.types) ? manifest.types : [],
+    } as AddonManifest,
+  };
+}
+
+export async function testAddonManifest(manifestUrl: string) {
+  const { manifestUrl: normalizedUrl, manifest } = await readAddonManifest(manifestUrl);
+  const firstCatalog = manifest.catalogs?.[0];
+  let sampleResult = 'Manifest loaded successfully.';
+
+  if (firstCatalog) {
+    try {
+      const sampleUrl = buildAddonResourceUrl(normalizedUrl, `catalog/${encodeURIComponent(firstCatalog.type)}/${encodeURIComponent(firstCatalog.id)}/skip=0.json`);
+      const payload = await fetchAddonJson<{ metas?: any[] }>(sampleUrl);
+      sampleResult = `Catalog test passed${Array.isArray(payload?.metas) ? ` with ${payload.metas.length} items` : ''}.`;
+    } catch (error: any) {
+      sampleResult = `Manifest loaded, but the first catalog request failed: ${error?.message || 'Unknown error'}`;
+    }
+  }
+
+  return {
+    manifest,
+    sampleResult,
+  };
+}
+
+export async function fetchAllAddons() {
+  const { data, error } = await supabase.from('addons').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((row: any) => normalizeAddonRecord(row));
+}
+
+export async function saveAddonManifest(manifestUrl: string) {
+  const { manifestUrl: normalizedUrl, manifest } = await readAddonManifest(manifestUrl);
+  const payload = {
+    addon_key: manifest.id,
+    manifest_url: normalizedUrl,
+    name: manifest.name,
+    description: getManifestDescription(manifest),
+    logo: getManifestLogo(manifest),
+    version: manifest.version || '',
+    catalogs: manifest.catalogs || [],
+    resources: manifest.resources || [],
+    types: manifest.types || [],
+    manifest_json: manifest,
+    enabled: true,
+  };
+
+  const { data, error } = await supabase.from('addons').upsert(payload, { onConflict: 'manifest_url' }).select().single();
+  if (error) throw error;
+  return normalizeAddonRecord(data);
+}
+
+export async function updateAddon(addonId: string, updates: Partial<AddonRecord>) {
+  const payload: Record<string, any> = { ...updates, updated_at: new Date().toISOString() };
+  delete payload.id;
+  const { data, error } = await supabase.from('addons').update(payload).eq('id', addonId).select().single();
+  if (error) throw error;
+  return normalizeAddonRecord(data);
+}
+
+export async function deleteAddon(addonId: string) {
+  const { error } = await supabase.from('addons').delete().eq('id', addonId);
+  if (error) throw error;
+}
+
 function inferM3UContentKind(entry: M3UEntry): 'channel' | 'movie' | 'series' {
   const haystack = `${entry.title} ${entry.groupTitle}`.toLowerCase();
   if (/(s\d{1,2}e\d{1,2}|season\s*\d+|episode\s*\d+)/i.test(entry.title)) return 'series';
@@ -662,6 +947,336 @@ export async function importSeriesFromM3UUrl(playlistUrl: string) {
   }
 
   return { imported: importedEpisodes, total: entries.length, validated, skipped, failedSamples, importedSeries, importedEpisodes };
+}
+
+async function findExistingContentRef(key: string | null, contentType: 'movie' | 'series' | 'episode') {
+  if (!key) return null;
+  const [mode, ...parts] = key.split(':');
+  if (mode === 'imdb') {
+    const imdbId = parts.join(':');
+    const { data } = await supabase
+      .from('content_external_refs')
+      .select('*')
+      .eq('content_type', contentType)
+      .eq('imdb_id', imdbId)
+      .limit(1)
+      .maybeSingle();
+    return (data || null) as AddonExternalRef | null;
+  }
+
+  if (mode === 'title') {
+    const title = parts.slice(0, -1).join(':').toLowerCase();
+    const year = Number(parts[parts.length - 1]) || 0;
+    const table = contentType === 'movie' ? 'movies' : contentType === 'series' ? 'series' : 'episodes';
+    const query = supabase.from(table).select('*').ilike('title', title).limit(5);
+    const { data } = await query;
+    const match = (data || []).find((row: any) => {
+      if (contentType === 'episode') return row.title?.trim().toLowerCase() === title;
+      return row.title?.trim().toLowerCase() === title && (!year || row.year === year);
+    });
+    return match ? ({ content_id: match.id } as AddonExternalRef) : null;
+  }
+
+  return null;
+}
+
+async function upsertExternalRef(input: Omit<AddonExternalRef, 'id'>) {
+  const payload = {
+    addon_id: input.addon_id,
+    content_type: input.content_type,
+    content_id: input.content_id,
+    external_type: input.external_type,
+    external_id: input.external_id,
+    imdb_id: input.imdb_id || null,
+    title: input.title || null,
+    year: input.year || null,
+    meta_json: input.meta_json || null,
+  };
+  const { error } = await supabase.from('content_external_refs').upsert(payload, {
+    onConflict: 'addon_id,content_type,external_id',
+  });
+  if (error) throw error;
+}
+
+async function fetchAddonCatalogItems(addon: AddonRecord, catalog: AddonCatalog) {
+  const catalogUrl = buildAddonResourceUrl(
+    addon.manifest_url,
+    `catalog/${encodeURIComponent(catalog.type)}/${encodeURIComponent(catalog.id)}/skip=0.json`
+  );
+  const payload = await fetchAddonJson<{ metas?: any[] }>(catalogUrl);
+  return Array.isArray(payload?.metas) ? payload.metas : [];
+}
+
+async function fetchAddonMeta(addon: AddonRecord, externalType: string, externalId: string) {
+  const metaUrl = buildAddonResourceUrl(
+    addon.manifest_url,
+    `meta/${encodeURIComponent(externalType)}/${encodeURIComponent(externalId)}.json`
+  );
+  const payload = await fetchAddonJson<{ meta?: any }>(metaUrl);
+  return payload?.meta || null;
+}
+
+async function fetchAddonStreams(addon: AddonRecord, externalType: string, externalId: string) {
+  const streamUrl = buildAddonResourceUrl(
+    addon.manifest_url,
+    `stream/${encodeURIComponent(externalType)}/${encodeURIComponent(externalId)}.json`
+  );
+  const payload = await fetchAddonJson<{ streams?: any[] }>(streamUrl);
+  return Array.isArray(payload?.streams) ? payload.streams : [];
+}
+
+async function resolveOrCreateMovieForAddon(meta: any) {
+  const title = meta?.name?.trim() || 'Untitled';
+  const year = toNumericYear(meta?.releaseInfo);
+  const imdbId = extractImdbId(meta);
+  const key = buildImportLookupKey({ imdbId, title, year });
+  const matchedRef = await findExistingContentRef(key, 'movie');
+  if (matchedRef?.content_id) {
+    return { id: matchedRef.content_id, merged: true, title, year, imdbId };
+  }
+
+  const { data: existingMovies } = await supabase
+    .from('movies')
+    .select('*')
+    .ilike('title', title)
+    .eq('year', year)
+    .limit(1);
+  if (existingMovies?.[0]) {
+    return { id: existingMovies[0].id, merged: true, title, year, imdbId };
+  }
+
+  const createdMovie = await upsertMovie({
+    title,
+    description: meta?.description || '',
+    poster: meta?.poster || meta?.background || '',
+    backdrop: meta?.background || meta?.poster || '',
+    trailer_url: '',
+    stream_url: '',
+    stream_sources: [],
+    genre: Array.isArray(meta?.genres) ? meta.genres : [],
+    rating: Number.parseFloat(meta?.imdbRating || '0') || 0,
+    year,
+    duration: meta?.runtime || '',
+    cast_members: [],
+    quality: ['Auto'],
+    subtitle_url: '',
+    is_featured: false,
+    is_trending: false,
+    is_new: true,
+    is_exclusive: false,
+    is_published: true,
+  });
+
+  return { id: createdMovie.id, merged: false, title, year, imdbId };
+}
+
+async function resolveOrCreateSeriesForAddon(meta: any) {
+  const title = meta?.name?.trim() || 'Untitled Series';
+  const year = toNumericYear(meta?.releaseInfo);
+  const imdbId = extractImdbId(meta);
+  const key = buildImportLookupKey({ imdbId, title, year });
+  const matchedRef = await findExistingContentRef(key, 'series');
+  if (matchedRef?.content_id) {
+    return { id: matchedRef.content_id, merged: true, title, year, imdbId };
+  }
+
+  const { data: existingSeries } = await supabase
+    .from('series')
+    .select('*')
+    .ilike('title', title)
+    .eq('year', year)
+    .limit(1);
+  if (existingSeries?.[0]) {
+    return { id: existingSeries[0].id, merged: true, title, year, imdbId };
+  }
+
+  const createdSeries = await upsertSeries({
+    title,
+    description: meta?.description || '',
+    poster: meta?.poster || meta?.background || '',
+    backdrop: meta?.background || meta?.poster || '',
+    trailer_url: '',
+    genre: Array.isArray(meta?.genres) ? meta.genres : [],
+    rating: Number.parseFloat(meta?.imdbRating || '0') || 0,
+    year,
+    cast_members: [],
+    total_seasons: 0,
+    total_episodes: 0,
+    is_featured: false,
+    is_trending: false,
+    is_new: true,
+    is_exclusive: false,
+    is_published: true,
+  });
+
+  return { id: createdSeries.id, merged: false, title, year, imdbId };
+}
+
+function parseEpisodeMetadata(video: any, index: number) {
+  const season = Number(video?.season) || Number(video?.seasonNumber) || 1;
+  const episode = Number(video?.episode) || Number(video?.episodeNumber) || index + 1;
+  return {
+    seasonNumber: season,
+    episodeNumber: episode,
+    title: video?.title?.trim() || `Episode ${episode}`,
+    thumbnail: video?.thumbnail || video?.poster || '',
+    description: video?.overview || video?.description || '',
+  };
+}
+
+async function ensureSeriesEpisode(addon: AddonRecord, seriesId: string, externalType: string, video: any, index: number) {
+  const parsed = parseEpisodeMetadata(video, index);
+  const season = await upsertSeason({
+    series_id: seriesId,
+    number: parsed.seasonNumber,
+    title: `Season ${parsed.seasonNumber}`,
+  });
+
+  const episode = await upsertEpisode({
+    season_id: season.id,
+    series_id: seriesId,
+    number: parsed.episodeNumber,
+    title: parsed.title,
+    description: parsed.description,
+    thumbnail: parsed.thumbnail,
+    stream_url: '',
+    stream_sources: [],
+    subtitle_url: '',
+    duration: '',
+  });
+
+  await upsertExternalRef({
+    addon_id: addon.id,
+    content_type: 'episode',
+    content_id: episode.id,
+    external_type: externalType,
+    external_id: video?.id || `${seriesId}:${parsed.seasonNumber}:${parsed.episodeNumber}`,
+    imdb_id: null,
+    title: parsed.title,
+    year: null,
+    meta_json: video,
+  });
+}
+
+export async function importAddonContent(addonId: string) {
+  const { data, error } = await supabase.from('addons').select('*').eq('id', addonId).single();
+  if (error) throw error;
+  const addon = normalizeAddonRecord(data);
+
+  const summary: AddonImportSummary = {
+    addonName: addon.name,
+    importedMovies: 0,
+    importedSeries: 0,
+    importedEpisodes: 0,
+    mergedMovies: 0,
+    mergedSeries: 0,
+    skipped: 0,
+    errors: [],
+  };
+
+  for (const catalog of addon.catalogs || []) {
+    if (!catalog?.id || !catalog?.type) continue;
+    const localType = inferLocalContentType({ catalogId: catalog.id, catalogType: catalog.type, name: catalog.name });
+
+    try {
+      const metas = await fetchAddonCatalogItems(addon, catalog);
+      for (const meta of metas) {
+        try {
+          if (localType === 'movie') {
+            const movie = await resolveOrCreateMovieForAddon(meta);
+            if (movie.merged) summary.mergedMovies += 1;
+            else summary.importedMovies += 1;
+
+            await upsertExternalRef({
+              addon_id: addon.id,
+              content_type: 'movie',
+              content_id: movie.id,
+              external_type: catalog.type,
+              external_id: meta.id,
+              imdb_id: movie.imdbId,
+              title: movie.title,
+              year: movie.year,
+              meta_json: meta,
+            });
+            continue;
+          }
+
+          const series = await resolveOrCreateSeriesForAddon(meta);
+          if (series.merged) summary.mergedSeries += 1;
+          else summary.importedSeries += 1;
+
+          await upsertExternalRef({
+            addon_id: addon.id,
+            content_type: 'series',
+            content_id: series.id,
+            external_type: catalog.type,
+            external_id: meta.id,
+            imdb_id: series.imdbId,
+            title: series.title,
+            year: series.year,
+            meta_json: meta,
+          });
+
+          try {
+            const fullMeta = await fetchAddonMeta(addon, catalog.type, meta.id);
+            if (Array.isArray(fullMeta?.videos)) {
+              for (const [videoIndex, video] of fullMeta.videos.entries()) {
+                await ensureSeriesEpisode(addon, series.id, catalog.type, video, videoIndex);
+                summary.importedEpisodes += 1;
+              }
+              await updateSeriesCounts(series.id);
+            }
+          } catch {
+            // Some add-ons do not expose meta videos; keep the series imported without episodes.
+          }
+        } catch (itemError: any) {
+          summary.skipped += 1;
+          if (summary.errors.length < 10) {
+            summary.errors.push(`${meta?.name || meta?.id || 'Unknown item'}: ${itemError?.message || 'Import failed'}`);
+          }
+        }
+      }
+    } catch (catalogError: any) {
+      summary.errors.push(`${catalog.name || catalog.id}: ${catalogError?.message || 'Catalog request failed'}`);
+    }
+  }
+
+  await updateAddon(addon.id, { last_imported_at: new Date().toISOString() } as any);
+  return summary;
+}
+
+export async function fetchPlaybackSourcesForContent(contentType: 'movie' | 'series' | 'episode', contentId: string) {
+  const { data, error } = await supabase
+    .from('content_external_refs')
+    .select('*, addons!inner(id, name, manifest_url, enabled)')
+    .eq('content_type', contentType)
+    .eq('content_id', contentId)
+    .eq('addons.enabled', true);
+  if (error) throw error;
+
+  const results = await Promise.all(
+    (data || []).map(async (row: any) => {
+      const addon = normalizeAddonRecord({
+        ...row.addons,
+        addon_key: row.addons?.id,
+        description: '',
+        logo: '',
+        version: '',
+        catalogs: [],
+        resources: [],
+        types: [],
+        manifest_json: null,
+        created_at: '',
+        updated_at: '',
+      });
+      const streams = await fetchAddonStreams(addon, row.external_type, row.external_id);
+      return streams
+        .map((stream, index) => normalizeStreamSourceFromAddon(addon, stream, index))
+        .filter(Boolean) as StreamSource[];
+    })
+  );
+
+  return uniqueSources(results.flat());
 }
 
 export function getPrimaryStreamUrl(value: { stream_url?: string; stream_sources?: StreamSource[] }) {
@@ -1012,11 +1627,13 @@ export async function upsertMovie(movie: Partial<Movie>) {
     stream_url: serializeStreamSources(stream_sources, rest.stream_url),
   };
   if (id) {
-    const { error } = await supabase.from('movies').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', id);
+    const { data, error } = await supabase.from('movies').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', id).select().single();
     if (error) throw error;
+    return normalizeMovie(data);
   } else {
-    const { error } = await supabase.from('movies').insert(payload);
+    const { data, error } = await supabase.from('movies').insert(payload).select().single();
     if (error) throw error;
+    return normalizeMovie(data);
   }
 }
 

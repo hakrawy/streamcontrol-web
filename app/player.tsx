@@ -14,7 +14,7 @@ import { useAuth } from '@/template';
 import * as api from '../services/api';
 
 type MediaKind = 'direct' | 'youtube' | 'web';
-type PlayerSource = { label: string; url: string };
+type PlayerSource = { label: string; url: string; addon?: string; server?: string; quality?: string };
 
 function getYouTubeVideoId(rawUrl: string): string | null {
   try {
@@ -138,6 +138,9 @@ function parseSourcesParam(rawSources?: string | string[], rawUrl?: string | str
           .map((item, index) => ({
             label: typeof item.label === 'string' && item.label.trim() ? item.label.trim() : `Server ${index + 1}`,
             url: item.url.trim(),
+            addon: typeof item.addon === 'string' ? item.addon.trim() : undefined,
+            server: typeof item.server === 'string' ? item.server.trim() : undefined,
+            quality: typeof item.quality === 'string' ? item.quality.trim() : undefined,
           }))
           .filter((item) => item.url);
 
@@ -182,9 +185,12 @@ function SourceSelector({
             style={[styles.sourceChip, activeIndex === index && styles.sourceChipActive]}
             onPress={() => onSelect(index)}
           >
-            <Text style={[styles.sourceChipText, activeIndex === index && styles.sourceChipTextActive]}>
-              {source.label}
-            </Text>
+            <Text style={[styles.sourceChipText, activeIndex === index && styles.sourceChipTextActive]}>{source.server || source.label}</Text>
+            {source.addon || source.quality ? (
+              <Text style={[styles.sourceChipMeta, activeIndex === index && styles.sourceChipMetaActive]}>
+                {[source.addon, source.quality].filter(Boolean).join(' • ')}
+              </Text>
+            ) : null}
           </Pressable>
         ))}
       </ScrollView>
@@ -843,6 +849,8 @@ const styles = StyleSheet.create({
   sourceChipActive: { backgroundColor: 'rgba(255,255,255,0.95)', borderColor: 'rgba(255,255,255,0.95)' },
   sourceChipText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
   sourceChipTextActive: { color: '#000' },
+  sourceChipMeta: { fontSize: 10, color: 'rgba(255,255,255,0.68)', marginTop: 2 },
+  sourceChipMetaActive: { color: 'rgba(0,0,0,0.6)' },
   speedMenu: { position: 'absolute', top: 80, right: 16, backgroundColor: 'rgba(26,26,38,0.95)', borderRadius: 12, padding: 8, zIndex: 100 },
   speedOption: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   speedOptionActive: { backgroundColor: theme.primary },

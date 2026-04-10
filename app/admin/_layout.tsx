@@ -38,6 +38,7 @@ export default function AdminLayout() {
       <Stack.Screen name="movies" options={{ title: 'Manage Movies' }} />
       <Stack.Screen name="series" options={{ title: 'Manage Series' }} />
       <Stack.Screen name="channels" options={{ title: 'Manage Channels' }} />
+      <Stack.Screen name="addons" options={{ title: 'Manage Add-ons' }} />
       <Stack.Screen name="users" options={{ title: 'Manage Users' }} />
       <Stack.Screen name="banners" options={{ title: 'Manage Banners' }} />
       <Stack.Screen name="settings" options={{ title: 'App Settings' }} />
