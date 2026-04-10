@@ -195,10 +195,10 @@ export default function LoginScreen() {
                     style={styles.input}
                     placeholder="Verification code"
                     placeholderTextColor={theme.textMuted}
-                    value={otp}
-                    onChangeText={setOtp}
-                    keyboardType="number-pad"
-                    maxLength={4}
+                  value={otp}
+                  onChangeText={setOtp}
+                  keyboardType="number-pad"
+                  maxLength={8}
                   />
                 </View>
               )}
