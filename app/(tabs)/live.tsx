@@ -87,7 +87,11 @@ export default function LiveScreen() {
           {filtered.map((ch, index) => (
             <Animated.View key={ch.id} entering={FadeInDown.delay(index * 50).duration(300)}>
               <Pressable style={styles.channelCard} onPress={() => openChannel(ch)}>
-                <View style={styles.channelLogoWrap}><Image source={{ uri: ch.logo }} style={styles.channelLogo} contentFit="cover" transition={200} /></View>
+                <View style={styles.channelLogoPanel}>
+                  <View style={styles.channelLogoWrap}>
+                    <Image source={{ uri: ch.logo }} style={styles.channelLogo} contentFit="contain" transition={200} />
+                  </View>
+                </View>
                 <View style={styles.channelInfo}>
                   <Text style={styles.channelName} numberOfLines={1}>{ch.name}</Text>
                   <Text style={styles.channelProgram} numberOfLines={1}>{ch.current_program}</Text>
@@ -137,15 +141,16 @@ const styles = StyleSheet.create({
   categoryChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   categoryText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
   categoryTextActive: { color: '#FFF' },
-  channelGrid: { paddingHorizontal: 16, gap: 10 },
-  channelCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: 14, padding: 14, gap: 14, borderWidth: 1, borderColor: theme.border },
-  channelLogoWrap: { width: 60, height: 60, borderRadius: 12, overflow: 'hidden', backgroundColor: theme.surfaceLight },
+  channelGrid: { paddingHorizontal: 16, gap: 12 },
+  channelCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: 18, padding: 16, gap: 16, borderWidth: 1, borderColor: theme.border, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
+  channelLogoPanel: { width: 110, height: 78, borderRadius: 18, padding: 10, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },
+  channelLogoWrap: { width: '100%', height: '100%', borderRadius: 14, overflow: 'hidden', backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', padding: 10 },
   channelLogo: { width: '100%', height: '100%' },
-  channelInfo: { flex: 1, gap: 2 },
-  channelName: { fontSize: 15, fontWeight: '700', color: '#FFF' },
-  channelProgram: { fontSize: 13, color: theme.textSecondary },
-  channelMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  channelCatBadge: { backgroundColor: 'rgba(99,102,241,0.15)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  channelInfo: { flex: 1, gap: 4 },
+  channelName: { fontSize: 17, fontWeight: '800', color: '#FFF', letterSpacing: -0.2 },
+  channelProgram: { fontSize: 13, color: theme.textSecondary, lineHeight: 18 },
+  channelMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' },
+  channelCatBadge: { backgroundColor: 'rgba(99,102,241,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   channelCatText: { fontSize: 10, fontWeight: '700', color: theme.primary, letterSpacing: 0.5 },
   channelViewers: { fontSize: 11, color: theme.textMuted },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
