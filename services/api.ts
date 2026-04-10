@@ -25,6 +25,15 @@ export interface ImportValidationSummary {
   failedSamples: string[];
 }
 
+function isHttpUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export type ViewerContentType = 'movie' | 'series' | 'channel';
 
 export interface Movie {

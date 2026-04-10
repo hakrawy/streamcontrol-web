@@ -4,6 +4,8 @@ import { AppLanguage, translate } from '../constants/i18n';
 
 interface LocaleContextValue {
   language: AppLanguage;
+  isRTL: boolean;
+  direction: 'rtl' | 'ltr';
   setLanguage: (language: AppLanguage) => Promise<void>;
   t: Parameters<typeof translate>[1] extends infer K ? (key: K & string) => string : never;
 }
@@ -20,6 +22,16 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const direction = language === 'Arabic' ? 'rtl' : 'ltr';
+      document.documentElement.dir = direction;
+      document.documentElement.lang = language === 'Arabic' ? 'ar' : 'en';
+      document.body.dir = direction;
+      document.body.style.direction = direction;
+    }
+  }, [language]);
+
   const setLanguage = async (nextLanguage: AppLanguage) => {
     await updatePreferences({ language: nextLanguage });
     setLanguageState(nextLanguage);
@@ -27,6 +39,8 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({
     language,
+    isRTL: language === 'Arabic',
+    direction: language === 'Arabic' ? 'rtl' : 'ltr',
     setLanguage,
     t: (key: Parameters<typeof translate>[1]) => translate(language, key),
   }), [language]);
@@ -39,4 +53,3 @@ export function useLocale() {
   if (!context) throw new Error('useLocale must be used within a LocaleProvider');
   return context;
 }
-

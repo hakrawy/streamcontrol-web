@@ -19,7 +19,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { t, language } = useLocale();
+  const { t, language, isRTL } = useLocale();
   const { showAlert } = useAlert();
   const { favorites, watchHistory, isAdmin, refreshHome } = useAppContext();
   const [refreshing, setRefreshing] = useState(false);
@@ -162,7 +162,7 @@ export default function ProfileScreen() {
                     <Text style={styles.settingsLabel}>{item.label}</Text>
                     {item.subtitle ? <Text style={styles.settingsSubtitle}>{item.subtitle}</Text> : null}
                   </View>
-                  {item.chevron ? <MaterialIcons name="chevron-right" size={22} color={theme.textMuted} /> : null}
+                  {item.chevron ? <MaterialIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color={theme.textMuted} /> : null}
                 </Pressable>
               ))}
             </View>

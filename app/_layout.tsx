@@ -1,9 +1,30 @@
+import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AlertProvider, AuthProvider } from '@/template';
 import { AppProvider } from '../contexts/AppContext';
-import { LocaleProvider } from '../contexts/LocaleContext';
+import { LocaleProvider, useLocale } from '../contexts/LocaleContext';
+
+function AppShell() {
+  const { direction } = useLocale();
+
+  return (
+    <View style={{ flex: 1, direction }}>
+      <StatusBar style="light" />
+      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: '#0A0A0F' } }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="content/[id]" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="player" options={{ animation: 'fade', orientation: 'all' }} />
+        <Stack.Screen name="watchroom" options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
+        <Stack.Screen name="settings/[slug]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="admin" />
+      </Stack>
+    </View>
+  );
+}
 
 export default function RootLayout() {
   return (
@@ -12,17 +33,7 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <LocaleProvider>
             <AppProvider>
-              <StatusBar style="light" />
-              <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: '#0A0A0F' } }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="login" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="content/[id]" options={{ animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="player" options={{ animation: 'fade', orientation: 'all' }} />
-                <Stack.Screen name="watchroom" options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
-                <Stack.Screen name="settings/[slug]" options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="admin" />
-              </Stack>
+              <AppShell />
             </AppProvider>
           </LocaleProvider>
         </SafeAreaProvider>

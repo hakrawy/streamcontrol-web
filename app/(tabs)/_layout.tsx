@@ -7,24 +7,28 @@ import { useLocale } from '../../contexts/LocaleContext';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const { t } = useLocale();
+  const { t, direction } = useLocale();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          height: Platform.select({ ios: insets.bottom + 60, android: insets.bottom + 60, default: 70 }),
+          height: Platform.select({ ios: insets.bottom + 62, android: insets.bottom + 62, default: 72 }),
           paddingTop: 8,
           paddingBottom: Platform.select({ ios: insets.bottom + 8, android: insets.bottom + 8, default: 8 }),
-          paddingHorizontal: 8,
+          paddingHorizontal: 10,
           backgroundColor: theme.background,
           borderTopWidth: 1,
           borderTopColor: theme.border,
+          direction,
         },
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textMuted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarItemStyle: {
+          minHeight: 46,
+        },
       }}
     >
       <Tabs.Screen name="index" options={{ title: t('tabs.home'), tabBarIcon: ({ color, size }) => <MaterialIcons name="home-filled" size={size} color={color} /> }} />

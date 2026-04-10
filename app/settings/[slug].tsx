@@ -39,7 +39,7 @@ export default function SettingsDetailScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
   const { user } = useAuth();
-  const { t, setLanguage, language } = useLocale();
+  const { t, setLanguage, language, isRTL } = useLocale();
   const { favorites, watchHistory } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -291,7 +291,7 @@ export default function SettingsDetailScreen() {
     <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.header}>
         <Pressable style={styles.headerButton} onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back" size={22} color="#FFF" />
+          <MaterialIcons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={22} color="#FFF" />
         </Pressable>
         <Text style={styles.headerTitle}>{pageTitle}</Text>
         <Pressable
