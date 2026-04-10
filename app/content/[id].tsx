@@ -73,11 +73,13 @@ export default function ContentDetailScreen() {
     sources: StreamSource[],
     fallbackUrl: string,
     playerTitle: string,
+    subtitleUrl?: string,
     viewerParams?: { viewerContentId: string; viewerContentType: api.ViewerContentType }
   ) => ({
     title: playerTitle,
     url: fallbackUrl,
     sources: JSON.stringify(sources),
+    subtitleUrl: subtitleUrl || '',
     ...(viewerParams || {}),
   });
 
@@ -93,6 +95,7 @@ export default function ContentDetailScreen() {
           sources,
           streamUrl,
           content.title,
+          isMovie ? movieData.subtitle_url : selectedEpisode?.subtitle_url,
           isMovie
             ? { viewerContentId: content.id, viewerContentType: 'movie' }
             : { viewerContentId: content.id, viewerContentType: 'series' }
@@ -101,12 +104,12 @@ export default function ContentDetailScreen() {
     }
   };
 
-  const handlePlayEpisode = (epStreamUrl: string, epTitle: string, epSources: StreamSource[]) => {
+  const handlePlayEpisode = (epStreamUrl: string, epTitle: string, epSources: StreamSource[], epSubtitleUrl?: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     if (epStreamUrl) {
       router.push({
         pathname: '/player',
-        params: getPlayerParams(epSources, epStreamUrl, `${content.title} - ${epTitle}`, {
+        params: getPlayerParams(epSources, epStreamUrl, `${content.title} - ${epTitle}`, epSubtitleUrl, {
           viewerContentId: content.id,
           viewerContentType: 'series',
         }),
@@ -244,7 +247,7 @@ export default function ContentDetailScreen() {
               </ScrollView>
               {seasons[selectedSeason]?.episodes?.map((ep, index) => (
                 <Animated.View key={ep.id} entering={FadeInDown.delay(index * 40).duration(300)}>
-                  <Pressable style={styles.episodeCard} onPress={() => handlePlayEpisode(ep.stream_url, ep.title, ep.stream_sources || [])}>
+                  <Pressable style={styles.episodeCard} onPress={() => handlePlayEpisode(ep.stream_url, ep.title, ep.stream_sources || [], ep.subtitle_url)}>
                     <View style={styles.episodeThumbnailWrap}>
                       <Image source={{ uri: ep.thumbnail }} style={styles.episodeThumbnail} contentFit="cover" transition={200} />
                       <View style={styles.episodePlayOverlay}><MaterialIcons name="play-circle-filled" size={32} color="rgba(255,255,255,0.9)" /></View>

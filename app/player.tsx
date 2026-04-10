@@ -94,7 +94,23 @@ function isHlsUrl(rawUrl: string) {
 function buildYouTubeEmbedUrl(rawUrl: string): string | null {
   const videoId = getYouTubeVideoId(rawUrl);
   if (!videoId) return null;
-  return `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1`;
+  const params = new URLSearchParams({
+    autoplay: '1',
+    playsinline: '1',
+    rel: '0',
+    modestbranding: '1',
+    controls: '1',
+    enablejsapi: '1',
+    cc_load_policy: '1',
+    iv_load_policy: '3',
+    fs: '1',
+  });
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    params.set('origin', window.location.origin);
+  }
+
+  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
 }
 
 function buildWebEmbedUrl(rawUrl: string): string {
@@ -188,6 +204,7 @@ function WebDirectPlayer({
   selectedSourceIndex,
   onSelectSource,
   mediaKind,
+  subtitleUrl,
 }: {
   url: string;
   title: string;
@@ -195,6 +212,7 @@ function WebDirectPlayer({
   selectedSourceIndex: number;
   onSelectSource: (index: number) => void;
   mediaKind: MediaKind;
+  subtitleUrl?: string;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -205,8 +223,13 @@ function WebDirectPlayer({
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [playbackError, setPlaybackError] = useState('');
+  const [captionsEnabled, setCaptionsEnabled] = useState(Boolean(subtitleUrl));
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    setCaptionsEnabled(Boolean(subtitleUrl));
+  }, [subtitleUrl]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -268,6 +291,16 @@ function WebDirectPlayer({
     };
   }, [url, playbackSpeed]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const tracks = video.textTracks;
+    for (let index = 0; index < tracks.length; index += 1) {
+      tracks[index].mode = subtitleUrl && captionsEnabled ? 'showing' : 'disabled';
+    }
+  }, [captionsEnabled, subtitleUrl, url]);
+
   const toggleControls = useCallback(() => {
     setShowControls((prev) => !prev);
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
@@ -300,6 +333,11 @@ function WebDirectPlayer({
     setShowSpeedMenu(false);
   }, []);
 
+  const toggleCaptions = useCallback(() => {
+    Haptics.selectionAsync();
+    setCaptionsEnabled((prev) => !prev);
+  }, []);
+
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const isLiveStream = duration <= 0;
 
@@ -314,7 +352,17 @@ function WebDirectPlayer({
           controls={false}
           autoPlay
           muted={false}
-        />
+        >
+          {subtitleUrl ? (
+            <track
+              kind="subtitles"
+              src={subtitleUrl}
+              srcLang="ar"
+              label="Subtitles"
+              default
+            />
+          ) : null}
+        </video>
       </Pressable>
 
       {showControls ? (
@@ -330,6 +378,11 @@ function WebDirectPlayer({
             <Pressable style={styles.topBarBtn} onPress={() => { Haptics.selectionAsync(); setShowSpeedMenu(!showSpeedMenu); }}>
               <Text style={styles.speedText}>{playbackSpeed}x</Text>
             </Pressable>
+            {subtitleUrl ? (
+              <Pressable style={[styles.topBarBtn, captionsEnabled && styles.topBarBtnActive]} onPress={toggleCaptions}>
+                <Text style={styles.speedText}>CC</Text>
+              </Pressable>
+            ) : null}
           </View>
 
           <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={onSelectSource} />
@@ -391,6 +444,7 @@ function NativeDirectVideoPlayer({
   selectedSourceIndex,
   onSelectSource,
   mediaKind,
+  subtitleUrl,
 }: {
   url: string;
   title: string;
@@ -398,6 +452,7 @@ function NativeDirectVideoPlayer({
   selectedSourceIndex: number;
   onSelectSource: (index: number) => void;
   mediaKind: MediaKind;
+  subtitleUrl?: string;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -486,6 +541,11 @@ function NativeDirectVideoPlayer({
             <Pressable style={styles.topBarBtn} onPress={() => { Haptics.selectionAsync(); setShowSpeedMenu(!showSpeedMenu); }}>
               <Text style={styles.speedText}>{playbackSpeed}x</Text>
             </Pressable>
+            {subtitleUrl ? (
+              <View style={[styles.topBarBtn, styles.topBarBtnActive]}>
+                <Text style={styles.speedText}>CC</Text>
+              </View>
+            ) : null}
           </View>
 
           <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={onSelectSource} />
@@ -537,6 +597,7 @@ function DirectVideoPlayer(props: {
   selectedSourceIndex: number;
   onSelectSource: (index: number) => void;
   mediaKind: MediaKind;
+  subtitleUrl?: string;
 }) {
   if (Platform.OS === 'web') {
     return <WebDirectPlayer {...props} />;
@@ -616,10 +677,11 @@ function EmbeddedPlayer({
 
 export default function PlayerScreen() {
   const { user } = useAuth();
-  const { url, title, sources, viewerContentId, viewerContentType } = useLocalSearchParams<{
+  const { url, title, sources, subtitleUrl, viewerContentId, viewerContentType } = useLocalSearchParams<{
     url?: string;
     title?: string;
     sources?: string;
+    subtitleUrl?: string;
     viewerContentId?: string;
     viewerContentType?: api.ViewerContentType;
   }>();
@@ -705,6 +767,7 @@ export default function PlayerScreen() {
         selectedSourceIndex={selectedSourceIndex}
         onSelectSource={setSelectedSourceIndex}
         mediaKind={mediaKind}
+        subtitleUrl={subtitleUrl}
       />
     );
   }
@@ -735,6 +798,7 @@ const styles = StyleSheet.create({
   titleText: { fontSize: 16, fontWeight: '600', color: '#FFF' },
   sourceStatusText: { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
   topBarBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  topBarBtnActive: { backgroundColor: 'rgba(99,102,241,0.9)' },
   speedText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
   sourcesWrap: { paddingHorizontal: 16, marginTop: 8 },
   sourcesRow: { gap: 8, paddingRight: 16 },

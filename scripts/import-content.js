@@ -21,7 +21,10 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 
 async function main() {
   const templatesDir = path.join(projectRoot, 'content-templates');
-  const moviesRows = readCsv(path.join(templatesDir, 'movies.csv'));
+  const moviesRows = [
+    ...readCsv(path.join(templatesDir, 'movies.csv')),
+    ...readOptionalCsv(path.join(templatesDir, 'public-domain-movies.csv')),
+  ];
   const seriesRows = readCsv(path.join(templatesDir, 'series.csv'));
   const episodesRows = readCsv(path.join(templatesDir, 'episodes.csv'));
   const channelsRows = readCsv(path.join(templatesDir, 'channels.csv'));
@@ -341,6 +344,11 @@ function readCsv(filePath) {
       });
       return record;
     });
+}
+
+function readOptionalCsv(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  return readCsv(filePath);
 }
 
 function parseCsv(text) {

@@ -42,10 +42,11 @@ export default function WatchRoomScreen() {
   const [roomName, setRoomName] = useState('');
   const chatScrollRef = useRef<ScrollView>(null);
   const roomId = selectedRoom?.id;
-  const getPlayerParams = (sources: StreamSource[], fallbackUrl: string, title: string) => ({
+  const getPlayerParams = (sources: StreamSource[], fallbackUrl: string, title: string, subtitleUrl?: string) => ({
     title,
     url: fallbackUrl,
     sources: JSON.stringify(sources),
+    subtitleUrl: subtitleUrl || '',
     viewerContentId: '',
     viewerContentType: 'movie' as const,
   });
@@ -159,6 +160,7 @@ export default function WatchRoomScreen() {
     try {
       let url = '';
       let sources: StreamSource[] = [];
+      let subtitleUrl = '';
       let viewerContentId = '';
       let viewerContentType: api.ViewerContentType = 'movie';
 
@@ -166,12 +168,14 @@ export default function WatchRoomScreen() {
         const movie = await api.fetchMovieById(selectedRoom.content_id);
         url = movie.stream_url;
         sources = movie.stream_sources || [];
+        subtitleUrl = movie.subtitle_url || '';
         viewerContentId = movie.id;
         viewerContentType = 'movie';
       } else if (selectedRoom.content_type === 'episode') {
         const episode = await api.fetchEpisodeById(selectedRoom.content_id);
         url = episode.stream_url;
         sources = episode.stream_sources || [];
+        subtitleUrl = episode.subtitle_url || '';
         viewerContentId = episode.series_id;
         viewerContentType = 'series';
       } else if (selectedRoom.content_type === 'channel') {
@@ -191,7 +195,7 @@ export default function WatchRoomScreen() {
       router.push({
         pathname: '/player',
         params: {
-          ...getPlayerParams(sources, url, selectedRoom.content_title),
+          ...getPlayerParams(sources, url, selectedRoom.content_title, subtitleUrl),
           viewerContentId,
           viewerContentType,
         },
