@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, ReactNode } from 'react';
 import {
   View, Text, ScrollView, Pressable, Dimensions, StyleSheet,
   NativeSyntheticEvent, NativeScrollEvent, ActivityIndicator, RefreshControl,
@@ -91,7 +91,7 @@ export default function HomeScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        contentContainerStyle={{ paddingTop: insets.top + 72, paddingBottom: insets.bottom + 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}
       >
@@ -140,7 +140,7 @@ export default function HomeScreen() {
         {continueWatching.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(50).duration(400)}>
             <SectionHeader title="Continue Watching" icon="history" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowContainer}>
+            <HorizontalShelf>
               {continueWatching.map((item) => {
                 const pct = item.watch_duration > 0 ? Math.round((item.progress / item.watch_duration) * 100) : 0;
                 return (
@@ -160,7 +160,7 @@ export default function HomeScreen() {
                   </Pressable>
                 );
               })}
-            </ScrollView>
+            </HorizontalShelf>
           </Animated.View>
         ) : null}
 
@@ -168,7 +168,7 @@ export default function HomeScreen() {
         {trendingMovies.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(100).duration(400)}>
             <SectionHeader title="Trending Now" icon="trending-up" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowContainer}>
+            <HorizontalShelf>
               {trendingMovies.map((item, index) => (
                 <Pressable key={item.id} onPress={() => navigateToContent(item.id)} style={styles.trendingCard}>
                   <View style={styles.trendingNumberWrap}>
@@ -177,7 +177,7 @@ export default function HomeScreen() {
                   <Image source={{ uri: item.poster }} style={styles.trendingPoster} contentFit="cover" transition={200} />
                 </Pressable>
               ))}
-            </ScrollView>
+            </HorizontalShelf>
           </Animated.View>
         ) : null}
 
@@ -185,11 +185,11 @@ export default function HomeScreen() {
         {featuredMovies.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <SectionHeader title="Featured Movies" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowContainer}>
+            <HorizontalShelf>
               {featuredMovies.map(movie => (
                 <ContentCard key={movie.id} item={movie} onPress={() => navigateToContent(movie.id)} />
               ))}
-            </ScrollView>
+            </HorizontalShelf>
           </Animated.View>
         ) : null}
 
@@ -197,11 +197,11 @@ export default function HomeScreen() {
         {newContent.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(300).duration(400)}>
             <SectionHeader title="New Releases" icon="fiber-new" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowContainer}>
+            <HorizontalShelf>
               {newContent.map(item => (
                 <ContentCard key={item.id} item={item} onPress={() => navigateToContent(item.id)} showBadge />
               ))}
-            </ScrollView>
+            </HorizontalShelf>
           </Animated.View>
         ) : null}
 
@@ -209,11 +209,11 @@ export default function HomeScreen() {
         {allSeries.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(350).duration(400)}>
             <SectionHeader title="Top Series" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowContainer}>
+            <HorizontalShelf>
               {allSeries.map(s => (
                 <ContentCard key={s.id} item={s} onPress={() => navigateToContent(s.id)} />
               ))}
-            </ScrollView>
+            </HorizontalShelf>
           </Animated.View>
         ) : null}
 
@@ -221,7 +221,7 @@ export default function HomeScreen() {
         {featuredChannels.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(400).duration(400)}>
             <SectionHeader title="Live Now" icon="sensors" iconColor={theme.live} />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowContainer}>
+            <HorizontalShelf>
               {featuredChannels.map(ch => (
                 <Pressable key={ch.id} style={styles.liveCard}>
                   <View style={styles.liveImageWrap}>
@@ -233,7 +233,7 @@ export default function HomeScreen() {
                   <Text style={styles.liveViewers}>{formatViewers(ch.live_viewers ?? ch.viewers)} watching</Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </HorizontalShelf>
           </Animated.View>
         ) : null}
 
@@ -241,7 +241,7 @@ export default function HomeScreen() {
         {activeRooms.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(450).duration(400)}>
             <SectionHeader title="Active Watch Rooms" icon="groups" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowContainer}>
+            <HorizontalShelf>
               {activeRooms.map(room => (
                 <Pressable key={room.id} style={styles.roomCard} onPress={() => { Haptics.selectionAsync(); router.push('/watchroom'); }}>
                   <View style={styles.roomPosterWrap}>
@@ -256,7 +256,7 @@ export default function HomeScreen() {
                   <Text style={styles.roomHost}>{room.host?.username || 'Host'}</Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </HorizontalShelf>
           </Animated.View>
         ) : null}
 
@@ -264,11 +264,11 @@ export default function HomeScreen() {
         {allMovies.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(500).duration(400)}>
             <SectionHeader title="All Movies" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowContainer}>
+            <HorizontalShelf>
               {allMovies.map(movie => (
                 <ContentCard key={movie.id} item={movie} onPress={() => navigateToContent(movie.id)} />
               ))}
-            </ScrollView>
+            </HorizontalShelf>
           </Animated.View>
         ) : null}
       </ScrollView>
@@ -285,6 +285,43 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       </View>
+    </View>
+  );
+}
+
+function HorizontalShelf({ children }: { children: ReactNode }) {
+  const railRef = useRef<ScrollView>(null);
+  const currentOffset = useRef(0);
+
+  const scrollBy = (direction: 1 | -1) => {
+    railRef.current?.scrollTo({
+      x: Math.max(0, currentOffset.current + direction * 260),
+      animated: true,
+    });
+  };
+
+  return (
+    <View style={styles.railWrap}>
+      <Pressable style={[styles.railArrow, styles.railArrowLeft]} onPress={() => scrollBy(-1)}>
+        <MaterialIcons name="chevron-left" size={22} color="#FFF" />
+      </Pressable>
+      <ScrollView
+        ref={railRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.rowContainer}
+        decelerationRate="fast"
+        snapToAlignment="start"
+        onScroll={(event) => {
+          currentOffset.current = event.nativeEvent.contentOffset.x;
+        }}
+        scrollEventThrottle={16}
+      >
+        {children}
+      </ScrollView>
+      <Pressable style={[styles.railArrow, styles.railArrowRight]} onPress={() => scrollBy(1)}>
+        <MaterialIcons name="chevron-right" size={22} color="#FFF" />
+      </Pressable>
     </View>
   );
 }
@@ -319,7 +356,7 @@ function ContentCard({ item, onPress, showBadge }: { item: ContentItem; onPress:
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
-  floatingHeader: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, zIndex: 10 },
+  floatingHeader: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, zIndex: 10, backgroundColor: 'rgba(5,7,15,0.82)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   appTitle: { fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
   headerIcons: { flexDirection: 'row', gap: 16 },
   headerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
@@ -342,9 +379,13 @@ const styles = StyleSheet.create({
   heroDotItem: { height: 4, borderRadius: 2 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 24, paddingBottom: 12 },
   sectionTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#FFF', letterSpacing: -0.3 },
-  rowContainer: { paddingHorizontal: 16, gap: 12 },
+  railWrap: { position: 'relative' },
+  railArrow: { position: 'absolute', top: 90, zIndex: 3, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(8,11,20,0.88)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  railArrowLeft: { left: 10 },
+  railArrowRight: { right: 10 },
+  rowContainer: { paddingHorizontal: 16, paddingRight: 56, gap: 12 },
   contentCard: { width: 140 },
-  posterWrap: { width: 140, height: 210, borderRadius: 10, overflow: 'hidden', marginBottom: 8 },
+  posterWrap: { width: 140, height: 210, borderRadius: 14, overflow: 'hidden', marginBottom: 8, backgroundColor: theme.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   poster: { width: '100%', height: '100%' },
   cardBadge: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   cardBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFF', letterSpacing: 0.5 },
@@ -356,8 +397,8 @@ const styles = StyleSheet.create({
   trendingNumberWrap: { marginRight: -12, zIndex: 1 },
   trendingNumber: { fontSize: 80, fontWeight: '900', color: 'transparent', lineHeight: 85, textShadowColor: theme.primary, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 1 },
   trendingPoster: { width: 120, height: 180, borderRadius: 10 },
-  liveCard: { width: 160 },
-  liveImageWrap: { width: 160, height: 100, borderRadius: 10, overflow: 'hidden', marginBottom: 8, backgroundColor: theme.surface },
+  liveCard: { width: 180 },
+  liveImageWrap: { width: 180, height: 112, borderRadius: 14, overflow: 'hidden', marginBottom: 8, backgroundColor: theme.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   liveLogo: { width: '100%', height: '100%' },
   liveBadge: { position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(239,68,68,0.9)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFF' },
@@ -365,8 +406,8 @@ const styles = StyleSheet.create({
   liveChannelName: { fontSize: 13, fontWeight: '600', color: '#FFF', marginBottom: 2 },
   liveProgram: { fontSize: 12, color: theme.textSecondary, marginBottom: 2 },
   liveViewers: { fontSize: 11, color: theme.textMuted },
-  roomCard: { width: 180 },
-  roomPosterWrap: { width: 180, height: 120, borderRadius: 12, overflow: 'hidden', marginBottom: 8 },
+  roomCard: { width: 220 },
+  roomPosterWrap: { width: 220, height: 138, borderRadius: 14, overflow: 'hidden', marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   roomPoster: { width: '100%', height: '100%' },
   roomGradient: { ...StyleSheet.absoluteFillObject },
   roomParticipants: { position: 'absolute', bottom: 8, left: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },

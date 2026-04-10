@@ -25,6 +25,8 @@ export default function AdminMovies() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [searchQuery, setSearchQuery] = useState('');
+  const [playlistUrl, setPlaylistUrl] = useState('');
+  const [importing, setImporting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -80,6 +82,24 @@ export default function AdminMovies() {
     ]);
   };
 
+  const handleImportPlaylist = async () => {
+    if (!playlistUrl.trim()) {
+      showAlert('Missing URL', 'Paste a valid M3U or M3U8 playlist URL first.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const result = await api.importMoviesFromM3UUrl(playlistUrl.trim());
+      showAlert('Import complete', `Imported ${result.imported} movies from the playlist.`);
+      setPlaylistUrl('');
+      await load();
+    } catch (err: any) {
+      showAlert('Import failed', err.message || 'Could not import this playlist.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredMovies = searchQuery.trim()
     ? movies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()))
     : movies;
@@ -115,6 +135,23 @@ export default function AdminMovies() {
       <Pressable style={styles.addBtn} onPress={() => { resetForm(); setShowForm(true); }}>
         <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>Add Movie</Text>
       </Pressable>
+
+      <View style={styles.importCard}>
+        <Text style={styles.formTitle}>Bulk Import M3U / M3U8</Text>
+        <Text style={styles.importHint}>Import VOD movie entries from a playlist URL in one step.</Text>
+        <TextInput
+          style={styles.fieldInput}
+          value={playlistUrl}
+          onChangeText={setPlaylistUrl}
+          placeholder="https://example.com/movies.m3u"
+          placeholderTextColor={theme.textMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Pressable style={[styles.saveBtn, importing && { opacity: 0.7 }]} onPress={handleImportPlaylist} disabled={importing}>
+          <Text style={styles.saveText}>{importing ? 'Importing...' : 'Import Movies'}</Text>
+        </Pressable>
+      </View>
 
       {showForm ? (
         <Animated.View entering={FadeInDown.duration(300)} style={styles.formCard}>
@@ -202,6 +239,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.primary, height: 48, borderRadius: 12, marginBottom: 16 },
   addBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
+  importCard: { backgroundColor: theme.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  importHint: { fontSize: 13, color: theme.textSecondary },
   formCard: { backgroundColor: theme.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: theme.border },
   formTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
   previewRow: { alignItems: 'center', marginBottom: 16 },

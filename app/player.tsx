@@ -170,7 +170,11 @@ function SourceSelector({
   if (sources.length <= 1) return null;
 
   return (
-    <View style={styles.sourcesWrap}>
+    <View style={styles.sourcesSheet}>
+      <View style={styles.sourcesSheetHeader}>
+        <Text style={styles.sourcesSheetTitle}>Servers</Text>
+        <Text style={styles.sourcesSheetSubtitle}>Switch instantly if one source is slow or blocked.</Text>
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sourcesRow}>
         {sources.map((source, index) => (
           <Pressable
@@ -222,6 +226,7 @@ function WebDirectPlayer({
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showSourcesPanel, setShowSourcesPanel] = useState(false);
   const [playbackError, setPlaybackError] = useState('');
   const [captionsEnabled, setCaptionsEnabled] = useState(Boolean(subtitleUrl));
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -378,14 +383,17 @@ function WebDirectPlayer({
             <Pressable style={styles.topBarBtn} onPress={() => { Haptics.selectionAsync(); setShowSpeedMenu(!showSpeedMenu); }}>
               <Text style={styles.speedText}>{playbackSpeed}x</Text>
             </Pressable>
+            {sources.length > 1 ? (
+              <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => { Haptics.selectionAsync(); setShowSourcesPanel((prev) => !prev); }}>
+                <MaterialIcons name="dns" size={20} color="#FFF" />
+              </Pressable>
+            ) : null}
             {subtitleUrl ? (
               <Pressable style={[styles.topBarBtn, captionsEnabled && styles.topBarBtnActive]} onPress={toggleCaptions}>
                 <Text style={styles.speedText}>CC</Text>
               </Pressable>
             ) : null}
           </View>
-
-          <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={onSelectSource} />
 
           {showSpeedMenu ? (
             <Animated.View entering={FadeIn.duration(150)} style={styles.speedMenu}>
@@ -410,7 +418,15 @@ function WebDirectPlayer({
           </View>
 
           <View style={styles.bottomBar}>
+            {showSourcesPanel ? (
+              <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
+            ) : null}
             {playbackError ? <Text style={styles.errorText}>{playbackError}</Text> : null}
+            {subtitleUrl ? (
+              <Text style={styles.helperText}>
+                {captionsEnabled ? 'Subtitles are enabled for this source.' : 'Subtitles available. Tap CC to show them.'}
+              </Text>
+            ) : null}
             {!isLiveStream ? (
               <>
                 <View style={styles.progressContainer}>
@@ -462,6 +478,7 @@ function NativeDirectVideoPlayer({
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showSourcesPanel, setShowSourcesPanel] = useState(false);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const player = useVideoPlayer(url, (instance) => {
@@ -541,14 +558,17 @@ function NativeDirectVideoPlayer({
             <Pressable style={styles.topBarBtn} onPress={() => { Haptics.selectionAsync(); setShowSpeedMenu(!showSpeedMenu); }}>
               <Text style={styles.speedText}>{playbackSpeed}x</Text>
             </Pressable>
+            {sources.length > 1 ? (
+              <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => { Haptics.selectionAsync(); setShowSourcesPanel((prev) => !prev); }}>
+                <MaterialIcons name="dns" size={20} color="#FFF" />
+              </Pressable>
+            ) : null}
             {subtitleUrl ? (
               <View style={[styles.topBarBtn, styles.topBarBtnActive]}>
                 <Text style={styles.speedText}>CC</Text>
               </View>
             ) : null}
           </View>
-
-          <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={onSelectSource} />
 
           {showSpeedMenu ? (
             <Animated.View entering={FadeIn.duration(150)} style={styles.speedMenu}>
@@ -573,6 +593,10 @@ function NativeDirectVideoPlayer({
           </View>
 
           <View style={styles.bottomBar}>
+            {showSourcesPanel ? (
+              <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
+            ) : null}
+            {subtitleUrl ? <Text style={styles.helperText}>This stream includes subtitles. For advanced caption rendering, web playback works best.</Text> : null}
             <View style={styles.progressContainer}>
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${progress}%` }]} />
@@ -625,6 +649,7 @@ function EmbeddedPlayer({
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [showSourcesPanel, setShowSourcesPanel] = useState(false);
 
   return (
     <View style={styles.container}>
@@ -660,14 +685,23 @@ function EmbeddedPlayer({
             <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
             <Text style={styles.sourceStatusText}>{getMediaKindLabel(mediaKind)} source</Text>
           </View>
+          {sources.length > 1 ? (
+            <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => setShowSourcesPanel((prev) => !prev)}>
+              <MaterialIcons name="dns" size={20} color="#FFF" />
+            </Pressable>
+          ) : null}
           <Pressable style={styles.topBarBtn} onPress={() => Linking.openURL(originalUrl)}>
             <MaterialIcons name="open-in-new" size={20} color="#FFF" />
           </Pressable>
         </View>
-        <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={onSelectSource} />
+        {showSourcesPanel ? (
+          <View style={styles.embedBottomSheet}>
+            <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
+          </View>
+        ) : null}
         <View style={styles.embedHintWrap}>
           <Text style={styles.embedHintText}>
-            Embedded pages may block playback. Switch server or open externally if needed.
+            Embedded pages may block playback. Switch servers or open externally if needed.
           </Text>
         </View>
       </Animated.View>
@@ -790,7 +824,7 @@ const styles = StyleSheet.create({
   videoContainer: { flex: 1 },
   video: { flex: 1, backgroundColor: '#000' },
   webFrame: { width: '100%', height: '100%', borderWidth: 0, backgroundColor: '#000' },
-  controlsOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'space-between' },
+  controlsOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.34)', justifyContent: 'space-between' },
   embeddedOverlay: { backgroundColor: 'transparent' },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, gap: 12 },
   backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
@@ -800,7 +834,10 @@ const styles = StyleSheet.create({
   topBarBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
   topBarBtnActive: { backgroundColor: 'rgba(99,102,241,0.9)' },
   speedText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
-  sourcesWrap: { paddingHorizontal: 16, marginTop: 8 },
+  sourcesSheet: { backgroundColor: 'rgba(10,13,22,0.92)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 14, gap: 12 },
+  sourcesSheetHeader: { gap: 4 },
+  sourcesSheetTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
+  sourcesSheetSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.64)' },
   sourcesRow: { gap: 8, paddingRight: 16 },
   sourceChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   sourceChipActive: { backgroundColor: 'rgba(255,255,255,0.95)', borderColor: 'rgba(255,255,255,0.95)' },
@@ -815,7 +852,7 @@ const styles = StyleSheet.create({
   seekBtn: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   disabledControl: { opacity: 0.4 },
   playPauseBtn: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  bottomBar: { paddingHorizontal: 16, paddingBottom: 16 },
+  bottomBar: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
   progressContainer: { marginBottom: 8 },
   progressTrack: { height: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, overflow: 'visible' },
   progressFill: { height: 4, backgroundColor: theme.primary, borderRadius: 2 },
@@ -823,9 +860,11 @@ const styles = StyleSheet.create({
   timeRow: { flexDirection: 'row', justifyContent: 'space-between' },
   timeText: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
   errorText: { fontSize: 13, color: '#FCA5A5', textAlign: 'center', marginBottom: 10 },
+  helperText: { fontSize: 12, color: 'rgba(255,255,255,0.76)', textAlign: 'center' },
   livePill: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.18)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   liveDotMini: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.live },
   livePillText: { fontSize: 12, fontWeight: '700', color: '#FFF', letterSpacing: 0.6 },
+  embedBottomSheet: { paddingHorizontal: 16, marginTop: 'auto', marginBottom: 12 },
   embedHintWrap: { paddingHorizontal: 16, paddingBottom: 12 },
   embedHintText: { fontSize: 12, color: 'rgba(255,255,255,0.65)', textAlign: 'center' },
   unsupportedContainer: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 16 },

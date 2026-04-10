@@ -31,12 +31,18 @@ export default function LoginScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     if (initialized && user) {
       router.replace('/(tabs)');
     }
   }, [initialized, router, user]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -141,9 +147,15 @@ export default function LoginScreen() {
               </View>
               <Text style={styles.appName}>Ali Control</Text>
               <Text style={styles.tagline}>All rights reserved to Ali Dohol</Text>
-              <Text style={styles.heroDescription}>
-                Step into a richer streaming universe with glowing scenes, premium live channels, and a world that feels built for movie nights.
-              </Text>
+              <View style={styles.clockCard}>
+                <Text style={styles.clockLabel}>{operationLoading ? 'Signing you in...' : 'Riyadh Time'}</Text>
+                <Text style={styles.clockValue}>
+                  {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </Text>
+                <View style={styles.loadingTrack}>
+                  <View style={[styles.loadingFill, operationLoading && styles.loadingFillActive]} />
+                </View>
+              </View>
               <View style={styles.featureRow}>
                 <View style={styles.featureChip}>
                   <MaterialIcons name="live-tv" size={15} color="#A7F3D0" />
@@ -370,14 +382,23 @@ const styles = StyleSheet.create({
   },
   appName: { fontSize: 38, fontWeight: '800', color: '#F8FAFC', letterSpacing: -1.15 },
   tagline: { fontSize: 14, color: '#D7E3F4', fontWeight: '600', textAlign: 'center' },
-  heroDescription: {
-    fontSize: 14,
-    color: '#DCE8F8',
-    textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 620,
-    paddingHorizontal: 8,
+  clockCard: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: 'rgba(7,12,25,0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(125,211,252,0.14)',
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    gap: 6,
+    alignItems: 'center',
   },
+  clockLabel: { fontSize: 12, fontWeight: '700', color: 'rgba(191,219,254,0.8)', textTransform: 'uppercase', letterSpacing: 1.3 },
+  clockValue: { fontSize: 32, fontWeight: '800', color: '#F8FAFC', letterSpacing: 1.2 },
+  loadingTrack: { width: '100%', height: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginTop: 2 },
+  loadingFill: { width: '38%', height: '100%', borderRadius: 999, backgroundColor: 'rgba(96,165,250,0.55)' },
+  loadingFillActive: { width: '100%', backgroundColor: '#22C55E' },
   featureRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

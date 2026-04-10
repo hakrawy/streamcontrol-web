@@ -8,6 +8,15 @@ export interface StreamSource {
   url: string;
 }
 
+export interface M3UEntry {
+  title: string;
+  url: string;
+  logo: string;
+  groupTitle: string;
+  tvgId: string;
+  rawAttributes: Record<string, string>;
+}
+
 export type ViewerContentType = 'movie' | 'series' | 'channel';
 
 export interface Movie {
@@ -287,6 +296,229 @@ export function formatStreamSourcesInput(rawValue: unknown) {
 
 export function parseStreamSourcesInput(input: string) {
   return parseStreamSources(input);
+}
+
+function parseM3UAttributes(rawValue: string) {
+  const attributes: Record<string, string> = {};
+  const pattern = /([\w-]+)="([^"]*)"/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(rawValue)) !== null) {
+    attributes[match[1]] = match[2];
+  }
+
+  return attributes;
+}
+
+export function parseM3UPlaylist(content: string): M3UEntry[] {
+  const lines = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const entries: M3UEntry[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!line.startsWith('#EXTINF')) continue;
+
+    const nextLine = lines[index + 1];
+    if (!nextLine || nextLine.startsWith('#')) continue;
+
+    const [, metadata = '', title = 'Untitled'] = line.match(/^#EXTINF:[^ ]*\s*(.*?),(.*)$/) || [];
+    const attributes = parseM3UAttributes(metadata);
+
+    entries.push({
+      title: title.trim(),
+      url: nextLine.trim(),
+      logo: attributes['tvg-logo'] || '',
+      groupTitle: attributes['group-title'] || '',
+      tvgId: attributes['tvg-id'] || '',
+      rawAttributes: attributes,
+    });
+  }
+
+  return entries;
+}
+
+function sanitizePosterUrl(url: string, fallback: string) {
+  return url.trim() || fallback;
+}
+
+function inferM3UContentKind(entry: M3UEntry): 'channel' | 'movie' | 'series' {
+  const haystack = `${entry.title} ${entry.groupTitle}`.toLowerCase();
+  if (/(s\d{1,2}e\d{1,2}|season\s*\d+|episode\s*\d+)/i.test(entry.title)) return 'series';
+  if (/(movie|movies|film|films|cinema|vod|افلام|فيلم|مسلسلات|series|shows)/i.test(haystack)) {
+    if (/(s\d{1,2}e\d{1,2}|season\s*\d+|episode\s*\d+|مسلسل|الحلقة)/i.test(haystack)) return 'series';
+    return 'movie';
+  }
+  return 'channel';
+}
+
+function parseSeriesTokens(title: string) {
+  const seasonEpisodeMatch = title.match(/^(.*?)[\s._-]+s(\d{1,2})e(\d{1,2})/i);
+  if (seasonEpisodeMatch) {
+    return {
+      seriesTitle: seasonEpisodeMatch[1].trim(),
+      seasonNumber: parseInt(seasonEpisodeMatch[2], 10),
+      episodeNumber: parseInt(seasonEpisodeMatch[3], 10),
+    };
+  }
+
+  const episodeMatch = title.match(/^(.*?)[\s._-]+episode[\s._-]*(\d{1,3})/i);
+  if (episodeMatch) {
+    return {
+      seriesTitle: episodeMatch[1].trim(),
+      seasonNumber: 1,
+      episodeNumber: parseInt(episodeMatch[2], 10),
+    };
+  }
+
+  return {
+    seriesTitle: title.trim(),
+    seasonNumber: 1,
+    episodeNumber: 1,
+  };
+}
+
+export async function importChannelsFromM3UUrl(playlistUrl: string) {
+  const response = await fetch(playlistUrl);
+  if (!response.ok) {
+    throw new Error('Failed to fetch the M3U playlist URL.');
+  }
+
+  const content = await response.text();
+  const entries = parseM3UPlaylist(content).filter((entry) => inferM3UContentKind(entry) === 'channel');
+  let imported = 0;
+
+  for (const [index, entry] of entries.entries()) {
+    await upsertChannel({
+      name: entry.title,
+      logo: sanitizePosterUrl(entry.logo, ''),
+      stream_url: entry.url,
+      stream_sources: [{ label: 'Server 1', url: entry.url }],
+      category: entry.groupTitle || 'general',
+      current_program: 'Now Streaming',
+      is_live: true,
+      is_featured: index < 8,
+      viewers: 0,
+      sort_order: index,
+    });
+    imported += 1;
+  }
+
+  return { imported, total: entries.length };
+}
+
+export async function importMoviesFromM3UUrl(playlistUrl: string) {
+  const response = await fetch(playlistUrl);
+  if (!response.ok) {
+    throw new Error('Failed to fetch the M3U playlist URL.');
+  }
+
+  const content = await response.text();
+  const entries = parseM3UPlaylist(content).filter((entry) => inferM3UContentKind(entry) === 'movie');
+  let imported = 0;
+
+  for (const entry of entries) {
+    await upsertMovie({
+      title: entry.title,
+      description: `Imported from M3U playlist${entry.groupTitle ? ` - ${entry.groupTitle}` : ''}.`,
+      poster: sanitizePosterUrl(entry.logo, 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80'),
+      backdrop: sanitizePosterUrl(entry.logo, 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1400&q=80'),
+      trailer_url: '',
+      stream_url: entry.url,
+      stream_sources: [{ label: 'Server 1', url: entry.url }],
+      genre: entry.groupTitle ? [entry.groupTitle] : ['Imported'],
+      year: new Date().getFullYear(),
+      duration: 'Unknown',
+      cast_members: [],
+      quality: ['Auto'],
+      subtitle_url: '',
+      is_featured: false,
+      is_trending: false,
+      is_new: true,
+      is_exclusive: false,
+      is_published: true,
+    });
+    imported += 1;
+  }
+
+  return { imported, total: entries.length };
+}
+
+export async function importSeriesFromM3UUrl(playlistUrl: string) {
+  const response = await fetch(playlistUrl);
+  if (!response.ok) {
+    throw new Error('Failed to fetch the M3U playlist URL.');
+  }
+
+  const content = await response.text();
+  const entries = parseM3UPlaylist(content).filter((entry) => inferM3UContentKind(entry) === 'series');
+  const seriesMap = new Map<string, { id: string; title: string }>();
+  const seasonMap = new Map<string, string>();
+  let importedSeries = 0;
+  let importedEpisodes = 0;
+
+  for (const entry of entries) {
+    const tokens = parseSeriesTokens(entry.title);
+    let seriesId = seriesMap.get(tokens.seriesTitle)?.id;
+
+    if (!seriesId) {
+      const created = await upsertSeries({
+        title: tokens.seriesTitle,
+        description: `Imported from M3U playlist${entry.groupTitle ? ` - ${entry.groupTitle}` : ''}.`,
+        poster: sanitizePosterUrl(entry.logo, 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80'),
+        backdrop: sanitizePosterUrl(entry.logo, 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1400&q=80'),
+        trailer_url: '',
+        genre: entry.groupTitle ? [entry.groupTitle] : ['Imported'],
+        year: new Date().getFullYear(),
+        rating: 0,
+        cast_members: [],
+        is_featured: false,
+        is_trending: false,
+        is_new: true,
+        is_exclusive: false,
+        is_published: true,
+      });
+      seriesId = created.id;
+      seriesMap.set(tokens.seriesTitle, { id: seriesId, title: tokens.seriesTitle });
+      importedSeries += 1;
+    }
+
+    const seasonKey = `${seriesId}:${tokens.seasonNumber}`;
+    let seasonId = seasonMap.get(seasonKey);
+
+    if (!seasonId) {
+      const season = await upsertSeason({
+        series_id: seriesId,
+        number: tokens.seasonNumber,
+        title: `Season ${tokens.seasonNumber}`,
+      });
+      seasonId = season.id;
+      seasonMap.set(seasonKey, seasonId);
+    }
+
+    await upsertEpisode({
+      season_id: seasonId,
+      series_id: seriesId,
+      number: tokens.episodeNumber,
+      title: entry.title,
+      description: `Imported from M3U playlist${entry.groupTitle ? ` - ${entry.groupTitle}` : ''}.`,
+      thumbnail: sanitizePosterUrl(entry.logo, 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1400&q=80'),
+      stream_url: entry.url,
+      stream_sources: [{ label: 'Server 1', url: entry.url }],
+      subtitle_url: '',
+      duration: 'Unknown',
+    });
+    importedEpisodes += 1;
+  }
+
+  for (const { id } of seriesMap.values()) {
+    await updateSeriesCounts(id);
+  }
+
+  return { importedSeries, importedEpisodes, total: entries.length };
 }
 
 export function getPrimaryStreamUrl(value: { stream_url?: string; stream_sources?: StreamSource[] }) {

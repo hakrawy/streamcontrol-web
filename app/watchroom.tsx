@@ -31,7 +31,7 @@ export default function WatchRoomScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const { allMovies } = useAppContext();
+  const { allMovies, isAdmin } = useAppContext();
   const [activeRooms, setActiveRooms] = useState<WatchRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<WatchRoom | null>(null);
   const [joinedRoom, setJoinedRoom] = useState(false);
@@ -103,6 +103,30 @@ export default function WatchRoomScreen() {
     setSelectedRoom(null);
     setMessages([]);
     loadRooms();
+  };
+
+  const handleDeleteRoom = async (room: WatchRoom) => {
+    showAlert('Delete room', `Delete "${room.name}" for all participants?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.closeWatchRoom(room.id);
+            if (selectedRoom?.id === room.id) {
+              setJoinedRoom(false);
+              setSelectedRoom(null);
+              setMessages([]);
+            }
+            await loadRooms();
+            showAlert('Deleted', 'The watch room has been closed.');
+          } catch (err: any) {
+            showAlert('Delete failed', err.message || 'Could not close this room.');
+          }
+        },
+      },
+    ]);
   };
 
   const handleSendMessage = async () => {
@@ -217,6 +241,11 @@ export default function WatchRoomScreen() {
                 <Text style={styles.roomHeaderTitle} numberOfLines={1}>{selectedRoom.name}</Text>
                 <View style={styles.roomHeaderMeta}><View style={styles.roomLiveDot} /><Text style={styles.roomHeaderSub}>Room: {selectedRoom.room_code}</Text></View>
               </View>
+              {(isAdmin || selectedRoom.host_id === user?.id) ? (
+                <Pressable style={styles.deleteRoomBtn} onPress={() => handleDeleteRoom(selectedRoom)}>
+                  <MaterialIcons name="delete-outline" size={20} color="#FFF" />
+                </Pressable>
+              ) : null}
             </View>
 
             <View style={styles.videoArea}>
@@ -330,7 +359,14 @@ export default function WatchRoomScreen() {
                       </View>
                     </View>
                   </View>
-                  <View style={styles.joinBtn}><Text style={styles.joinBtnText}>Join</Text></View>
+                  <View style={styles.roomListActions}>
+                    {(isAdmin || room.host_id === user?.id) ? (
+                      <Pressable style={styles.inlineDeleteBtn} onPress={() => handleDeleteRoom(room)}>
+                        <MaterialIcons name="delete-outline" size={18} color={theme.error} />
+                      </Pressable>
+                    ) : null}
+                    <View style={styles.joinBtn}><Text style={styles.joinBtnText}>Join</Text></View>
+                  </View>
                 </Pressable>
               </Animated.View>
             ))}
@@ -380,6 +416,8 @@ const styles = StyleSheet.create({
   roomPrivacyBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   privacyPublic: { backgroundColor: 'rgba(16,185,129,0.12)' },
   privacyPrivate: { backgroundColor: 'rgba(245,158,11,0.12)' },
+  roomListActions: { alignItems: 'center', gap: 10 },
+  inlineDeleteBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239,68,68,0.12)' },
   joinBtn: { backgroundColor: theme.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 },
   joinBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   roomHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
@@ -387,6 +425,7 @@ const styles = StyleSheet.create({
   roomHeaderMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   roomLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.live },
   roomHeaderSub: { fontSize: 12, color: theme.textSecondary },
+  deleteRoomBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(239,68,68,0.22)', alignItems: 'center', justifyContent: 'center' },
   videoArea: { width: SCREEN_WIDTH, height: SCREEN_WIDTH * 0.5625, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
   videoControls: { zIndex: 1 },
   videoBigPlayBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },

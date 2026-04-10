@@ -23,6 +23,8 @@ export default function AdminChannels() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [playlistUrl, setPlaylistUrl] = useState('');
+  const [importing, setImporting] = useState(false);
 
   const load = async () => { setLoading(true); try { setChannels(await api.fetchChannels()); } catch {} setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -61,6 +63,24 @@ export default function AdminChannels() {
     ]);
   };
 
+  const handleImportPlaylist = async () => {
+    if (!playlistUrl.trim()) {
+      showAlert('Missing URL', 'Paste a valid M3U or M3U8 playlist URL first.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const result = await api.importChannelsFromM3UUrl(playlistUrl.trim());
+      showAlert('Import complete', `Imported ${result.imported} channels from the playlist.`);
+      setPlaylistUrl('');
+      await load();
+    } catch (err: any) {
+      showAlert('Import failed', err.message || 'Could not import this playlist.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) return <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
 
   const textFields = [
@@ -83,6 +103,23 @@ export default function AdminChannels() {
       <Pressable style={styles.addBtn} onPress={() => { resetForm(); setShowForm(true); }}>
         <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>Add Channel</Text>
       </Pressable>
+
+      <View style={styles.importCard}>
+        <Text style={styles.formTitle}>Bulk Import M3U / M3U8</Text>
+        <Text style={styles.importHint}>Import live channels from a playlist URL in one step.</Text>
+        <TextInput
+          style={styles.fieldInput}
+          value={playlistUrl}
+          onChangeText={setPlaylistUrl}
+          placeholder="https://example.com/playlist.m3u"
+          placeholderTextColor={theme.textMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Pressable style={[styles.saveBtn, importing && { opacity: 0.7 }]} onPress={handleImportPlaylist} disabled={importing}>
+          <Text style={styles.saveText}>{importing ? 'Importing...' : 'Import Channels'}</Text>
+        </Pressable>
+      </View>
 
       {showForm ? (
         <Animated.View entering={FadeInDown.duration(300)} style={styles.formCard}>
@@ -163,6 +200,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.primary, height: 48, borderRadius: 12, marginBottom: 16 },
   addBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
+  importCard: { backgroundColor: theme.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  importHint: { fontSize: 13, color: theme.textSecondary },
   formCard: { backgroundColor: theme.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: theme.border },
   formTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
   previewRow: { alignItems: 'center', marginBottom: 16 },

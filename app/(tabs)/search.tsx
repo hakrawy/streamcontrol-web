@@ -14,7 +14,7 @@ import type { ContentItem } from '../../services/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_GAP = 12;
-const GRID_COLUMNS = 3;
+const GRID_COLUMNS = SCREEN_WIDTH > 1200 ? 5 : SCREEN_WIDTH > 900 ? 4 : SCREEN_WIDTH > 680 ? 3 : 2;
 
 type FilterType = 'all' | 'movie' | 'series';
 
@@ -75,33 +75,40 @@ export default function SearchScreen() {
         ))}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.genreRow}>
+      <View style={styles.genreWrap}>
         {genreList.map(g => (
           <Pressable key={g} onPress={() => { Haptics.selectionAsync(); setActiveGenre(activeGenre === g ? null : g); }} style={[styles.genreChip, activeGenre === g && styles.genreChipActive]}>
             <Text style={[styles.genreText, activeGenre === g && styles.genreTextActive]}>{g}</Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
 
       <View style={{ flex: 1, paddingHorizontal: 16 }}>
         {results.length > 0 ? (
           <FlashList
             data={results}
-            numColumns={3}
-            estimatedItemSize={200}
+            numColumns={GRID_COLUMNS}
+            estimatedItemSize={280}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 24, paddingTop: 6 }}
             renderItem={({ item, index }) => (
-              <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 30).duration(300)} style={{ flex: 1, paddingRight: (index % 3 !== 2) ? GRID_GAP : 0, marginBottom: GRID_GAP }}>
+              <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 30).duration(300)} style={{ flex: 1, paddingRight: (index % GRID_COLUMNS !== GRID_COLUMNS - 1) ? GRID_GAP : 0, marginBottom: GRID_GAP }}>
                 <Pressable onPress={() => { Haptics.selectionAsync(); router.push(`/content/${item.id}`); }}>
-                  <View style={styles.gridCard}>
+                  <View style={styles.gridShell}>
+                    <View style={styles.gridCard}>
                     <Image source={{ uri: item.poster }} style={styles.gridPoster} contentFit="cover" transition={200} />
                     {item.is_new ? <View style={styles.gridBadge}><Text style={styles.gridBadgeText}>NEW</Text></View> : null}
-                  </View>
-                  <Text style={styles.gridTitle} numberOfLines={1}>{item.title}</Text>
-                  <View style={styles.gridMeta}>
-                    <MaterialIcons name="star" size={11} color={theme.accent} />
-                    <Text style={styles.gridRating}>{item.rating}</Text>
+                    </View>
+                    <View style={styles.gridInfo}>
+                      <Text style={styles.gridTitle} numberOfLines={1}>{item.title}</Text>
+                      <View style={styles.gridMeta}>
+                        <MaterialIcons name="star" size={11} color={theme.accent} />
+                        <Text style={styles.gridRating}>{item.rating}</Text>
+                        <Text style={styles.gridMetaDot}>•</Text>
+                        <Text style={styles.gridType}>{item.type === 'movie' ? 'Movie' : 'Series'}</Text>
+                      </View>
+                      <Text style={styles.gridGenre} numberOfLines={1}>{item.genre?.[0] || 'Featured'}</Text>
+                    </View>
                   </View>
                 </Pressable>
               </Animated.View>
@@ -130,18 +137,23 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   filterText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
   filterTextActive: { color: '#FFF' },
-  genreRow: { paddingHorizontal: 16, gap: 8, paddingBottom: 16 },
-  genreChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  genreWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8, paddingBottom: 16 },
+  genreChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
   genreChipActive: { backgroundColor: theme.primaryDark, borderColor: theme.primary },
   genreText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
   genreTextActive: { color: '#FFF' },
-  gridCard: { width: '100%', aspectRatio: 2 / 3, borderRadius: 10, overflow: 'hidden', marginBottom: 6 },
+  gridShell: { backgroundColor: theme.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: theme.border },
+  gridCard: { width: '100%', aspectRatio: 2 / 3, overflow: 'hidden', backgroundColor: theme.surfaceLight },
   gridPoster: { width: '100%', height: '100%' },
   gridBadge: { position: 'absolute', top: 6, left: 6, backgroundColor: theme.primary, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3 },
   gridBadgeText: { fontSize: 9, fontWeight: '700', color: '#FFF', letterSpacing: 0.5 },
-  gridTitle: { fontSize: 12, fontWeight: '600', color: '#FFF', marginBottom: 2 },
+  gridInfo: { padding: 12, gap: 4 },
+  gridTitle: { fontSize: 13, fontWeight: '700', color: '#FFF' },
   gridMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   gridRating: { fontSize: 11, fontWeight: '700', color: theme.accent },
+  gridMetaDot: { fontSize: 12, color: theme.textMuted, marginHorizontal: 2 },
+  gridType: { fontSize: 11, fontWeight: '600', color: theme.textSecondary },
+  gridGenre: { fontSize: 11, color: theme.textMuted },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#FFF' },
   emptySubtitle: { fontSize: 14, color: theme.textSecondary },

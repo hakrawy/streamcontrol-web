@@ -25,6 +25,8 @@ export default function AdminSeries() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptySeriesForm });
+  const [playlistUrl, setPlaylistUrl] = useState('');
+  const [importing, setImporting] = useState(false);
 
   // Seasons/Episodes state
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null);
@@ -79,6 +81,24 @@ export default function AdminSeries() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => { try { await api.deleteSeries(id); load(); } catch {} } },
     ]);
+  };
+
+  const handleImportPlaylist = async () => {
+    if (!playlistUrl.trim()) {
+      showAlert('Missing URL', 'Paste a valid M3U or M3U8 playlist URL first.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const result = await api.importSeriesFromM3UUrl(playlistUrl.trim());
+      showAlert('Import complete', `Imported ${result.importedSeries} series and ${result.importedEpisodes} episodes.`);
+      setPlaylistUrl('');
+      await load();
+    } catch (err: any) {
+      showAlert('Import failed', err.message || 'Could not import this playlist.');
+    } finally {
+      setImporting(false);
+    }
   };
 
   // ===== SEASONS =====
@@ -387,6 +407,23 @@ export default function AdminSeries() {
         <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>Add Series</Text>
       </Pressable>
 
+      <View style={styles.importCard}>
+        <Text style={styles.formTitle}>Bulk Import M3U / M3U8</Text>
+        <Text style={styles.importHint}>Import episodic content from a playlist URL using episode title detection.</Text>
+        <TextInput
+          style={styles.fieldInput}
+          value={playlistUrl}
+          onChangeText={setPlaylistUrl}
+          placeholder="https://example.com/series.m3u"
+          placeholderTextColor={theme.textMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Pressable style={[styles.saveBtn, importing && { opacity: 0.7 }]} onPress={handleImportPlaylist} disabled={importing}>
+          <Text style={styles.saveText}>{importing ? 'Importing...' : 'Import Series'}</Text>
+        </Pressable>
+      </View>
+
       <Text style={styles.countText}>{seriesList.length} series</Text>
       {seriesList.map((s, i) => (
         <Animated.View key={s.id} entering={FadeInDown.delay(Math.min(i, 8) * 40).duration(300)}>
@@ -424,6 +461,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.primary, height: 48, borderRadius: 12, marginBottom: 16 },
   addBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
+  importCard: { backgroundColor: theme.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  importHint: { fontSize: 13, color: theme.textSecondary },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   backText: { fontSize: 14, fontWeight: '600', color: theme.primary },
   seriesHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: theme.surface, borderRadius: 14, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: theme.border },
