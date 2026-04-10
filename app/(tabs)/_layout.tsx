@@ -25,13 +25,21 @@ export default function TabLayout() {
           borderTopWidth: 1,
           borderTopColor: theme.border,
           direction,
+          shadowColor: '#000',
+          shadowOpacity: 0.28,
+          shadowRadius: 18,
+          shadowOffset: { width: 0, height: -6 },
+          elevation: 14,
         },
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textMuted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
         tabBarItemStyle: {
           minHeight: 46,
           maxWidth: 180,
+          borderRadius: 16,
+          marginHorizontal: 4,
+          marginBottom: 2,
         },
       }}
     >

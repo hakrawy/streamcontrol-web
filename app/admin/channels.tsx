@@ -9,6 +9,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import type { Channel } from '../../services/api';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const emptyForm = {
   name: '', logo: '', stream_url: '', category: '', current_program: '',
@@ -18,6 +19,7 @@ const emptyForm = {
 export default function AdminChannels() {
   const insets = useSafeAreaInsets();
   const { showAlert } = useAlert();
+  const { language, isRTL, direction } = useLocale();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -28,6 +30,37 @@ export default function AdminChannels() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const copy = language === 'Arabic'
+    ? {
+        addChannel: 'إضافة قناة',
+        cancelSelection: 'إلغاء التحديد',
+        selectMultiple: 'تحديد متعدد',
+        deleteVisible: 'حذف الظاهر',
+        clearAll: 'إلغاء الكل',
+        selectAll: 'تحديد الكل',
+        deleteSelected: 'حذف المحدد',
+        search: 'ابحث عن القنوات...',
+        channels: 'قناة',
+        importTitle: 'استيراد M3U / M3U8 دفعة واحدة',
+        importHint: 'استورد القنوات المباشرة من رابط قائمة تشغيل في خطوة واحدة.',
+        importChannels: 'استيراد القنوات',
+        importing: 'جارٍ الاستيراد...',
+      }
+    : {
+        addChannel: 'Add Channel',
+        cancelSelection: 'Cancel Selection',
+        selectMultiple: 'Select Multiple',
+        deleteVisible: 'Delete Visible',
+        clearAll: 'Clear All',
+        selectAll: 'Select All',
+        deleteSelected: 'Delete Selected',
+        search: 'Search channels...',
+        channels: 'channels',
+        importTitle: 'Bulk Import M3U / M3U8',
+        importHint: 'Import live channels from a playlist URL in one step.',
+        importChannels: 'Import Channels',
+        importing: 'Importing...',
+      };
 
   const load = async () => { setLoading(true); try { setChannels(await api.fetchChannels()); } catch {} setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -167,19 +200,19 @@ export default function AdminChannels() {
   ];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
       <Pressable style={styles.addBtn} onPress={() => { resetForm(); setShowForm(true); }}>
-        <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>Add Channel</Text>
+        <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>{copy.addChannel}</Text>
       </Pressable>
 
       <View style={styles.bulkToolbar}>
         <Pressable style={[styles.bulkBtn, selectionMode && styles.bulkBtnActive]} onPress={() => selectionMode ? clearSelection() : setSelectionMode(true)}>
           <MaterialIcons name={selectionMode ? 'close' : 'checklist'} size={18} color="#FFF" />
-          <Text style={styles.bulkBtnText}>{selectionMode ? 'Cancel Selection' : 'Select Multiple'}</Text>
+          <Text style={styles.bulkBtnText}>{selectionMode ? copy.cancelSelection : copy.selectMultiple}</Text>
         </Pressable>
         <Pressable style={styles.bulkDangerBtn} onPress={handleDeleteAllVisible}>
           <MaterialIcons name="delete-forever" size={18} color="#FFF" />
-          <Text style={styles.bulkBtnText}>Delete Visible ({filteredChannels.length})</Text>
+          <Text style={styles.bulkBtnText}>{copy.deleteVisible} ({filteredChannels.length})</Text>
         </Pressable>
         {selectionMode ? (
           <>
@@ -187,11 +220,11 @@ export default function AdminChannels() {
               style={styles.bulkBtnSecondary}
               onPress={() => setSelectedIds(selectedIds.length === filteredChannels.length ? [] : filteredChannels.map((channel) => channel.id))}
             >
-              <Text style={styles.bulkBtnSecondaryText}>{selectedIds.length === filteredChannels.length ? 'Clear All' : 'Select All'}</Text>
+              <Text style={styles.bulkBtnSecondaryText}>{selectedIds.length === filteredChannels.length ? copy.clearAll : copy.selectAll}</Text>
             </Pressable>
             <Pressable style={styles.bulkDangerBtn} onPress={handleDeleteSelected}>
               <MaterialIcons name="delete-sweep" size={18} color="#FFF" />
-              <Text style={styles.bulkBtnText}>Delete Selected ({selectedIds.length})</Text>
+              <Text style={styles.bulkBtnText}>{copy.deleteSelected} ({selectedIds.length})</Text>
             </Pressable>
           </>
         ) : null}
@@ -201,17 +234,18 @@ export default function AdminChannels() {
         <MaterialIcons name="search" size={18} color={theme.textMuted} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search channels..."
+          placeholder={copy.search}
           placeholderTextColor={theme.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          textAlign={isRTL ? 'right' : 'left'}
         />
         {searchQuery ? <Pressable onPress={() => setSearchQuery('')}><MaterialIcons name="close" size={16} color={theme.textMuted} /></Pressable> : null}
       </View>
 
       <View style={styles.importCard}>
-        <Text style={styles.formTitle}>Bulk Import M3U / M3U8</Text>
-        <Text style={styles.importHint}>Import live channels from a playlist URL in one step.</Text>
+        <Text style={styles.formTitle}>{copy.importTitle}</Text>
+        <Text style={styles.importHint}>{copy.importHint}</Text>
         <TextInput
           style={styles.fieldInput}
           value={playlistUrl}
@@ -222,7 +256,7 @@ export default function AdminChannels() {
           autoCorrect={false}
         />
         <Pressable style={[styles.saveBtn, importing && { opacity: 0.7 }]} onPress={handleImportPlaylist} disabled={importing}>
-          <Text style={styles.saveText}>{importing ? 'Importing...' : 'Import Channels'}</Text>
+          <Text style={styles.saveText}>{importing ? copy.importing : copy.importChannels}</Text>
         </Pressable>
       </View>
 
@@ -272,7 +306,7 @@ export default function AdminChannels() {
         </Animated.View>
       ) : null}
 
-      <Text style={styles.countText}>{filteredChannels.length} channels</Text>
+      <Text style={styles.countText}>{filteredChannels.length} {copy.channels}</Text>
       {filteredChannels.map((ch, i) => (
         <Animated.View key={ch.id} entering={FadeInDown.delay(Math.min(i, 8) * 40).duration(300)}>
           <View style={styles.itemCard}>

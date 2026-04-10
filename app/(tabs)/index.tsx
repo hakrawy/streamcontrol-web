@@ -116,6 +116,20 @@ export default function HomeScreen() {
     router.push(`/content/${id}`);
   };
 
+  const openChannel = (channel: typeof channels[number]) => {
+    Haptics.selectionAsync();
+    router.push({
+      pathname: '/player',
+      params: {
+        title: channel.name,
+        url: channel.stream_url,
+        sources: JSON.stringify(channel.stream_sources || []),
+        viewerContentId: channel.id,
+        viewerContentType: 'channel',
+      },
+    });
+  };
+
   const featuredChannels = channels.filter(c => c.is_featured && c.is_live);
 
   if (loading) {
@@ -279,7 +293,7 @@ export default function HomeScreen() {
             <SectionHeader title={copy.liveNow} icon="sensors" iconColor={theme.live} isRTL={isRTL} />
             <HorizontalShelf isRTL={isRTL}>
               {featuredChannels.map(ch => (
-                <Pressable key={ch.id} style={styles.liveCard}>
+                <Pressable key={ch.id} style={styles.liveCard} onPress={() => openChannel(ch)}>
                   <View style={styles.liveImageWrap}>
                     <Image source={{ uri: ch.logo }} style={styles.liveLogo} contentFit="cover" transition={200} />
                     <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>{copy.live}</Text></View>
@@ -331,7 +345,12 @@ export default function HomeScreen() {
 
       {/* Floating Header */}
       <View style={[styles.floatingHeader, { paddingTop: insets.top + 8, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        <Text style={styles.appTitle}>Ali Control</Text>
+        <View style={[styles.brandWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={styles.brandMark}>
+            <MaterialIcons name="play-circle-filled" size={22} color="#F8FAFC" />
+          </View>
+          <Text style={styles.appTitle}>Ali Control</Text>
+        </View>
         <View style={styles.headerIcons}>
           <Pressable style={styles.headerIcon} onPress={() => router.push('/watchroom')}>
             <MaterialIcons name="groups" size={24} color="#FFF" />
@@ -412,10 +431,12 @@ function ContentCard({ item, onPress, showBadge }: { item: ContentItem; onPress:
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
-  floatingHeader: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, zIndex: 10, backgroundColor: 'rgba(5,7,15,0.82)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  appTitle: { fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
+  floatingHeader: { position: 'absolute', top: 0, left: 0, right: 0, justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, zIndex: 10, backgroundColor: 'rgba(5,7,15,0.82)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  brandWrap: { alignItems: 'center', gap: 10 },
+  brandMark: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.primary, shadowColor: theme.primary, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  appTitle: { fontSize: 24, fontWeight: '900', color: '#FFF', letterSpacing: -0.6 },
   headerIcons: { flexDirection: 'row', gap: 16 },
-  headerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  headerIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   heroContent: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 20 },
   homeSearchWrap: { paddingHorizontal: 16, paddingBottom: 16 },
   homeSearchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: theme.surface, borderRadius: 16, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 14, height: 50 },
@@ -437,7 +458,7 @@ const styles = StyleSheet.create({
   heroDots: { position: 'absolute', bottom: 8, alignSelf: 'center', flexDirection: 'row', gap: 6, alignItems: 'center' },
   heroDotItem: { height: 4, borderRadius: 2 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 24, paddingBottom: 12 },
-  sectionTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#FFF', letterSpacing: -0.3 },
+  sectionTitle: { flex: 1, fontSize: 19, fontWeight: '800', color: '#FFF', letterSpacing: -0.35 },
   railWrap: { position: 'relative' },
   railArrow: { position: 'absolute', top: 90, zIndex: 3, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(8,11,20,0.88)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   railArrowLeft: { left: 10 },

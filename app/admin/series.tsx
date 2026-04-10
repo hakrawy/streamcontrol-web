@@ -9,6 +9,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import type { Series, Season, Episode } from '../../services/api';
+import { useLocale } from '../../contexts/LocaleContext';
 
 type ViewMode = 'list' | 'form' | 'seasons';
 
@@ -20,6 +21,7 @@ const emptySeriesForm = {
 export default function AdminSeries() {
   const insets = useSafeAreaInsets();
   const { showAlert } = useAlert();
+  const { language, isRTL, direction } = useLocale();
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -42,6 +44,33 @@ export default function AdminSeries() {
   const [editingEpisodeId, setEditingEpisodeId] = useState<string | null>(null);
   const [episodeSeasonId, setEpisodeSeasonId] = useState<string | null>(null);
   const [episodeForm, setEpisodeForm] = useState({ number: '', title: '', description: '', thumbnail: '', stream_url: '', subtitle_url: '', duration: '' });
+  const copy = language === 'Arabic'
+    ? {
+        addSeries: 'إضافة مسلسل',
+        cancelSelection: 'إلغاء التحديد',
+        selectMultiple: 'تحديد متعدد',
+        clearAll: 'إلغاء الكل',
+        selectAll: 'تحديد الكل',
+        deleteSelected: 'حذف المحدد',
+        importTitle: 'استيراد M3U / M3U8 دفعة واحدة',
+        importHint: 'استورد المحتوى الحلقي من رابط قائمة تشغيل عبر التعرف على عناوين الحلقات.',
+        importSeries: 'استيراد المسلسلات',
+        importing: 'جارٍ الاستيراد...',
+        series: 'مسلسل',
+      }
+    : {
+        addSeries: 'Add Series',
+        cancelSelection: 'Cancel Selection',
+        selectMultiple: 'Select Multiple',
+        clearAll: 'Clear All',
+        selectAll: 'Select All',
+        deleteSelected: 'Delete Selected',
+        importTitle: 'Bulk Import M3U / M3U8',
+        importHint: 'Import episodic content from a playlist URL using episode title detection.',
+        importSeries: 'Import Series',
+        importing: 'Importing...',
+        series: 'series',
+      };
 
   const load = async () => { setLoading(true); try { setSeriesList(await api.fetchAllSeriesAdmin()); } catch {} setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -242,7 +271,7 @@ export default function AdminSeries() {
   // ===== SEASONS VIEW =====
   if (viewMode === 'seasons' && selectedSeries) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
         <Pressable style={styles.backRow} onPress={() => { setViewMode('list'); setSelectedSeries(null); }}>
           <MaterialIcons name="arrow-back" size={20} color={theme.primary} />
           <Text style={styles.backText}>Back to Series</Text>
@@ -438,15 +467,15 @@ export default function AdminSeries() {
 
   // ===== LIST VIEW =====
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
       <Pressable style={styles.addBtn} onPress={() => { resetForm(); setViewMode('form'); }}>
-        <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>Add Series</Text>
+        <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>{copy.addSeries}</Text>
       </Pressable>
 
       <View style={styles.bulkToolbar}>
         <Pressable style={[styles.bulkBtn, selectionMode && styles.bulkBtnActive]} onPress={() => selectionMode ? clearSelection() : setSelectionMode(true)}>
           <MaterialIcons name={selectionMode ? 'close' : 'checklist'} size={18} color="#FFF" />
-          <Text style={styles.bulkBtnText}>{selectionMode ? 'Cancel Selection' : 'Select Multiple'}</Text>
+          <Text style={styles.bulkBtnText}>{selectionMode ? copy.cancelSelection : copy.selectMultiple}</Text>
         </Pressable>
         {selectionMode ? (
           <>
@@ -454,19 +483,19 @@ export default function AdminSeries() {
               style={styles.bulkBtnSecondary}
               onPress={() => setSelectedIds(selectedIds.length === seriesList.length ? [] : seriesList.map((series) => series.id))}
             >
-              <Text style={styles.bulkBtnSecondaryText}>{selectedIds.length === seriesList.length ? 'Clear All' : 'Select All'}</Text>
+              <Text style={styles.bulkBtnSecondaryText}>{selectedIds.length === seriesList.length ? copy.clearAll : copy.selectAll}</Text>
             </Pressable>
             <Pressable style={styles.bulkDangerBtn} onPress={handleDeleteSelected}>
               <MaterialIcons name="delete-sweep" size={18} color="#FFF" />
-              <Text style={styles.bulkBtnText}>Delete Selected ({selectedIds.length})</Text>
+              <Text style={styles.bulkBtnText}>{copy.deleteSelected} ({selectedIds.length})</Text>
             </Pressable>
           </>
         ) : null}
       </View>
 
       <View style={styles.importCard}>
-        <Text style={styles.formTitle}>Bulk Import M3U / M3U8</Text>
-        <Text style={styles.importHint}>Import episodic content from a playlist URL using episode title detection.</Text>
+        <Text style={styles.formTitle}>{copy.importTitle}</Text>
+        <Text style={styles.importHint}>{copy.importHint}</Text>
         <TextInput
           style={styles.fieldInput}
           value={playlistUrl}
@@ -477,11 +506,11 @@ export default function AdminSeries() {
           autoCorrect={false}
         />
         <Pressable style={[styles.saveBtn, importing && { opacity: 0.7 }]} onPress={handleImportPlaylist} disabled={importing}>
-          <Text style={styles.saveText}>{importing ? 'Importing...' : 'Import Series'}</Text>
+          <Text style={styles.saveText}>{importing ? copy.importing : copy.importSeries}</Text>
         </Pressable>
       </View>
 
-      <Text style={styles.countText}>{seriesList.length} series</Text>
+      <Text style={styles.countText}>{seriesList.length} {copy.series}</Text>
       {seriesList.map((s, i) => (
         <Animated.View key={s.id} entering={FadeInDown.delay(Math.min(i, 8) * 40).duration(300)}>
           <View style={styles.itemCard}>

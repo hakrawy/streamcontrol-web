@@ -9,6 +9,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import type { Movie } from '../../services/api';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const emptyForm = {
   title: '', description: '', poster: '', backdrop: '', stream_url: '', trailer_url: '', subtitle_url: '',
@@ -19,6 +20,7 @@ const emptyForm = {
 export default function AdminMovies() {
   const insets = useSafeAreaInsets();
   const { showAlert } = useAlert();
+  const { language, isRTL, direction } = useLocale();
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -29,6 +31,35 @@ export default function AdminMovies() {
   const [importing, setImporting] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const copy = language === 'Arabic'
+    ? {
+        addMovie: 'إضافة فيلم',
+        cancelSelection: 'إلغاء التحديد',
+        selectMultiple: 'تحديد متعدد',
+        clearAll: 'إلغاء الكل',
+        selectAll: 'تحديد الكل',
+        deleteSelected: 'حذف المحدد',
+        importTitle: 'استيراد M3U / M3U8 دفعة واحدة',
+        importHint: 'استورد أفلام VOD من رابط قائمة تشغيل في خطوة واحدة.',
+        importMovies: 'استيراد الأفلام',
+        importing: 'جارٍ الاستيراد...',
+        search: 'ابحث عن الأفلام...',
+        movies: 'فيلم',
+      }
+    : {
+        addMovie: 'Add Movie',
+        cancelSelection: 'Cancel Selection',
+        selectMultiple: 'Select Multiple',
+        clearAll: 'Clear All',
+        selectAll: 'Select All',
+        deleteSelected: 'Delete Selected',
+        importTitle: 'Bulk Import M3U / M3U8',
+        importHint: 'Import VOD movie entries from a playlist URL in one step.',
+        importMovies: 'Import Movies',
+        importing: 'Importing...',
+        search: 'Search movies...',
+        movies: 'movies',
+      };
 
   const load = async () => {
     setLoading(true);
@@ -167,15 +198,15 @@ export default function AdminMovies() {
   ];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
       <Pressable style={styles.addBtn} onPress={() => { resetForm(); setShowForm(true); }}>
-        <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>Add Movie</Text>
+        <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>{copy.addMovie}</Text>
       </Pressable>
 
       <View style={styles.bulkToolbar}>
         <Pressable style={[styles.bulkBtn, selectionMode && styles.bulkBtnActive]} onPress={() => selectionMode ? clearSelection() : setSelectionMode(true)}>
           <MaterialIcons name={selectionMode ? 'close' : 'checklist'} size={18} color="#FFF" />
-          <Text style={styles.bulkBtnText}>{selectionMode ? 'Cancel Selection' : 'Select Multiple'}</Text>
+          <Text style={styles.bulkBtnText}>{selectionMode ? copy.cancelSelection : copy.selectMultiple}</Text>
         </Pressable>
         {selectionMode ? (
           <>
@@ -183,19 +214,19 @@ export default function AdminMovies() {
               style={styles.bulkBtnSecondary}
               onPress={() => setSelectedIds(selectedIds.length === filteredMovies.length ? [] : filteredMovies.map((movie) => movie.id))}
             >
-              <Text style={styles.bulkBtnSecondaryText}>{selectedIds.length === filteredMovies.length ? 'Clear All' : 'Select All'}</Text>
+              <Text style={styles.bulkBtnSecondaryText}>{selectedIds.length === filteredMovies.length ? copy.clearAll : copy.selectAll}</Text>
             </Pressable>
             <Pressable style={styles.bulkDangerBtn} onPress={handleDeleteSelected}>
               <MaterialIcons name="delete-sweep" size={18} color="#FFF" />
-              <Text style={styles.bulkBtnText}>Delete Selected ({selectedIds.length})</Text>
+              <Text style={styles.bulkBtnText}>{copy.deleteSelected} ({selectedIds.length})</Text>
             </Pressable>
           </>
         ) : null}
       </View>
 
       <View style={styles.importCard}>
-        <Text style={styles.formTitle}>Bulk Import M3U / M3U8</Text>
-        <Text style={styles.importHint}>Import VOD movie entries from a playlist URL in one step.</Text>
+        <Text style={styles.formTitle}>{copy.importTitle}</Text>
+        <Text style={styles.importHint}>{copy.importHint}</Text>
         <TextInput
           style={styles.fieldInput}
           value={playlistUrl}
@@ -206,7 +237,7 @@ export default function AdminMovies() {
           autoCorrect={false}
         />
         <Pressable style={[styles.saveBtn, importing && { opacity: 0.7 }]} onPress={handleImportPlaylist} disabled={importing}>
-          <Text style={styles.saveText}>{importing ? 'Importing...' : 'Import Movies'}</Text>
+          <Text style={styles.saveText}>{importing ? copy.importing : copy.importMovies}</Text>
         </Pressable>
       </View>
 
@@ -259,11 +290,11 @@ export default function AdminMovies() {
       {/* Search */}
       <View style={styles.searchBar}>
         <MaterialIcons name="search" size={18} color={theme.textMuted} />
-        <TextInput style={styles.searchInput} placeholder="Search movies..." placeholderTextColor={theme.textMuted} value={searchQuery} onChangeText={setSearchQuery} />
+        <TextInput style={styles.searchInput} placeholder={copy.search} placeholderTextColor={theme.textMuted} value={searchQuery} onChangeText={setSearchQuery} textAlign={isRTL ? 'right' : 'left'} />
         {searchQuery ? <Pressable onPress={() => setSearchQuery('')}><MaterialIcons name="close" size={16} color={theme.textMuted} /></Pressable> : null}
       </View>
 
-      <Text style={styles.countText}>{filteredMovies.length} movies</Text>
+      <Text style={styles.countText}>{filteredMovies.length} {copy.movies}</Text>
 
       {filteredMovies.map((movie, i) => (
         <Animated.View key={movie.id} entering={FadeInDown.delay(Math.min(i, 8) * 40).duration(300)}>

@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useAuth, useAlert } from '@/template';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
+import { useLocale } from '../contexts/LocaleContext';
 
 type AuthMode = 'login' | 'register' | 'otp';
 
@@ -25,6 +26,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const { user, initialized, sendOTP, verifyOTPAndLogin, signInWithPassword, operationLoading } = useAuth();
   const { showAlert } = useAlert();
+  const { language, isRTL, direction, setLanguage } = useLocale();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,6 +34,83 @@ export default function LoginScreen() {
   const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const copy = language === 'Arabic'
+    ? {
+        fantasy: 'تجربة سينمائية خيالية',
+        rights: 'جميع الحقوق محفوظة إلى علي دهل',
+        signingIn: 'جارٍ تسجيل دخولك...',
+        riyadhTime: 'توقيت الرياض',
+        liveChannels: 'قنوات مباشرة',
+        epicLibrary: 'مكتبة ضخمة',
+        watchRooms: 'غرف مشاهدة',
+        welcomeBack: 'مرحبًا بعودتك',
+        createAccount: 'إنشاء حساب',
+        enterCode: 'أدخل الرمز',
+        signInDesc: 'سجّل الدخول للمتابعة',
+        registerDesc: 'ابدأ رحلتك في عالم المشاهدة',
+        sentCode: 'أرسلنا رمزًا إلى {email}',
+        email: 'البريد الإلكتروني',
+        password: 'كلمة المرور',
+        confirmPassword: 'تأكيد كلمة المرور',
+        verificationCode: 'رمز التحقق',
+        pleaseWait: 'يرجى الانتظار...',
+        signIn: 'تسجيل الدخول',
+        create: 'إنشاء حساب',
+        verify: 'تأكيد وتسجيل الدخول',
+        goBack: 'رجوع',
+        noAccount: 'ليس لديك حساب؟ ',
+        alreadyAccount: 'لديك حساب بالفعل؟ ',
+        signUp: 'سجل الآن',
+        chooseLanguage: 'اختر اللغة',
+        english: 'English',
+        arabic: 'العربية',
+        fillAll: 'يرجى تعبئة جميع الحقول',
+        passwordsMismatch: 'كلمتا المرور غير متطابقتين',
+        passwordShort: 'يجب أن تكون كلمة المرور 6 أحرف على الأقل',
+        codeSent: 'تم إرسال الرمز',
+        codeSentDesc: 'تحقق من بريدك الإلكتروني للحصول على رمز التفعيل',
+        loginFailed: 'فشل تسجيل الدخول',
+        verificationFailed: 'فشل التحقق',
+        error: 'خطأ',
+      }
+    : {
+        fantasy: 'Cinematic Fantasy Experience',
+        rights: 'All rights reserved to Ali Dohol',
+        signingIn: 'Signing you in...',
+        riyadhTime: 'Riyadh Time',
+        liveChannels: 'Live Channels',
+        epicLibrary: 'Epic Library',
+        watchRooms: 'Watch Rooms',
+        welcomeBack: 'Welcome Back',
+        createAccount: 'Create Account',
+        enterCode: 'Enter Code',
+        signInDesc: 'Sign in to continue watching',
+        registerDesc: 'Start your streaming journey',
+        sentCode: 'We sent a code to {email}',
+        email: 'Email address',
+        password: 'Password',
+        confirmPassword: 'Confirm Password',
+        verificationCode: 'Verification code',
+        pleaseWait: 'Please wait...',
+        signIn: 'Sign In',
+        create: 'Create Account',
+        verify: 'Verify & Sign In',
+        goBack: 'Go Back',
+        noAccount: "Don't have an account? ",
+        alreadyAccount: 'Already have an account? ',
+        signUp: 'Sign Up',
+        chooseLanguage: 'Choose language',
+        english: 'English',
+        arabic: 'العربية',
+        fillAll: 'Please fill in all fields',
+        passwordsMismatch: 'Passwords do not match',
+        passwordShort: 'Password must be at least 6 characters',
+        codeSent: 'Code Sent',
+        codeSentDesc: 'Check your email for the verification code',
+        loginFailed: 'Login Failed',
+        verificationFailed: 'Verification Failed',
+        error: 'Error',
+      };
 
   useEffect(() => {
     if (initialized && user) {
@@ -46,12 +125,12 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      showAlert('Error', 'Please fill in all fields');
+      showAlert(copy.error, copy.fillAll);
       return;
     }
     const { error, user: authUser } = await signInWithPassword(email.trim(), password);
     if (error) {
-      showAlert('Login Failed', error);
+      showAlert(copy.loginFailed, error);
       return;
     }
     if (authUser) {
@@ -61,36 +140,36 @@ export default function LoginScreen() {
 
   const handleSendOTP = async () => {
     if (!email.trim() || !password.trim()) {
-      showAlert('Error', 'Please fill in all fields');
+      showAlert(copy.error, copy.fillAll);
       return;
     }
     if (password !== confirmPassword) {
-      showAlert('Error', 'Passwords do not match');
+      showAlert(copy.error, copy.passwordsMismatch);
       return;
     }
     if (password.length < 6) {
-      showAlert('Error', 'Password must be at least 6 characters');
+      showAlert(copy.error, copy.passwordShort);
       return;
     }
     const { error } = await sendOTP(email.trim(), {
       emailRedirectTo: getEmailRedirectUrl(),
     });
     if (error) {
-      showAlert('Error', error);
+      showAlert(copy.error, error);
       return;
     }
-    showAlert('Code Sent', 'Check your email for the verification code');
+    showAlert(copy.codeSent, copy.codeSentDesc);
     setMode('otp');
   };
 
   const handleVerifyOTP = async () => {
     if (!otp.trim()) {
-      showAlert('Error', 'Please enter the verification code');
+      showAlert(copy.error, copy.verificationCode);
       return;
     }
     const { error, user: authUser } = await verifyOTPAndLogin(email.trim(), otp.trim(), { password });
     if (error) {
-      showAlert('Verification Failed', error);
+      showAlert(copy.verificationFailed, error);
       return;
     }
     if (authUser) {
@@ -99,7 +178,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { direction }]}>
       <Image
         pointerEvents="none"
         source={require('../assets/images/watchroom-hero.jpg')}
@@ -135,10 +214,21 @@ export default function LoginScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Logo */}
-            <Animated.View entering={FadeInDown.duration(500)} style={styles.logoSection} pointerEvents="none">
+            <Animated.View entering={FadeInDown.duration(500)} style={styles.logoSection}>
+              <View style={[styles.localeRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={styles.localeLabel}>{copy.chooseLanguage}</Text>
+                <View style={[styles.localeSwitch, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Pressable style={[styles.localeBtn, language === 'English' && styles.localeBtnActive]} onPress={() => void setLanguage('English')}>
+                    <Text style={[styles.localeBtnText, language === 'English' && styles.localeBtnTextActive]}>{copy.english}</Text>
+                  </Pressable>
+                  <Pressable style={[styles.localeBtn, language === 'Arabic' && styles.localeBtnActive]} onPress={() => void setLanguage('Arabic')}>
+                    <Text style={[styles.localeBtnText, language === 'Arabic' && styles.localeBtnTextActive]}>{copy.arabic}</Text>
+                  </Pressable>
+                </View>
+              </View>
               <View style={styles.heroPill}>
                 <MaterialIcons name="auto-awesome" size={16} color="#D9F99D" />
-                <Text style={styles.heroPillText}>Cinematic Fantasy Experience</Text>
+                <Text style={styles.heroPillText}>{copy.fantasy}</Text>
               </View>
               <View style={styles.logoBadge}>
                 <LinearGradient colors={['#60A5FA', '#22C55E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.logoBadgeGradient}>
@@ -146,9 +236,9 @@ export default function LoginScreen() {
                 </LinearGradient>
               </View>
               <Text style={styles.appName}>Ali Control</Text>
-              <Text style={styles.tagline}>All rights reserved to Ali Dohol</Text>
+              <Text style={styles.tagline}>{copy.rights}</Text>
               <View style={styles.clockCard}>
-                <Text style={styles.clockLabel}>{operationLoading ? 'Signing you in...' : 'Riyadh Time'}</Text>
+                <Text style={styles.clockLabel}>{operationLoading ? copy.signingIn : copy.riyadhTime}</Text>
                 <Text style={styles.clockValue}>
                   {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </Text>
@@ -159,15 +249,15 @@ export default function LoginScreen() {
               <View style={styles.featureRow}>
                 <View style={styles.featureChip}>
                   <MaterialIcons name="live-tv" size={15} color="#A7F3D0" />
-                  <Text style={styles.featureChipText}>Live Channels</Text>
+                  <Text style={styles.featureChipText}>{copy.liveChannels}</Text>
                 </View>
                 <View style={styles.featureChip}>
                   <MaterialIcons name="theaters" size={15} color="#BFDBFE" />
-                  <Text style={styles.featureChipText}>Epic Library</Text>
+                  <Text style={styles.featureChipText}>{copy.epicLibrary}</Text>
                 </View>
                 <View style={styles.featureChip}>
                   <MaterialIcons name="groups" size={15} color="#FDE68A" />
-                  <Text style={styles.featureChipText}>Watch Rooms</Text>
+                  <Text style={styles.featureChipText}>{copy.watchRooms}</Text>
                 </View>
               </View>
             </Animated.View>
@@ -175,10 +265,10 @@ export default function LoginScreen() {
             {/* Form */}
             <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.formCard}>
               <Text style={styles.formTitle}>
-                {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Account' : 'Enter Code'}
+                {mode === 'login' ? copy.welcomeBack : mode === 'register' ? copy.createAccount : copy.enterCode}
               </Text>
               <Text style={styles.formSubtitle}>
-                {mode === 'login' ? 'Sign in to continue watching' : mode === 'register' ? 'Start your streaming journey' : `We sent a code to ${email}`}
+                {mode === 'login' ? copy.signInDesc : mode === 'register' ? copy.registerDesc : copy.sentCode.replace('{email}', email)}
               </Text>
 
               {mode !== 'otp' ? (
@@ -187,24 +277,26 @@ export default function LoginScreen() {
                     <MaterialIcons name="email" size={20} color={theme.textMuted} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Email address"
+                      placeholder={copy.email}
                       placeholderTextColor={theme.textMuted}
                       value={email}
                       onChangeText={setEmail}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
+                      textAlign={isRTL ? 'right' : 'left'}
                     />
                   </View>
                   <View style={styles.inputWrap}>
                     <MaterialIcons name="lock" size={20} color={theme.textMuted} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Password"
+                      placeholder={copy.password}
                       placeholderTextColor={theme.textMuted}
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
+                      textAlign={isRTL ? 'right' : 'left'}
                     />
                     <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
                       <MaterialIcons name={showPassword ? 'visibility' : 'visibility-off'} size={20} color={theme.textMuted} />
@@ -215,11 +307,12 @@ export default function LoginScreen() {
                       <MaterialIcons name="lock-outline" size={20} color={theme.textMuted} />
                       <TextInput
                         style={styles.input}
-                        placeholder="Confirm Password"
+                        placeholder={copy.confirmPassword}
                         placeholderTextColor={theme.textMuted}
                         value={confirmPassword}
                         onChangeText={setConfirmPassword}
                         secureTextEntry={!showPassword}
+                        textAlign={isRTL ? 'right' : 'left'}
                       />
                     </View>
                   )}
@@ -229,12 +322,13 @@ export default function LoginScreen() {
                   <MaterialIcons name="pin" size={20} color={theme.textMuted} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Verification code"
+                    placeholder={copy.verificationCode}
                     placeholderTextColor={theme.textMuted}
-                  value={otp}
-                  onChangeText={setOtp}
-                  keyboardType="number-pad"
-                  maxLength={8}
+                    value={otp}
+                    onChangeText={setOtp}
+                    keyboardType="number-pad"
+                    maxLength={8}
+                    textAlign={isRTL ? 'right' : 'left'}
                   />
                 </View>
               )}
@@ -245,19 +339,19 @@ export default function LoginScreen() {
                 disabled={operationLoading}
               >
                 <Text style={styles.primaryBtnText}>
-                  {operationLoading ? 'Please wait...' : mode === 'login' ? 'Sign In' : mode === 'register' ? 'Create Account' : 'Verify & Sign In'}
+                  {operationLoading ? copy.pleaseWait : mode === 'login' ? copy.signIn : mode === 'register' ? copy.create : copy.verify}
                 </Text>
               </Pressable>
 
               {mode === 'otp' ? (
                 <Pressable onPress={() => setMode('register')} style={styles.switchBtn}>
-                  <Text style={styles.switchText}>Go Back</Text>
+                  <Text style={styles.switchText}>{copy.goBack}</Text>
                 </Pressable>
               ) : (
                 <Pressable onPress={() => { setMode(mode === 'login' ? 'register' : 'login'); setOtp(''); }} style={styles.switchBtn}>
                   <Text style={styles.switchText}>
-                    {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-                    <Text style={styles.switchHighlight}>{mode === 'login' ? 'Sign Up' : 'Sign In'}</Text>
+                    {mode === 'login' ? copy.noAccount : copy.alreadyAccount}
+                    <Text style={styles.switchHighlight}>{mode === 'login' ? copy.signUp : copy.signIn}</Text>
                   </Text>
                 </Pressable>
               )}
@@ -350,6 +444,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingTop: 48, paddingBottom: 40 },
   logoSection: { alignItems: 'center', marginBottom: 36, gap: 10 },
+  localeRow: { width: '100%', maxWidth: 480, alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  localeLabel: { color: '#BFDBFE', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
+  localeSwitch: { gap: 8, backgroundColor: 'rgba(9,15,30,0.5)', borderRadius: 999, padding: 5, borderWidth: 1, borderColor: 'rgba(148,163,184,0.16)' },
+  localeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
+  localeBtnActive: { backgroundColor: 'rgba(96,165,250,0.22)' },
+  localeBtnText: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
+  localeBtnTextActive: { color: '#F8FAFC' },
   heroPill: {
     flexDirection: 'row',
     alignItems: 'center',
