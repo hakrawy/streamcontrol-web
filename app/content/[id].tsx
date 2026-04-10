@@ -45,21 +45,50 @@ export default function ContentDetailScreen() {
           const s = await api.fetchSeasonsWithEpisodes(id);
           setSeasons(s);
         }
-        // Related content
-        const all = await api.fetchAllContent();
-        const sourceGenres = Array.isArray(item?.genre) ? item.genre.filter(Boolean) : [];
-        const related = all
-          .filter((candidate) => {
-            const candidateGenres = Array.isArray(candidate.genre) ? candidate.genre.filter(Boolean) : [];
-            return candidate.id !== id && candidateGenres.some((genre) => sourceGenres.includes(genre));
-          })
-          .slice(0, 6);
-        setRelatedContent(related);
       } catch (err) { console.error(err); }
-      setLoading(false);
+      finally { setLoading(false); }
     };
     load();
   }, [id]);
+
+  useEffect(() => {
+    if (!content) return;
+
+    let cancelled = false;
+    const loadRelated = async () => {
+      try {
+        const sourceGenres = Array.isArray(content.genre) ? content.genre.filter(Boolean) : [];
+        if (sourceGenres.length === 0) {
+          setRelatedContent([]);
+          return;
+        }
+
+        const [movies, series] = await Promise.all([
+          api.fetchMovies({ limit: 40 }).catch(() => []),
+          api.fetchSeries({ limit: 40 }).catch(() => []),
+        ]);
+        const all = [...movies, ...series];
+        const related = all
+          .filter((candidate) => {
+            const candidateGenres = Array.isArray(candidate.genre) ? candidate.genre.filter(Boolean) : [];
+            return candidate.id !== content.id && candidateGenres.some((genre) => sourceGenres.includes(genre));
+          })
+          .slice(0, 6);
+        if (!cancelled) {
+          setRelatedContent(related);
+        }
+      } catch {
+        if (!cancelled) {
+          setRelatedContent([]);
+        }
+      }
+    };
+
+    void loadRelated();
+    return () => {
+      cancelled = true;
+    };
+  }, [content]);
 
   if (loading) {
     return <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
