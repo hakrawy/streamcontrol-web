@@ -259,10 +259,10 @@ export default function ContentDetailScreen() {
     });
   };
 
-  const loadPlayableSources = async (target: { contentType: 'movie' | 'series' | 'episode'; contentId: string; fallbackSources: StreamSource[]; fallbackUrl?: string; subtitleUrl?: string; title: string; viewerContentType: api.ViewerContentType; viewerContentId: string }) => {
+  const loadPlayableSources = async (target: { contentType: 'movie' | 'series' | 'episode'; contentId: string; fallbackSources: StreamSource[]; fallbackUrl?: string; subtitleUrl?: string; title: string; viewerContentType: api.ViewerContentType; viewerContentId: string; identity?: { id?: string; imdb_id?: string | null; tmdb_id?: string | null; title?: string; year?: number | null } }) => {
     setSourcesLoading(true);
     try {
-      const addonSources = await api.fetchPlaybackSourcesForContent(target.contentType, target.contentId).catch(() => []);
+      const addonSources = await api.fetchPlaybackSourcesForContent(target.contentType, target.contentId, target.identity).catch(() => []);
       const fallbackSources = target.fallbackSources.length > 0
         ? target.fallbackSources
         : target.fallbackUrl
@@ -315,6 +315,11 @@ export default function ContentDetailScreen() {
       title: content.title,
       viewerContentId: content.id,
       viewerContentType: isMovie ? 'movie' : 'series',
+      identity: isMovie
+        ? { id: movieData.id, imdb_id: movieData.imdb_id, tmdb_id: movieData.tmdb_id, title: movieData.title, year: movieData.year }
+        : selectedEpisode
+          ? { id: selectedEpisode.id, title: selectedEpisode.title, year: seriesData.year }
+          : { id: content.id, title: content.title, year: content.year },
     });
   };
 
@@ -330,6 +335,7 @@ export default function ContentDetailScreen() {
       title: `${content.title} - ${epTitle}`,
       viewerContentId: content.id,
       viewerContentType: 'series',
+      identity: selectedEpisode ? { id: selectedEpisode.id, title: epTitle, year: seriesData.year } : { id: content.id, title: epTitle, year: seriesData.year },
     });
   };
 

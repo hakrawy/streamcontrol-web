@@ -44,6 +44,15 @@ export interface AddonCatalog {
   extra?: Array<{ name: string; isRequired?: boolean; options?: string[] }>;
 }
 
+export interface AddonResourceDescriptor {
+  name: string;
+  types?: string[];
+  idPrefixes?: string[];
+}
+
+export type AddonResource = string | AddonResourceDescriptor;
+export type AddonKind = 'catalog' | 'stream' | 'hybrid';
+
 export interface AddonManifest {
   id: string;
   name: string;
@@ -51,7 +60,7 @@ export interface AddonManifest {
   logo?: string;
   version?: string;
   catalogs?: AddonCatalog[];
-  resources?: string[];
+  resources?: AddonResource[];
   types?: string[];
   idPrefixes?: string[];
 }
@@ -97,6 +106,20 @@ interface AddonExternalRef {
   title?: string | null;
   year?: number | null;
   meta_json?: any;
+}
+
+interface StreamLookupCandidate {
+  externalType: string;
+  externalId: string;
+  addonId?: string | null;
+}
+
+interface PlaybackLookupIdentity {
+  id?: string;
+  imdb_id?: string | null;
+  tmdb_id?: string | null;
+  title?: string;
+  year?: number | null;
 }
 
 export interface M3UEntry {
@@ -484,6 +507,9 @@ function sanitizePosterUrl(url: string, fallback: string) {
 
 const STREAM_VALIDATION_TIMEOUT_MS = 5000;
 const STREAM_VALIDATION_CONCURRENCY = 10;
+const ADDON_STREAM_TIMEOUT_MS = 8000;
+const ADDON_STREAM_CACHE_TTL_MS = 5 * 60 * 1000;
+const addonStreamCache = new Map<string, { expiresAt: number; sources: StreamSource[] }>();
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = STREAM_VALIDATION_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -618,11 +644,47 @@ function buildAddonResourceUrl(manifestUrl: string, resourcePath: string) {
   return `${baseUrl}/${resourcePath.replace(/^\/+/, '')}`;
 }
 
+function extractAddonResourceName(resource: AddonResource | unknown) {
+  if (typeof resource === 'string') return resource.trim().toLowerCase();
+  if (resource && typeof resource === 'object' && typeof (resource as AddonResourceDescriptor).name === 'string') {
+    return (resource as AddonResourceDescriptor).name.trim().toLowerCase();
+  }
+  return '';
+}
+
+export function getAddonResourceNames(resources: AddonResource[] | string[] | undefined | null) {
+  if (!Array.isArray(resources)) return [];
+  return Array.from(new Set(resources.map((resource) => extractAddonResourceName(resource)).filter(Boolean)));
+}
+
+export function inferAddonKind(input: Partial<AddonRecord> | AddonManifest | null | undefined): AddonKind {
+  const source = input as any;
+  const catalogs = Array.isArray(source?.manifest_json?.catalogs)
+    ? source?.manifest_json?.catalogs
+    : Array.isArray(source?.catalogs)
+      ? source?.catalogs
+      : [];
+  const resourceNames = getAddonResourceNames(
+    Array.isArray(source?.manifest_json?.resources)
+      ? source?.manifest_json?.resources
+      : Array.isArray(source?.resources)
+        ? source?.resources
+        : []
+  );
+  const hasCatalogs = catalogs.length > 0;
+  const hasStreams = resourceNames.includes('stream');
+
+  if (hasCatalogs && hasStreams) return 'hybrid';
+  if (hasCatalogs) return 'catalog';
+  if (hasStreams) return 'stream';
+  return 'catalog';
+}
+
 function normalizeAddonRecord(row: any): AddonRecord {
   return {
     ...row,
     catalogs: Array.isArray(row?.catalogs) ? row.catalogs : [],
-    resources: Array.isArray(row?.resources) ? row.resources : [],
+    resources: getAddonResourceNames(Array.isArray(row?.manifest_json?.resources) ? row.manifest_json.resources : row?.resources),
     types: Array.isArray(row?.types) ? row.types : [],
     manifest_json: row?.manifest_json || null,
   } as AddonRecord;
@@ -707,8 +769,8 @@ function normalizeStreamSourceFromAddon(addon: AddonRecord, stream: any, fallbac
   };
 }
 
-async function fetchAddonJson<T>(url: string): Promise<T> {
-  const response = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow' }, 20000);
+async function fetchAddonJson<T>(url: string, timeoutMs = 20000): Promise<T> {
+  const response = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow' }, timeoutMs);
   if (!response.ok) {
     throw new Error(`Request failed (${response.status})`);
   }
@@ -750,6 +812,8 @@ export async function testAddonManifest(manifestUrl: string) {
     } catch (error: any) {
       sampleResult = `Manifest loaded, but the first catalog request failed: ${error?.message || 'Unknown error'}`;
     }
+  } else if (inferAddonKind(manifest) === 'stream') {
+    sampleResult = 'Stream add-on detected. This add-on will be queried at playback time only.';
   }
 
   return {
@@ -774,7 +838,7 @@ export async function saveAddonManifest(manifestUrl: string) {
     logo: getManifestLogo(manifest),
     version: manifest.version || '',
     catalogs: manifest.catalogs || [],
-    resources: manifest.resources || [],
+    resources: getAddonResourceNames(manifest.resources || []),
     types: manifest.types || [],
     manifest_json: manifest,
     enabled: true,
@@ -1049,8 +1113,103 @@ async function fetchAddonStreams(addon: AddonRecord, externalType: string, exter
     addon.manifest_url,
     `stream/${encodeURIComponent(externalType)}/${encodeURIComponent(externalId)}.json`
   );
-  const payload = await fetchAddonJson<{ streams?: any[] }>(streamUrl);
+  const payload = await fetchAddonJson<{ streams?: any[] }>(streamUrl, ADDON_STREAM_TIMEOUT_MS);
   return Array.isArray(payload?.streams) ? payload.streams : [];
+}
+
+function buildStreamCacheKey(addonId: string, externalType: string, externalId: string) {
+  return `${addonId}|${externalType}|${externalId}`;
+}
+
+function getCachedAddonStreams(addonId: string, externalType: string, externalId: string) {
+  const cacheKey = buildStreamCacheKey(addonId, externalType, externalId);
+  const cached = addonStreamCache.get(cacheKey);
+  if (!cached) return null;
+  if (cached.expiresAt < Date.now()) {
+    addonStreamCache.delete(cacheKey);
+    return null;
+  }
+  return cached.sources;
+}
+
+function setCachedAddonStreams(addonId: string, externalType: string, externalId: string, sources: StreamSource[]) {
+  const cacheKey = buildStreamCacheKey(addonId, externalType, externalId);
+  addonStreamCache.set(cacheKey, {
+    expiresAt: Date.now() + ADDON_STREAM_CACHE_TTL_MS,
+    sources,
+  });
+}
+
+function buildLookupCandidates(
+  contentType: 'movie' | 'series' | 'episode',
+  contentId: string,
+  identity: PlaybackLookupIdentity | undefined,
+  externalRefs: Array<Pick<AddonExternalRef, 'addon_id' | 'external_type' | 'external_id'>> = []
+) {
+  const candidates: StreamLookupCandidate[] = [];
+  const preferredType = contentType === 'movie' ? 'movie' : contentType === 'series' ? 'series' : 'episode';
+  const pushCandidate = (candidate: StreamLookupCandidate | null | undefined) => {
+    if (!candidate?.externalType || !candidate?.externalId) return;
+    const normalized: StreamLookupCandidate = {
+      externalType: candidate.externalType,
+      externalId: candidate.externalId,
+      addonId: candidate.addonId || null,
+    };
+    const duplicate = candidates.some((existing) =>
+      existing.externalType === normalized.externalType &&
+      existing.externalId === normalized.externalId &&
+      (existing.addonId || null) === normalized.addonId
+    );
+    if (!duplicate) {
+      candidates.push(normalized);
+    }
+  };
+
+  externalRefs.forEach((ref) => {
+    pushCandidate({
+      externalType: ref.external_type,
+      externalId: ref.external_id,
+      addonId: ref.addon_id,
+    });
+  });
+
+  if (identity?.imdb_id) {
+    pushCandidate({ externalType: preferredType, externalId: identity.imdb_id });
+  }
+  if (identity?.tmdb_id) {
+    pushCandidate({ externalType: preferredType, externalId: identity.tmdb_id });
+  }
+  if (identity?.id || contentId) {
+    pushCandidate({ externalType: preferredType, externalId: identity?.id || contentId });
+  }
+
+  return candidates;
+}
+
+async function fetchStreamSourcesFromAddon(addon: AddonRecord, candidates: StreamLookupCandidate[]) {
+  for (const candidate of candidates) {
+    const cached = getCachedAddonStreams(addon.id, candidate.externalType, candidate.externalId);
+    if (cached) {
+      if (cached.length > 0) return cached;
+      continue;
+    }
+
+    try {
+      const streams = await fetchAddonStreams(addon, candidate.externalType, candidate.externalId);
+      const normalized = streams
+        .map((stream, index) => normalizeStreamSourceFromAddon(addon, stream, index))
+        .filter(Boolean) as StreamSource[];
+      const unique = uniqueSources(normalized);
+      setCachedAddonStreams(addon.id, candidate.externalType, candidate.externalId, unique);
+      if (unique.length > 0) {
+        return unique;
+      }
+    } catch {
+      setCachedAddonStreams(addon.id, candidate.externalType, candidate.externalId, []);
+    }
+  }
+
+  return [];
 }
 
 async function resolveOrCreateMovieForAddon(meta: any) {
@@ -1190,6 +1349,7 @@ export async function importAddonContent(addonId: string) {
   const { data, error } = await supabase.from('addons').select('*').eq('id', addonId).single();
   if (error) throw error;
   const addon = normalizeAddonRecord(data);
+  const addonKind = inferAddonKind(addon);
 
   const summary: AddonImportSummary = {
     addonName: addon.name,
@@ -1201,6 +1361,13 @@ export async function importAddonContent(addonId: string) {
     skipped: 0,
     errors: [],
   };
+
+  if (addonKind === 'stream') {
+    summary.skipped = 1;
+    summary.errors.push('This add-on is stream-only. It is saved as a playback provider and does not import catalogs.');
+    await updateAddon(addon.id, { last_imported_at: new Date().toISOString() } as any);
+    return summary;
+  }
 
   for (const catalog of addon.catalogs || []) {
     if (!catalog?.id || !catalog?.type) continue;
@@ -1273,8 +1440,12 @@ export async function importAddonContent(addonId: string) {
   return summary;
 }
 
-export async function fetchPlaybackSourcesForContent(contentType: 'movie' | 'series' | 'episode', contentId: string) {
-  const [manualResult, addonResult] = await Promise.all([
+export async function fetchPlaybackSourcesForContent(
+  contentType: 'movie' | 'series' | 'episode',
+  contentId: string,
+  identity?: PlaybackLookupIdentity
+) {
+  const [manualResult, addonRefResult, addons] = await Promise.all([
     supabase
       .from('playback_sources')
       .select('*')
@@ -1284,38 +1455,36 @@ export async function fetchPlaybackSourcesForContent(contentType: 'movie' | 'ser
       .order('updated_at', { ascending: false }),
     supabase
       .from('content_external_refs')
-      .select('*, addons!inner(id, name, manifest_url, enabled)')
+      .select('addon_id, external_type, external_id')
       .eq('content_type', contentType)
-      .eq('content_id', contentId)
-      .eq('addons.enabled', true),
+      .eq('content_id', contentId),
+    fetchAllAddons().catch(() => []),
   ]);
 
   const manualSources = ((manualResult.data || []) as any[]).map(normalizePlaybackSourceRecordToStreamSource);
 
-  if (addonResult.error && !String(addonResult.error.message || '').includes('content_external_refs')) {
-    throw addonResult.error;
+  if (addonRefResult.error && !String(addonRefResult.error.message || '').includes('content_external_refs')) {
+    throw addonRefResult.error;
   }
 
-  const addonRows = addonResult.error ? [] : (addonResult.data || []);
+  const externalRefs = (addonRefResult.error ? [] : (addonRefResult.data || [])) as Array<
+    Pick<AddonExternalRef, 'addon_id' | 'external_type' | 'external_id'>
+  >;
+  const streamAddons = addons.filter((addon) => addon.enabled && inferAddonKind(addon) !== 'catalog');
+  const candidates = buildLookupCandidates(contentType, contentId, identity, externalRefs);
+
+  if (streamAddons.length === 0 || candidates.length === 0) {
+    return uniqueSources(manualSources);
+  }
+
   const addonSourcesNested = await Promise.all(
-    addonRows.map(async (row: any) => {
-      const addon = normalizeAddonRecord({
-        ...row.addons,
-        addon_key: row.addons?.id,
-        description: '',
-        logo: '',
-        version: '',
-        catalogs: [],
-        resources: [],
-        types: [],
-        manifest_json: null,
-        created_at: '',
-        updated_at: '',
-      });
-      const streams = await fetchAddonStreams(addon, row.external_type, row.external_id);
-      return streams
-        .map((stream, index) => normalizeStreamSourceFromAddon(addon, stream, index))
-        .filter(Boolean) as StreamSource[];
+    streamAddons.map(async (addon) => {
+      const addonCandidates = [
+        ...candidates.filter((candidate) => candidate.addonId === addon.id),
+        ...candidates.filter((candidate) => !candidate.addonId),
+        ...candidates.filter((candidate) => candidate.addonId && candidate.addonId !== addon.id),
+      ];
+      return fetchStreamSourcesFromAddon(addon, addonCandidates);
     })
   );
 

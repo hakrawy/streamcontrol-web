@@ -43,6 +43,10 @@ export default function AdminAddons() {
     cancel: 'إلغاء',
     delete: 'حذف',
     update: 'تحديث',
+    kind: 'نوع الإضافة',
+    kindCatalog: 'فهرس',
+    kindStream: 'تشغيل',
+    kindHybrid: 'فهرس + تشغيل',
   } : {
     title: 'Manage Add-ons',
     hint: 'Add manifest.json URLs, preview them, test them, save them, and import content.',
@@ -66,7 +70,17 @@ export default function AdminAddons() {
     cancel: 'Cancel',
     delete: 'Delete',
     update: 'Update',
+    kind: 'Type',
+    kindCatalog: 'Catalog',
+    kindStream: 'Stream',
+    kindHybrid: 'Catalog + Stream',
   }, [language]);
+
+  const getKindLabel = (kind: api.AddonKind) => {
+    if (kind === 'stream') return copy.kindStream;
+    if (kind === 'hybrid') return copy.kindHybrid;
+    return copy.kindCatalog;
+  };
 
   const loadAddons = async () => {
     setLoading(true);
@@ -238,6 +252,7 @@ export default function AdminAddons() {
                 <Text style={styles.previewName}>{preview.name}</Text>
                 <Text style={styles.previewDesc}>{preview.description || 'No description provided.'}</Text>
                 <Text style={styles.previewMeta}>{copy.version}: {preview.version || '1.0.0'}</Text>
+                <Text style={styles.previewMeta}>{copy.kind}: {getKindLabel(api.inferAddonKind(preview))}</Text>
               </View>
             </View>
             <Text style={styles.previewList}>{copy.catalogs}: {(preview.catalogs || []).map((catalog) => catalog.name || catalog.id).join(' • ') || '-'}</Text>
@@ -258,6 +273,7 @@ export default function AdminAddons() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardTitle}>{addon.name}</Text>
                   <Text style={styles.cardDescription}>{addon.description || addon.manifest_url}</Text>
+                  <Text style={styles.cardType}>{copy.kind}: {getKindLabel(api.inferAddonKind(addon))}</Text>
                 </View>
                 <View style={styles.switchWrap}>
                   <Text style={styles.switchText}>{addon.enabled ? copy.enabled : copy.disabled}</Text>
@@ -396,6 +412,7 @@ const styles = StyleSheet.create({
   cardLogo: { width: 50, height: 50, borderRadius: 12 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: '#FFF' },
   cardDescription: { fontSize: 12, color: theme.textSecondary, lineHeight: 18, marginTop: 2 },
+  cardType: { fontSize: 11, color: theme.textMuted, marginTop: 6, fontWeight: '600' },
   switchWrap: { alignItems: 'center', gap: 6 },
   switchText: { fontSize: 11, color: theme.textMuted, fontWeight: '600' },
   inlineMeta: { fontSize: 12, color: theme.textSecondary },
