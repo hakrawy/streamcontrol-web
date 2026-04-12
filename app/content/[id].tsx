@@ -90,6 +90,16 @@ export default function ContentDetailScreen() {
   const [selectedQuality, setSelectedQuality] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [selectedSubtitle, setSelectedSubtitle] = useState<string | null>(null);
+  const normalizedSeasons = useMemo(
+    () =>
+      [...seasons]
+        .sort((a, b) => (a.number || 0) - (b.number || 0))
+        .map((season) => ({
+          ...season,
+          episodes: [...(season.episodes || [])].sort((a, b) => (a.number || 0) - (b.number || 0)),
+        })),
+    [seasons]
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -175,16 +185,6 @@ export default function ContentDetailScreen() {
   const isMovie = content.type === 'movie';
   const movieData = content as Movie;
   const seriesData = content as Series;
-  const normalizedSeasons = useMemo(
-    () =>
-      [...seasons]
-        .sort((a, b) => (a.number || 0) - (b.number || 0))
-        .map((season) => ({
-          ...season,
-          episodes: [...(season.episodes || [])].sort((a, b) => (a.number || 0) - (b.number || 0)),
-        })),
-    [seasons]
-  );
   const safeGenres = Array.isArray(content.genre) ? content.genre.filter(Boolean) : [];
   const safeCastMembers = Array.isArray(content.cast_members) ? content.cast_members.filter(Boolean) : [];
   const safeBackdrop = content.backdrop || content.poster || 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1400&q=80';

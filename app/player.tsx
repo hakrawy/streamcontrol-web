@@ -359,13 +359,13 @@ function WebDirectPlayer({
     const onLoadedMetadata = () => syncState();
     const onCanPlay = () => {
       setIsBuffering(false);
-      scheduleControlsHide(1200);
+      scheduleControlsHide(2200);
     };
     const onTimeUpdate = () => syncState();
     const onPlay = () => {
       setIsPlaying(true);
       setIsBuffering(false);
-      scheduleControlsHide(1200);
+      scheduleControlsHide(2200);
     };
     const onPause = () => {
       setIsPlaying(false);
@@ -373,15 +373,13 @@ function WebDirectPlayer({
     };
     const onWaiting = () => {
       setIsBuffering(true);
-      setShowControls(true);
     };
     const onSeeking = () => {
       setIsBuffering(true);
-      setShowControls(true);
     };
     const onSeeked = () => {
       setIsBuffering(false);
-      scheduleControlsHide(1000);
+      scheduleControlsHide(2200);
     };
     const onError = () => {
       setPlaybackError('The browser could not play this source.');
@@ -491,8 +489,6 @@ function WebDirectPlayer({
       <Pressable
         style={styles.videoContainer}
         onPress={toggleControls}
-        onHoverIn={() => showControlsTemporarily(1400)}
-        onPressIn={() => showControlsTemporarily(1800)}
       >
         <video
           ref={videoRef}
@@ -844,7 +840,7 @@ function DashPlayer({
 
   useEffect(() => {
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), 2000);
+    controlsTimer.current = setTimeout(() => setShowControls(false), 2600);
     return () => {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);
     };
@@ -924,7 +920,7 @@ function EmbeddedPlayer({
 
   useEffect(() => {
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), 2200);
+    controlsTimer.current = setTimeout(() => setShowControls(false), 2600);
     return () => {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);
     };
