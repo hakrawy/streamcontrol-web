@@ -37,10 +37,9 @@ export default function AdminLayout() {
       <Stack.Screen name="index" options={{ title: 'Admin Dashboard' }} />
       <Stack.Screen name="movies" options={{ title: 'Manage Movies' }} />
       <Stack.Screen name="series" options={{ title: 'Manage Series' }} />
+      <Stack.Screen name="adult" options={{ title: 'Manage +18 Content' }} />
       <Stack.Screen name="channels" options={{ title: 'Manage Channels' }} />
-      <Stack.Screen name="addons" options={{ title: 'Manage Add-ons' }} />
-      <Stack.Screen name="imports" options={{ title: 'Advanced Imports' }} />
-      <Stack.Screen name="sources" options={{ title: 'Playback Sources' }} />
+      <Stack.Screen name="imports" options={{ title: 'TMDB Imports' }} />
       <Stack.Screen name="users" options={{ title: 'Manage Users' }} />
       <Stack.Screen name="banners" options={{ title: 'Manage Banners' }} />
       <Stack.Screen name="settings" options={{ title: 'App Settings' }} />

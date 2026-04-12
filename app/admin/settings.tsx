@@ -9,11 +9,14 @@ import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 
 const defaultSettings: { key: string; label: string; icon: string; type: 'text' | 'toggle'; description?: string; placeholder?: string }[] = [
-  { key: 'app_name', label: 'App Name', icon: 'apps', type: 'text', placeholder: 'Ali Control' },
+  { key: 'app_name', label: 'App Name', icon: 'apps', type: 'text', placeholder: 'StreamControl' },
   { key: 'primary_color', label: 'Primary Color', icon: 'palette', type: 'text', placeholder: '#6366F1' },
   { key: 'logo_url', label: 'Logo URL', icon: 'image', type: 'text', placeholder: 'https://...' },
   { key: 'watch_rooms_enabled', label: 'Watch Rooms', icon: 'groups', type: 'toggle', description: 'Allow users to create and join watch rooms' },
   { key: 'live_tv_enabled', label: 'Live TV', icon: 'live-tv', type: 'toggle', description: 'Show Live TV section in the app' },
+  { key: 'adult_content_enabled', label: 'Adult Section Enabled', icon: 'visibility', type: 'toggle', description: 'Allow the isolated +18 catalog to exist inside the system' },
+  { key: 'adult_content_visible', label: 'Adult Section Visible', icon: 'remove-red-eye', type: 'toggle', description: 'Allow adult content to appear in the dedicated section only' },
+  { key: 'adult_import_enabled', label: 'Adult Import Enabled', icon: 'cloud-download', type: 'toggle', description: 'Allow importing content into the isolated +18 library' },
   { key: 'maintenance_mode', label: 'Maintenance Mode', icon: 'build', type: 'toggle', description: 'Show maintenance page to users' },
 ];
 
