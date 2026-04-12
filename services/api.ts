@@ -1040,6 +1040,38 @@ function parseSeriesTokens(title: string) {
   };
 }
 
+function parseSeasonEpisodeFromText(value: string) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+
+  const patterns = [
+    /s(?:eason)?\s*0?(\d{1,2})\s*e(?:pisode)?\s*0?(\d{1,3})/i,
+    /season\s*0?(\d{1,2}).*episode\s*0?(\d{1,3})/i,
+    /episode\s*0?(\d{1,3}).*season\s*0?(\d{1,2})/i,
+    /الموسم\s*(\d{1,2}).*الحلقة\s*(\d{1,3})/i,
+    /الحلقة\s*(\d{1,3}).*الموسم\s*(\d{1,2})/i,
+    /موسم\s*(\d{1,2}).*حلقة\s*(\d{1,3})/i,
+    /حلقة\s*(\d{1,3}).*موسم\s*(\d{1,2})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+
+    const first = Number(match[1]);
+    const second = Number(match[2]);
+    if (!Number.isFinite(first) || !Number.isFinite(second)) continue;
+
+    if (/episode|الحلقة|حلقة/i.test(pattern.source.split('.*')[0] || '')) {
+      return { seasonNumber: second, episodeNumber: first };
+    }
+
+    return { seasonNumber: first, episodeNumber: second };
+  }
+
+  return null;
+}
+
 export async function importChannelsFromM3UUrl(playlistUrl: string) {
   const response = await fetch(playlistUrl);
   if (!response.ok) {
@@ -1442,12 +1474,28 @@ async function resolveOrCreateSeriesForAddon(meta: any) {
 }
 
 function parseEpisodeMetadata(video: any, index: number) {
-  const season = Number(video?.season) || Number(video?.seasonNumber) || 1;
-  const episode = Number(video?.episode) || Number(video?.episodeNumber) || index + 1;
+  const parsedFromTitle =
+    parseSeasonEpisodeFromText(video?.title || '') ||
+    parseSeasonEpisodeFromText(video?.name || '') ||
+    parseSeasonEpisodeFromText(video?.overview || '') ||
+    parseSeasonEpisodeFromText(video?.description || '');
+
+  const season =
+    Number(video?.season) ||
+    Number(video?.seasonNumber) ||
+    parsedFromTitle?.seasonNumber ||
+    1;
+  const episode =
+    Number(video?.episode) ||
+    Number(video?.episodeNumber) ||
+    parsedFromTitle?.episodeNumber ||
+    index + 1;
+
+  const cleanedTitle = String(video?.title || video?.name || '').trim();
   return {
     seasonNumber: season,
     episodeNumber: episode,
-    title: video?.title?.trim() || `Episode ${episode}`,
+    title: cleanedTitle || `Episode ${episode}`,
     thumbnail: video?.thumbnail || video?.poster || '',
     description: video?.overview || video?.description || '',
   };
@@ -2439,7 +2487,11 @@ export async function upsertSeason(season: Partial<Season>) {
     if (error) throw error;
     return data;
   } else {
-    const { data, error } = await supabase.from('seasons').insert(rest).select().single();
+    const { data, error } = await supabase
+      .from('seasons')
+      .upsert(rest, { onConflict: 'series_id,number' })
+      .select()
+      .single();
     if (error) throw error;
     return data;
   }
@@ -2474,7 +2526,11 @@ export async function upsertEpisode(episode: Partial<Episode>) {
     if (error) throw error;
     return normalizeEpisode(data);
   } else {
-    const { data, error } = await supabase.from('episodes').insert(payload).select().single();
+    const { data, error } = await supabase
+      .from('episodes')
+      .upsert(payload, { onConflict: 'season_id,number' })
+      .select()
+      .single();
     if (error) throw error;
     return normalizeEpisode(data);
   }
