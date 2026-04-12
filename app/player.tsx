@@ -293,6 +293,11 @@ function WebDirectPlayer({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const activeSource = sources[selectedSourceIndex];
 
+  const scheduleControlsHide = useCallback((delay = 2500) => {
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    controlsTimer.current = setTimeout(() => setShowControls(false), delay);
+  }, []);
+
   useEffect(() => {
     setCaptionsEnabled(Boolean(subtitleUrl));
   }, [subtitleUrl]);
@@ -309,6 +314,15 @@ function WebDirectPlayer({
 
     if (isHlsUrl(url) && Hls.isSupported()) {
       hls = new Hls({
+        lowLatencyMode: true,
+        enableWorker: true,
+        backBufferLength: 30,
+        maxBufferLength: 20,
+        maxMaxBufferLength: 30,
+        startFragPrefetch: true,
+        capLevelToPlayerSize: true,
+        manifestLoadingTimeOut: 8000,
+        fragLoadingTimeOut: 12000,
         xhrSetup: (xhr) => {
           if (activeSource?.headers) {
             Object.entries(activeSource.headers).forEach(([key, value]) => {
@@ -336,8 +350,12 @@ function WebDirectPlayer({
     };
 
     const onLoadedMetadata = () => syncState();
+    const onCanPlay = () => scheduleControlsHide(1800);
     const onTimeUpdate = () => syncState();
-    const onPlay = () => setIsPlaying(true);
+    const onPlay = () => {
+      setIsPlaying(true);
+      scheduleControlsHide();
+    };
     const onPause = () => setIsPlaying(false);
     const onError = () => {
       setPlaybackError('The browser could not play this source.');
@@ -345,6 +363,7 @@ function WebDirectPlayer({
     };
 
     video.addEventListener('loadedmetadata', onLoadedMetadata);
+    video.addEventListener('canplay', onCanPlay);
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
@@ -356,6 +375,7 @@ function WebDirectPlayer({
 
     return () => {
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
+      video.removeEventListener('canplay', onCanPlay);
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
@@ -367,7 +387,15 @@ function WebDirectPlayer({
         video.load();
       }
     };
-  }, [url, playbackSpeed]);
+  }, [url, playbackSpeed, activeSource?.headers, onPlaybackFailure, scheduleControlsHide]);
+
+  useEffect(() => {
+    if (!showControls) return;
+    scheduleControlsHide();
+    return () => {
+      if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    };
+  }, [showControls, scheduleControlsHide]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -381,8 +409,6 @@ function WebDirectPlayer({
 
   const toggleControls = useCallback(() => {
     setShowControls((prev) => !prev);
-    if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), 4000);
   }, []);
 
   const togglePlay = useCallback(() => {
@@ -559,6 +585,10 @@ function NativeDirectVideoPlayer({
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showSourcesPanel, setShowSourcesPanel] = useState(false);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleControlsHide = useCallback((delay = 2500) => {
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    controlsTimer.current = setTimeout(() => setShowControls(false), delay);
+  }, []);
 
   const player = useVideoPlayer(url, (instance) => {
     instance.loop = false;
@@ -568,11 +598,22 @@ function NativeDirectVideoPlayer({
   useEffect(() => {
     const sub = player.addListener('playingChange', (playing) => {
       setIsPlaying(playing.isPlaying);
+      if (playing.isPlaying) {
+        scheduleControlsHide();
+      }
     });
     return () => {
       sub.remove();
     };
-  }, [player]);
+  }, [player, scheduleControlsHide]);
+
+  useEffect(() => {
+    if (!showControls) return;
+    scheduleControlsHide();
+    return () => {
+      if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    };
+  }, [showControls, scheduleControlsHide]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -589,8 +630,6 @@ function NativeDirectVideoPlayer({
 
   const toggleControls = useCallback(() => {
     setShowControls((prev) => !prev);
-    if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), 4000);
   }, []);
 
   const togglePlay = useCallback(() => {
