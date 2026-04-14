@@ -156,6 +156,7 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [tmdbTestStatus, setTmdbTestStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
 
   // ── CRITICAL FIX: `copy` must be INSIDE the component ──────────────
   const copy = language === 'Arabic'
@@ -209,6 +210,28 @@ export default function AdminSettings() {
       showAlert(copy.error, copy.updateFailed);
     }
     setSaving(null);
+    // Reset TMDB test status when key changes
+    if (key === 'tmdb_api_key') setTmdbTestStatus('idle');
+  };
+
+  const testTmdbKey = async () => {
+    const key = (settings['tmdb_api_key'] || '').trim();
+    if (!key) { showAlert('TMDB', 'Please enter an API key first'); return; }
+    setTmdbTestStatus('testing');
+    try {
+      const res = await fetch(
+        'https://api.themoviedb.org/3/movie/550?language=en-US',
+        { headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }
+      );
+      const json = await res.json();
+      if (res.ok && json?.id) {
+        setTmdbTestStatus('ok');
+      } else {
+        setTmdbTestStatus('fail');
+      }
+    } catch {
+      setTmdbTestStatus('fail');
+    }
   };
 
   const renderSaveIndicator = (key: string) => {
@@ -267,7 +290,39 @@ export default function AdminSettings() {
                 />
               </Pressable>
             )}
+            {/* Show Test button for TMDB key */}
+            {s.key === 'tmdb_api_key' && (
+              <Pressable
+                style={[
+                  styles.testBtn,
+                  tmdbTestStatus === 'ok' && styles.testBtnOk,
+                  tmdbTestStatus === 'fail' && styles.testBtnFail,
+                ]}
+                onPress={testTmdbKey}
+                disabled={tmdbTestStatus === 'testing'}
+              >
+                {tmdbTestStatus === 'testing' ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : tmdbTestStatus === 'ok' ? (
+                  <MaterialIcons name="check" size={16} color="#FFF" />
+                ) : tmdbTestStatus === 'fail' ? (
+                  <MaterialIcons name="close" size={16} color="#FFF" />
+                ) : (
+                  <Text style={styles.testBtnText}>Test</Text>
+                )}
+              </Pressable>
+            )}
           </View>
+          {s.key === 'tmdb_api_key' && tmdbTestStatus !== 'idle' && (
+            <Text style={[
+              styles.tmdbTestResult,
+              { color: tmdbTestStatus === 'ok' ? '#22C55E' : tmdbTestStatus === 'fail' ? '#EF4444' : theme.textMuted },
+            ]}>
+              {tmdbTestStatus === 'testing' ? 'Testing connection...' :
+               tmdbTestStatus === 'ok' ? '✓ Connected to TMDB successfully' :
+               '✗ Invalid key or connection failed'}
+            </Text>
+          )}
         </View>
         <View style={styles.saveIndicator}>{renderSaveIndicator(s.key)}</View>
       </View>
@@ -416,4 +471,19 @@ const styles = StyleSheet.create({
   },
   infoLabel: { fontSize: 14, color: theme.textSecondary },
   infoValue: { fontSize: 14, fontWeight: '600', color: '#FFF' },
+  testBtn: {
+    minWidth: 52,
+    height: 38,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(99,102,241,0.18)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.4)',
+  },
+  testBtnOk: { backgroundColor: 'rgba(34,197,94,0.18)', borderColor: 'rgba(34,197,94,0.4)' },
+  testBtnFail: { backgroundColor: 'rgba(239,68,68,0.18)', borderColor: 'rgba(239,68,68,0.4)' },
+  testBtnText: { fontSize: 12, fontWeight: '700', color: theme.primary },
+  tmdbTestResult: { fontSize: 12, fontWeight: '600', marginTop: 6, paddingLeft: 2 },
 });
