@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  BackHandler,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -1445,6 +1446,8 @@ function EmbeddedPlayer({
 // ─────────────────────── Main PlayerScreen ───────────────────────
 export default function PlayerScreen() {
   const { user } = useAuth();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     url, title, sources, subtitleUrl, viewerContentId, viewerContentType,
   } = useLocalSearchParams<{
@@ -1569,8 +1572,18 @@ export default function PlayerScreen() {
     return (
       <View style={styles.unsupportedContainer}>
         <StatusBar hidden />
+        {/* Persistent back button always visible */}
+        <Pressable
+          style={[styles.persistentBackBtn, { top: (insets?.top ?? 0) + 8 }]}
+          onPress={() => router.back()}
+        >
+          <MaterialIcons name="arrow-back" size={22} color="#FFF" />
+        </Pressable>
         <Text style={styles.unsupportedTitle}>{safeTitle}</Text>
         <Text style={styles.unsupportedText}>رابط غير صالح. يرجى استخدام رابط http أو https كامل.</Text>
+        <Pressable style={styles.unsupportedBackBtn} onPress={() => router.back()}>
+          <Text style={styles.unsupportedBackBtnText}>← العودة</Text>
+        </Pressable>
       </View>
     );
   }
@@ -1660,6 +1673,14 @@ export default function PlayerScreen() {
           mediaKind={mediaKind}
         />
       )}
+
+      {/* ── Persistent back button — always on top of all layers ── */}
+      <Pressable
+        style={[styles.persistentBackBtn, { top: insets.top + 8 }]}
+        onPress={() => router.back()}
+      >
+        <MaterialIcons name="arrow-back" size={22} color="#FFF" />
+      </Pressable>
     </View>
   );
 }
@@ -1855,6 +1876,33 @@ const styles = StyleSheet.create({
   unsupportedContainer: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 16 },
   unsupportedTitle: { fontSize: 22, fontWeight: '700', color: '#FFF', textAlign: 'center' },
   unsupportedText: { fontSize: 15, color: theme.textSecondary, textAlign: 'center', lineHeight: 24 },
+  unsupportedBackBtn: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 24, paddingVertical: 12,
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  unsupportedBackBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
+
+  // ── Persistent back button ─ always visible above all player layers ──────
+  persistentBackBtn: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 999,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    // subtle shadow so it's visible on bright scenes
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 10,
+  },
 });
 
 // ─────────────────────── Modal Styles ───────────────────────
