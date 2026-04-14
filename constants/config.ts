@@ -56,3 +56,20 @@ export const config = {
   backdropHeight: 220,
   channelLogoSize: 60,
 };
+
+// ── External API keys ──────────────────────────────────────────────────────
+// TMDB: https://www.themoviedb.org/settings/api
+// Set EXPO_PUBLIC_TMDB_API_KEY in your .env file.
+const _tmdbKey = process.env.EXPO_PUBLIC_TMDB_API_KEY || '';
+if (!_tmdbKey) {
+  if (__DEV__) {
+    console.warn(
+      '[Config] EXPO_PUBLIC_TMDB_API_KEY is not configured.\n' +
+        'TMDB import and metadata features will be unavailable.\n' +
+        'Add it to your .env file: EXPO_PUBLIC_TMDB_API_KEY=your_token'
+    );
+  }
+}
+export const TMDB_API_KEY: string = _tmdbKey;
+export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+export const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
