@@ -1,4 +1,4 @@
-﻿import { getSupabaseClient } from '@/template';
+import { getSupabaseClient } from '@/template';
 
 const supabase = getSupabaseClient();
 
@@ -1757,18 +1757,26 @@ export async function fetchPlaybackSourcesForContent(
     return sortSourcesForPlayback(uniqueSources(manualSources));
   }
 
-  const addonSourcesNested = await Promise.all(
+  const addonSourcesNested = await Promise.allSettled(
     streamAddons.map(async (addon) => {
       const addonCandidates = [
         ...candidates.filter((candidate) => candidate.addonId === addon.id),
         ...candidates.filter((candidate) => !candidate.addonId),
         ...candidates.filter((candidate) => candidate.addonId && candidate.addonId !== addon.id),
       ];
-      return fetchStreamSourcesFromAddon(addon, addonCandidates);
+      return Promise.race([
+        fetchStreamSourcesFromAddon(addon, addonCandidates),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('addon_timeout:' + addon.name)), 10000)
+        ),
+      ]);
     })
   );
+  const addonSources = addonSourcesNested
+    .filter((r) => r.status === 'fulfilled')
+    .flatMap((r) => r.value);
 
-  return sortSourcesForPlayback(uniqueSources([...manualSources, ...addonSourcesNested.flat()]));
+  return sortSourcesForPlayback(uniqueSources([...manualSources, ...addonSources]));
 }
 
 export async function resolvePlayableMediaForContent(input: {
