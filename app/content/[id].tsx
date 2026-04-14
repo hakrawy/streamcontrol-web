@@ -516,12 +516,24 @@ export default function ContentDetailScreen() {
               {sourcesLoading ? <ActivityIndicator size="small" color="#000" /> : <MaterialIcons name="play-arrow" size={26} color="#000" />}
               <Text style={styles.playBtnText}>{sourcesLoading ? 'Loading...' : 'Play'}</Text>
             </Pressable>
-            <Pressable style={styles.trailerBtn} onPress={handlePlayTrailer}><MaterialIcons name="movie" size={20} color="#FFF" /><Text style={styles.trailerBtnText}>Trailer</Text></Pressable>
-            {isMovie && movieData.download_url ? (
-              <Pressable style={styles.secondaryActionBtn} onPress={() => void handleDownload(movieData.download_url)}>
-                <MaterialIcons name="download" size={20} color="#FFF" />
-              </Pressable>
-            ) : null}
+            <Pressable style={styles.trailerBtn} onPress={handlePlayTrailer}>
+              <MaterialIcons name="movie" size={20} color="#FFF" />
+              <Text style={styles.trailerBtnText}>Trailer</Text>
+            </Pressable>
+            {/* Download button — always shown, disabled when no URL */}
+            <Pressable
+              style={[
+                styles.secondaryActionBtn,
+                !(isMovie ? movieData.download_url : undefined) && styles.secondaryActionBtnDisabled,
+              ]}
+              onPress={() => void handleDownload(isMovie ? movieData.download_url : undefined)}
+            >
+              <MaterialIcons
+                name="download"
+                size={20}
+                color={isMovie && movieData.download_url ? '#FFF' : 'rgba(255,255,255,0.3)'}
+              />
+            </Pressable>
           </View>
 
           <View style={styles.quickActions}>
@@ -597,28 +609,35 @@ export default function ContentDetailScreen() {
                 ))}
               </ScrollView>
               <View style={styles.episodesGrid}>
-                {normalizedSeasons[selectedSeason]?.episodes?.map((ep, index) => (
-                  <Animated.View key={ep.id} entering={FadeInDown.delay(index * 40).duration(300)} style={styles.episodeCardWrap}>
-                    <Pressable style={styles.episodeCard} onPress={() => handlePlayEpisode(ep.stream_url, ep.title, ep.stream_sources || [], ep.subtitle_url)}>
-                      <View style={styles.episodeThumbnailWrap}>
-                        <Image source={{ uri: ep.thumbnail || safePoster }} style={styles.episodeThumbnail} contentFit="cover" transition={200} />
-                        <View style={styles.episodePlayOverlay}><MaterialIcons name="play-circle-filled" size={32} color="rgba(255,255,255,0.9)" /></View>
-                        <View style={styles.episodeDuration}><Text style={styles.episodeDurationText}>{ep.duration || '—'}</Text></View>
-                      </View>
-                      <View style={styles.episodeInfo}>
-                        <Text style={styles.episodeNumber}>Episode {ep.number}</Text>
-                        <Text style={styles.episodeTitle} numberOfLines={2}>{ep.title}</Text>
-                        <Text style={styles.episodeDesc} numberOfLines={3}>{ep.description || 'No episode synopsis yet.'}</Text>
-                        {ep.download_url ? (
-                          <Pressable style={styles.episodeDownloadBtn} onPress={() => void handleDownload(ep.download_url)}>
-                            <MaterialIcons name="download" size={16} color="#FFF" />
-                            <Text style={styles.episodeDownloadText}>Download</Text>
-                          </Pressable>
-                        ) : null}
-                      </View>
-                    </Pressable>
-                  </Animated.View>
-                ))}
+                {(normalizedSeasons[selectedSeason]?.episodes?.length ?? 0) === 0 ? (
+                  <View style={styles.emptyEpisodesWrap}>
+                    <MaterialIcons name="video-library" size={40} color={theme.textMuted} />
+                    <Text style={styles.emptyEpisodesText}>No episodes added yet for this season.</Text>
+                  </View>
+                ) : (
+                  normalizedSeasons[selectedSeason]?.episodes?.map((ep, index) => (
+                    <Animated.View key={ep.id} entering={FadeInDown.delay(index * 40).duration(300)} style={styles.episodeCardWrap}>
+                      <Pressable style={styles.episodeCard} onPress={() => handlePlayEpisode(ep.stream_url, ep.title, ep.stream_sources || [], ep.subtitle_url)}>
+                        <View style={styles.episodeThumbnailWrap}>
+                          <Image source={{ uri: ep.thumbnail || safePoster }} style={styles.episodeThumbnail} contentFit="cover" transition={200} />
+                          <View style={styles.episodePlayOverlay}><MaterialIcons name="play-circle-filled" size={32} color="rgba(255,255,255,0.9)" /></View>
+                          <View style={styles.episodeDuration}><Text style={styles.episodeDurationText}>{ep.duration || '—'}</Text></View>
+                        </View>
+                        <View style={styles.episodeInfo}>
+                          <Text style={styles.episodeNumber}>Episode {ep.number}</Text>
+                          <Text style={styles.episodeTitle} numberOfLines={2}>{ep.title}</Text>
+                          <Text style={styles.episodeDesc} numberOfLines={3}>{ep.description || 'No episode synopsis yet.'}</Text>
+                          {ep.download_url ? (
+                            <Pressable style={styles.episodeDownloadBtn} onPress={() => void handleDownload(ep.download_url)}>
+                              <MaterialIcons name="download" size={16} color="#FFF" />
+                              <Text style={styles.episodeDownloadText}>Download</Text>
+                            </Pressable>
+                          ) : null}
+                        </View>
+                      </Pressable>
+                    </Animated.View>
+                  ))
+                )}
               </View>
             </Animated.View>
           )}
@@ -729,6 +748,9 @@ const styles = StyleSheet.create({
   trailerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.surfaceLight, height: 52, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1, borderColor: theme.border },
   trailerBtnText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
   secondaryActionBtn: { width: 52, height: 52, borderRadius: 12, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
+  secondaryActionBtnDisabled: { opacity: 0.4 },
+  emptyEpisodesWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 12, width: '100%' },
+  emptyEpisodesText: { fontSize: 14, color: theme.textMuted, textAlign: 'center' },
   quickActions: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 },
   quickAction: { alignItems: 'center', gap: 6 },
   quickActionText: { fontSize: 11, fontWeight: '500', color: theme.textSecondary },
