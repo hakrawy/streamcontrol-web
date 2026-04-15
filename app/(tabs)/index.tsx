@@ -17,9 +17,7 @@ import type { ContentItem, Banner, WatchHistory } from '../../services/api';
 import * as api from '../../services/api';
 import { useAuth } from '@/template';
 import { useLocale } from '../../contexts/LocaleContext';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const HERO_HEIGHT = 460;
+import { buildContentRoute } from '../../services/navigation';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -35,6 +33,8 @@ export default function HomeScreen() {
   const [homeSearch, setHomeSearch] = useState('');
   const [continueWatching, setContinueWatching] = useState<(ContentItem & { progress: number; watch_duration: number })[]>([]);
   const heroRef = useRef<ScrollView>(null);
+  const { width: screenWidth } = (require('react-native') as any).useWindowDimensions();
+  const HERO_HEIGHT = Math.min(460, screenWidth * 0.7);
   const copy = language === 'Arabic'
     ? {
         loading: 'جارٍ تحميل علي كنترول...',
@@ -77,7 +77,7 @@ export default function HomeScreen() {
     if (banners.length === 0) return;
     const interval = setInterval(() => {
       const next = (activeHero + 1) % banners.length;
-      heroRef.current?.scrollTo({ x: next * SCREEN_WIDTH, animated: true });
+      heroRef.current?.scrollTo({ x: next * screenWidth, animated: true });
       setActiveHero(next);
     }, 5000);
     return () => clearInterval(interval);
@@ -88,14 +88,15 @@ export default function HomeScreen() {
     const loadContinue = async () => {
       if (!watchHistory || watchHistory.length === 0) return;
       const inProgress = watchHistory.filter(h => h.duration > 0 && h.progress > 0 && (h.progress / h.duration) < 0.95).slice(0, 6);
-      const items: (ContentItem & { progress: number; watch_duration: number })[] = [];
-      for (const h of inProgress) {
-        try {
-          const content = await api.fetchContentById(h.content_id);
-          if (content) items.push({ ...content, progress: h.progress, watch_duration: h.duration });
-        } catch {}
-      }
-      setContinueWatching(items);
+      const results = await Promise.all(
+        inProgress.map(async (h) => {
+          try {
+            const content = await api.fetchContentById(h.content_id);
+            return content ? { ...content, progress: h.progress, watch_duration: h.duration } : null;
+          } catch { return null; }
+        })
+      );
+      setContinueWatching(results.filter(Boolean) as (ContentItem & { progress: number; watch_duration: number })[]);
     };
     loadContinue();
   }, [watchHistory]);
@@ -107,36 +108,11 @@ export default function HomeScreen() {
   }, [refreshHome]);
 
   const handleHeroScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
     setActiveHero(index);
   };
 
-  const buildContentRoute = (item: ContentItem) => ({
-    pathname: '/content/[id]' as const,
-    params: {
-      id: item.id,
-      preview: JSON.stringify({
-        id: item.id,
-        type: item.type,
-        title: item.title,
-        description: item.description,
-        poster: item.poster,
-        backdrop: item.backdrop,
-        genre: item.genre,
-        rating: item.rating,
-        year: item.year,
-        cast_members: item.cast_members,
-        quality: item.type === 'movie' ? (item as any).quality : ['Auto'],
-        stream_url: item.type === 'movie' ? (item as any).stream_url : '',
-        stream_sources: item.type === 'movie' ? (item as any).stream_sources || [] : [],
-        subtitle_url: item.type === 'movie' ? (item as any).subtitle_url : '',
-        is_new: item.is_new,
-        is_exclusive: item.is_exclusive,
-        live_viewers: item.live_viewers,
-        view_count: item.view_count,
-      }),
-    },
-  });
+
 
   const navigateToContent = (item: ContentItem) => {
     Haptics.selectionAsync();
@@ -201,7 +177,7 @@ export default function HomeScreen() {
                   const target = [...allMovies, ...allSeries].find((item) => item.id === banner.content_id);
                   if (target) navigateToContent(target);
                   else if (banner.content_id) router.push(`/content/${banner.content_id}`);
-                }} style={{ width: SCREEN_WIDTH, height: HERO_HEIGHT }}>
+                }} style={{ width: screenWidth, height: HERO_HEIGHT }}>
                   <Image source={{ uri: banner.backdrop }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
                   <LinearGradient colors={['transparent', 'rgba(10,10,15,0.4)', 'rgba(10,10,15,0.85)', theme.background]} style={StyleSheet.absoluteFill} locations={[0, 0.4, 0.7, 1]} />
                   <View style={[styles.heroContent, { paddingTop: insets.top + 40 }]}>
@@ -275,7 +251,7 @@ export default function HomeScreen() {
             <SectionHeader title={copy.trending} icon="trending-up" isRTL={isRTL} />
             <HorizontalShelf isRTL={isRTL}>
               {trendingMovies.map((item, index) => (
-                <Pressable key={item.id} onPress={() => navigateToContent(item.id)} style={styles.trendingCard}>
+                <Pressable key={item.id} onPress={() => navigateToContent(item)} style={styles.trendingCard}>
                   <View style={styles.trendingNumberWrap}>
                     <Text style={styles.trendingNumber}>{index + 1}</Text>
                   </View>
