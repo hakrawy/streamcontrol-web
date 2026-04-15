@@ -25,8 +25,8 @@ export default function AdminAddons() {
   const repairSeriesLabel = language === 'Arabic' ? 'إصلاح المسلسلات' : 'Repair Series';
 
   const copy = useMemo(() => language === 'Arabic' ? {
-    title: 'إدارة الإضافات',
-    hint: 'أضف رابط manifest.json ثم اقرأه واختبره واحفظه. الإضافات من نوع الفهرس تستورد المحتوى، وإضافات التشغيل تُستخدم فقط داخل صفحة الفيلم.',
+    title: 'استيراد وإدارة Stremio Addons',
+    hint: 'أضف رابط manifest.json لـ Stremio ثم اقرأه واختبره واحفظه. إضافات الفهرس (Catalog) تستورد المحتوى، وإضافات التشغيل (Stream) تُستخدم فقط لجلب السيرفرات داخل صفحة العرض.',
     placeholder: 'https://example.com/manifest.json',
     read: 'قراءة الرابط',
     save: 'حفظ',
@@ -42,7 +42,7 @@ export default function AdminAddons() {
     kindCatalog: 'فهرس',
     kindStream: 'تشغيل',
     kindHybrid: 'فهرس + تشغيل',
-    noAddons: 'لا توجد إضافات محفوظة حتى الآن',
+    noAddons: 'لا توجد إضافات Stremio محفوظة حتى الآن',
     testResult: 'نتيجة الاختبار',
     importSummary: 'ملخص الاستيراد',
     deleteTitle: 'حذف الإضافة',
@@ -56,8 +56,8 @@ export default function AdminAddons() {
     rawJson: 'JSON مخصص',
     streamOnly: 'هذه الإضافة تشغيل فقط، لذلك لا يتم استيراد أفلام أو مسلسلات منها.',
   } : {
-    title: 'Manage Add-ons',
-    hint: 'Add a manifest.json URL, preview it, test it, and save it. Catalog add-ons import content, while stream add-ons are used only at playback time.',
+    title: 'Manage Stremio Addons',
+    hint: 'Add a Stremio manifest.json URL, preview it, test it, and save it. Catalog add-ons import content, while stream add-ons are used only at playback time.',
     placeholder: 'https://example.com/manifest.json',
     read: 'Read URL',
     save: 'Save',
