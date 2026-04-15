@@ -12,10 +12,9 @@ import { useAppContext } from '../../contexts/AppContext';
 import * as api from '../../services/api';
 import type { ContentItem } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
+import { buildContentRoute } from '../../services/navigation';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_GAP = 12;
-const GRID_COLUMNS = SCREEN_WIDTH > 1200 ? 5 : SCREEN_WIDTH > 900 ? 4 : SCREEN_WIDTH > 680 ? 3 : 2;
 
 type FilterType = 'all' | 'movie' | 'series';
 
@@ -32,6 +31,8 @@ export default function SearchScreen() {
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<ContentItem[]>([]);
   const [searching, setSearching] = useState(false);
+  const { width: screenWidth } = (require('react-native') as any).useWindowDimensions();
+  const GRID_COLUMNS = screenWidth > 1200 ? 5 : screenWidth > 900 ? 4 : screenWidth > 680 ? 3 : 2;
 
   const allContent = useMemo(() => [...allMovies, ...allSeries], [allMovies, allSeries]);
 
@@ -90,32 +91,7 @@ export default function SearchScreen() {
         noResultsSubtitle: 'Try a different search term or genre',
       };
 
-  const buildContentRoute = (item: ContentItem) => ({
-    pathname: '/content/[id]' as const,
-    params: {
-      id: item.id,
-      preview: JSON.stringify({
-        id: item.id,
-        type: item.type,
-        title: item.title,
-        description: item.description,
-        poster: item.poster,
-        backdrop: item.backdrop,
-        genre: item.genre,
-        rating: item.rating,
-        year: item.year,
-        cast_members: item.cast_members,
-        quality: item.type === 'movie' ? (item as any).quality : ['Auto'],
-        stream_url: item.type === 'movie' ? (item as any).stream_url : '',
-        stream_sources: item.type === 'movie' ? (item as any).stream_sources || [] : [],
-        subtitle_url: item.type === 'movie' ? (item as any).subtitle_url : '',
-        is_new: item.is_new,
-        is_exclusive: item.is_exclusive,
-        live_viewers: item.live_viewers,
-        view_count: item.view_count,
-      }),
-    },
-  });
+
 
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background, direction }]}>
