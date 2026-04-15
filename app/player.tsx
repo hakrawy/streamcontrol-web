@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import Animated, { FadeIn, FadeOut, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { WebView } from 'react-native-webview';
@@ -898,9 +898,9 @@ export default function PlayerScreen() {
   const rawUrl = params.url as string | string[] | undefined;
   const rawTitle = params.title as string | string[] | undefined;
   const rawSources = params.sources as string | string[] | undefined;
-  const rawSubtitle = params.subtitle as string | string[] | undefined;
-  const rawContentId = params.contentId as string | string[] | undefined;
-  const rawContentType = params.contentType as string | string[] | undefined;
+  const rawSubtitle = (params.subtitleUrl ?? params.subtitle) as string | string[] | undefined;
+  const rawContentId = (params.viewerContentId ?? params.contentId) as string | string[] | undefined;
+  const rawContentType = (params.viewerContentType ?? params.contentType) as string | string[] | undefined;
 
   const title = (Array.isArray(rawTitle) ? rawTitle[0] : rawTitle) || '';
   const subtitleUrl = (Array.isArray(rawSubtitle) ? rawSubtitle[0] : rawSubtitle) || '';
