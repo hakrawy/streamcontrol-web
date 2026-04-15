@@ -50,7 +50,7 @@ export default function AdminLayout() {
         users: 'إدارة المستخدمين',
         banners: 'إدارة البنرات',
         settings: 'إعدادات التطبيق',
-        addons: 'الإضافات',
+        addons: 'Stremio Addons',
         sources: 'مصادر التشغيل',
       }
     : {
@@ -63,7 +63,7 @@ export default function AdminLayout() {
         users: 'Manage Users',
         banners: 'Manage Banners',
         settings: 'App Settings',
-        addons: 'Add-ons',
+        addons: 'Stremio Addons',
         sources: 'Playback Sources',
       };
 
