@@ -10,26 +10,17 @@ import { theme } from '../../constants/theme';
 import { useAppContext } from '../../contexts/AppContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import type { ContentItem } from '../../services/api';
+import { buildContentRoute } from '../../services/navigation';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_GAP = 12;
-const GRID_COLUMNS = SCREEN_WIDTH > 1200 ? 5 : SCREEN_WIDTH > 900 ? 4 : SCREEN_WIDTH > 680 ? 3 : 2;
-
-function buildContentRoute(item: ContentItem) {
-  return {
-    pathname: '/content/[id]' as const,
-    params: {
-      id: item.id,
-      preview: JSON.stringify(item),
-    },
-  };
-}
 
 export default function MoviesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { language, direction } = useLocale();
   const { allMovies } = useAppContext();
+  const { width: screenWidth } = (require('react-native') as any).useWindowDimensions();
+  const GRID_COLUMNS = screenWidth > 1200 ? 5 : screenWidth > 900 ? 4 : screenWidth > 680 ? 3 : 2;
 
   const sortedMovies = useMemo(
     () => [...allMovies].sort((a, b) => (b.year || 0) - (a.year || 0) || (b.view_count || 0) - (a.view_count || 0)),
