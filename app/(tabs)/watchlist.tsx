@@ -11,51 +11,49 @@ import { theme } from '../../constants/theme';
 import { useAppContext } from '../../contexts/AppContext';
 import * as api from '../../services/api';
 import type { ContentItem } from '../../services/api';
+import { useLocale } from '../../contexts/LocaleContext';
+import { buildContentRoute } from '../../services/navigation';
 
 export default function WatchlistScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
   const { favorites, removeFromFavorites, refreshHome } = useAppContext();
+  const { language, isRTL, direction } = useLocale();
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const buildContentRoute = (item: ContentItem) => ({
-    pathname: '/content/[id]' as const,
-    params: {
-      id: item.id,
-      preview: JSON.stringify({
-        id: item.id,
-        type: item.type,
-        title: item.title,
-        description: item.description,
-        poster: item.poster,
-        backdrop: item.backdrop,
-        genre: item.genre,
-        rating: item.rating,
-        year: item.year,
-        cast_members: item.cast_members,
-        quality: item.type === 'movie' ? (item as any).quality : ['Auto'],
-        stream_url: item.type === 'movie' ? (item as any).stream_url : '',
-        stream_sources: item.type === 'movie' ? (item as any).stream_sources || [] : [],
-        subtitle_url: item.type === 'movie' ? (item as any).subtitle_url : '',
-        is_new: item.is_new,
-        is_exclusive: item.is_exclusive,
-        live_viewers: item.live_viewers,
-        view_count: item.view_count,
-      }),
-    },
-  });
+  const copy = language === 'Arabic'
+    ? {
+        title: 'قائمتي',
+        count: (n: number) => `${n} عنوان`,
+        movie: 'فيلم',
+        series: 'مسلسل',
+        emptyTitle: 'قائمتك فارغة',
+        emptySubtitle: 'أضف أفلامًا ومسلسلات إلى مفضلتك\nلتجدها هنا لاحقًا',
+        browseContent: 'تصفح المحتوى',
+      }
+    : {
+        title: 'My List',
+        count: (n: number) => `${n} titles`,
+        movie: 'MOVIE',
+        series: 'SERIES',
+        emptyTitle: 'Your list is empty',
+        emptySubtitle: 'Add movies and series to your favorites\nto find them here later',
+        browseContent: 'Browse Content',
+      };
+
+
 
   const loadItems = useCallback(async () => {
     setLoading(true);
-    const loaded: ContentItem[] = [];
-    for (const id of favorites) {
-      const item = await api.fetchContentById(id);
-      if (item) loaded.push(item);
-    }
-    setItems(loaded);
+    const results = await Promise.all(
+      favorites.map(async (id) => {
+        try { return await api.fetchContentById(id); } catch { return null; }
+      })
+    );
+    setItems(results.filter(Boolean) as ContentItem[]);
     setLoading(false);
   }, [favorites]);
 
@@ -69,10 +67,10 @@ export default function WatchlistScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background, direction }]}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My List</Text>
-        <Text style={styles.headerCount}>{items.length} titles</Text>
+        <Text style={styles.headerTitle}>{copy.title}</Text>
+        <Text style={styles.headerCount}>{copy.count(items.length)}</Text>
       </View>
 
       {loading ? (
@@ -91,7 +89,7 @@ export default function WatchlistScreen() {
               <Pressable style={styles.listCard} onPress={() => { Haptics.selectionAsync(); router.push(buildContentRoute(item)); }}>
                 <Image source={{ uri: item.poster }} style={styles.listPoster} contentFit="cover" transition={200} />
                 <View style={styles.listInfo}>
-                  <View style={styles.listTypeBadge}><Text style={styles.listTypeText}>{item.type === 'movie' ? 'MOVIE' : 'SERIES'}</Text></View>
+                  <View style={styles.listTypeBadge}><Text style={styles.listTypeText}>{item.type === 'movie' ? copy.movie : copy.series}</Text></View>
                   <Text style={styles.listTitle} numberOfLines={2}>{item.title}</Text>
                   <View style={styles.listMeta}>
                     <MaterialIcons name="star" size={13} color={theme.accent} />
@@ -117,11 +115,11 @@ export default function WatchlistScreen() {
         >
           <View style={styles.emptyContainer}>
             <Image source={require('../../assets/images/empty-watchlist.png')} style={styles.emptyImage} contentFit="contain" transition={300} />
-            <Text style={styles.emptyTitle}>Your list is empty</Text>
-            <Text style={styles.emptySubtitle}>Add movies and series to your favorites{'\n'}to find them here later</Text>
+            <Text style={styles.emptyTitle}>{copy.emptyTitle}</Text>
+            <Text style={styles.emptySubtitle}>{copy.emptySubtitle}</Text>
             <Pressable style={styles.browseBtn} onPress={() => router.push('/(tabs)/search')}>
               <MaterialIcons name="explore" size={20} color="#FFF" />
-              <Text style={styles.browseBtnText}>Browse Content</Text>
+              <Text style={styles.browseBtnText}>{copy.browseContent}</Text>
             </Pressable>
           </View>
         </ScrollView>
