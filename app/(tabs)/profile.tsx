@@ -132,10 +132,16 @@ export default function ProfileScreen() {
           <Text style={styles.userName}>{displayName}</Text>
           <Text style={styles.userEmail}>{user?.email || ''}</Text>
           {isAdmin ? (
-            <Pressable style={styles.adminBtn} onPress={() => router.push('/admin')}>
-              <MaterialIcons name="dashboard" size={16} color="#FFF" />
-              <Text style={styles.adminBtnText}>{t('profile.adminDashboard')}</Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <Pressable style={[styles.adminBtn, { marginTop: 0 }]} onPress={() => router.push('/admin')}>
+                <MaterialIcons name="dashboard" size={16} color="#FFF" />
+                <Text style={styles.adminBtnText}>{t('profile.adminDashboard')}</Text>
+              </Pressable>
+              <Pressable style={[styles.adminBtn, { marginTop: 0, backgroundColor: theme.accent }]} onPress={() => router.push('/admin/addons')}>
+                <MaterialIcons name="extension" size={16} color="#FFF" />
+                <Text style={styles.adminBtnText}>Stremio Addons</Text>
+              </Pressable>
+            </View>
           ) : null}
         </Animated.View>
 
