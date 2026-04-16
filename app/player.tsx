@@ -1,5 +1,16 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, Linking, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Linking,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -13,10 +24,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../constants/theme';
 import { useAuth } from '@/template';
 import * as api from '../services/api';
-import { useAppContext } from '../contexts/AppContext';
 
 type MediaKind = 'direct' | 'youtube' | 'web' | 'dash';
 type PlayerSource = api.StreamSource;
+type FitMode = 'contain' | 'cover';
+
+type SourceProbeResult = {
+  ok: boolean;
+  status?: number;
+  reason?: string;
+  latencyMs?: number;
+};
+
+const PREFERENCE_KEY_PREFIX = 'player-preference:';
+const RESUME_KEY_PREFIX = 'player-resume:';
+const PROXY_KEY = 'player-proxy-url';
+const LAST_GOOD_SOURCE_PREFIX = 'player-last-good:';
+const STARTUP_TIMEOUT_MS = 8500;
+const PROBE_TIMEOUT_MS = 4000;
 
 function getYouTubeVideoId(rawUrl: string): string | null {
   try {
@@ -28,9 +53,7 @@ function getYouTubeVideoId(rawUrl: string): string | null {
     }
 
     if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
-      if (parsed.pathname === '/watch') {
-        return parsed.searchParams.get('v');
-      }
+      if (parsed.pathname === '/watch') return parsed.searchParams.get('v');
 
       const parts = parsed.pathname.split('/').filter(Boolean);
       const marker = parts[0];
@@ -50,10 +73,8 @@ function getVimeoVideoId(rawUrl: string): string | null {
     const parsed = new URL(rawUrl);
     const host = parsed.hostname.replace('www.', '');
     if (host !== 'vimeo.com' && host !== 'player.vimeo.com') return null;
-
     const parts = parsed.pathname.split('/').filter(Boolean);
-    const numericPart = parts.find((part) => /^\d+$/.test(part));
-    return numericPart || null;
+    return parts.find((part) => /^\d+$/.test(part)) || null;
   } catch {
     return null;
   }
@@ -68,27 +89,7 @@ function isHttpUrl(rawUrl: string): boolean {
   }
 }
 
-function getMediaKind(rawUrl: string): MediaKind {
-  if (getYouTubeVideoId(rawUrl)) return 'youtube';
-  if (getVimeoVideoId(rawUrl)) return 'web';
-
-  try {
-    const parsed = new URL(rawUrl);
-    const pathname = parsed.pathname.toLowerCase();
-    if (/\.(mpd)(\?.*)?$/.test(pathname)) {
-      return 'dash';
-    }
-    if (/\.(mp4|m3u8|webm|mov|m4v|mpd)(\?.*)?$/.test(pathname) || pathname.endsWith('.m3u8')) {
-      return 'direct';
-    }
-  } catch {
-    return 'web';
-  }
-
-  return 'web';
-}
-
-function isHlsUrl(rawUrl: string) {
+function isHlsUrl(rawUrl: string): boolean {
   try {
     return new URL(rawUrl).pathname.toLowerCase().includes('.m3u8');
   } catch {
@@ -96,7 +97,7 @@ function isHlsUrl(rawUrl: string) {
   }
 }
 
-function isDashUrl(rawUrl: string) {
+function isDashUrl(rawUrl: string): boolean {
   try {
     return new URL(rawUrl).pathname.toLowerCase().includes('.mpd');
   } catch {
@@ -104,9 +105,33 @@ function isDashUrl(rawUrl: string) {
   }
 }
 
+function getMediaKind(rawUrl: string): MediaKind {
+  if (getYouTubeVideoId(rawUrl)) return 'youtube';
+  if (getVimeoVideoId(rawUrl)) return 'web';
+  if (isDashUrl(rawUrl)) return 'dash';
+  if (isHlsUrl(rawUrl)) return 'direct';
+
+  try {
+    const pathname = new URL(rawUrl).pathname.toLowerCase();
+    if (/\.(mp4|webm|mov|m4v)(\?.*)?$/.test(pathname)) return 'direct';
+  } catch {
+    return 'web';
+  }
+
+  return 'web';
+}
+
+function getMediaKindLabel(kind: MediaKind) {
+  if (kind === 'direct') return 'Direct';
+  if (kind === 'dash') return 'DASH';
+  if (kind === 'youtube') return 'YouTube';
+  return 'Embedded';
+}
+
 function buildYouTubeEmbedUrl(rawUrl: string): string | null {
   const videoId = getYouTubeVideoId(rawUrl);
   if (!videoId) return null;
+
   const params = new URLSearchParams({
     autoplay: '1',
     playsinline: '1',
@@ -131,54 +156,9 @@ function buildWebEmbedUrl(rawUrl: string): string {
   if (youtubeEmbed) return youtubeEmbed;
 
   const vimeoId = getVimeoVideoId(rawUrl);
-  if (vimeoId) {
-    return `https://player.vimeo.com/video/${vimeoId}?autoplay=1`;
-  }
+  if (vimeoId) return `https://player.vimeo.com/video/${vimeoId}?autoplay=1`;
 
   return rawUrl;
-}
-
-function parseSourcesParam(rawSources?: string | string[], rawUrl?: string | string[]): PlayerSource[] {
-  const sourcePayload = Array.isArray(rawSources) ? rawSources[0] : rawSources;
-  const fallbackUrl = (Array.isArray(rawUrl) ? rawUrl[0] : rawUrl) || '';
-
-  if (sourcePayload) {
-    try {
-      const parsed = JSON.parse(sourcePayload);
-      if (Array.isArray(parsed)) {
-        const normalized = parsed
-          .filter((item) => item && typeof item === 'object' && typeof item.url === 'string')
-          .map((item, index) => ({
-            label: typeof item.label === 'string' && item.label.trim() ? item.label.trim() : `Server ${index + 1}`,
-            url: item.url.trim(),
-            addon: typeof item.addon === 'string' ? item.addon.trim() : undefined,
-            addonId: typeof item.addonId === 'string' ? item.addonId.trim() : undefined,
-            server: typeof item.server === 'string' ? item.server.trim() : undefined,
-            quality: typeof item.quality === 'string' ? item.quality.trim() : undefined,
-            language: typeof item.language === 'string' ? item.language.trim() : undefined,
-            subtitle: typeof item.subtitle === 'string' ? item.subtitle.trim() : undefined,
-            status: typeof item.status === 'string' ? item.status : undefined,
-            lastCheckedAt: typeof item.lastCheckedAt === 'string' ? item.lastCheckedAt : undefined,
-            streamType: typeof item.streamType === 'string' ? item.streamType : undefined,
-            externalUrl: typeof item.externalUrl === 'string' ? item.externalUrl.trim() : undefined,
-            headers: item.headers && typeof item.headers === 'object' ? item.headers : undefined,
-            behaviorHints: item.behaviorHints && typeof item.behaviorHints === 'object' ? item.behaviorHints : null,
-            proxyRequired: Boolean(item.proxyRequired),
-            isWorking: typeof item.isWorking === 'boolean' ? item.isWorking : undefined,
-            responseTimeMs: Number.isFinite(item.responseTimeMs) ? item.responseTimeMs : undefined,
-            priority: Number.isFinite(item.priority) ? item.priority : undefined,
-          }))
-          .filter((item) => item.url);
-
-        if (normalized.length > 0) return normalized;
-      }
-    } catch {
-      // Ignore malformed params and fall back to the plain URL below.
-    }
-  }
-
-  if (!fallbackUrl) return [];
-  return [{ label: 'Server 1', url: fallbackUrl }];
 }
 
 function rankQuality(quality?: string) {
@@ -192,11 +172,73 @@ function rankQuality(quality?: string) {
   return 0;
 }
 
+function parseSourcesParam(rawSources?: string | string[], rawUrl?: string | string[]): PlayerSource[] {
+  const sourcePayload = Array.isArray(rawSources) ? rawSources[0] : rawSources;
+  const fallbackUrl = (Array.isArray(rawUrl) ? rawUrl[0] : rawUrl) || '';
+
+  if (sourcePayload) {
+    try {
+      const parsed = JSON.parse(sourcePayload);
+      if (Array.isArray(parsed)) {
+        const normalized = parsed
+          .filter((item) => item && typeof item === 'object' && typeof item.url === 'string')
+          .map((item, index) => ({
+            label:
+              typeof item.label === 'string' && item.label.trim()
+                ? item.label.trim()
+                : `Server ${index + 1}`,
+            url: item.url.trim(),
+            addon: typeof item.addon === 'string' ? item.addon.trim() : undefined,
+            addonId: typeof item.addonId === 'string' ? item.addonId.trim() : undefined,
+            server: typeof item.server === 'string' ? item.server.trim() : undefined,
+            quality: typeof item.quality === 'string' ? item.quality.trim() : undefined,
+            language: typeof item.language === 'string' ? item.language.trim() : undefined,
+            subtitle: typeof item.subtitle === 'string' ? item.subtitle.trim() : undefined,
+            status: typeof item.status === 'string' ? item.status : undefined,
+            lastCheckedAt: typeof item.lastCheckedAt === 'string' ? item.lastCheckedAt : undefined,
+            streamType: typeof item.streamType === 'string' ? item.streamType : undefined,
+            externalUrl: typeof item.externalUrl === 'string' ? item.externalUrl.trim() : undefined,
+            headers: item.headers && typeof item.headers === 'object' ? item.headers : undefined,
+            behaviorHints:
+              item.behaviorHints && typeof item.behaviorHints === 'object'
+                ? item.behaviorHints
+                : null,
+            proxyRequired: Boolean(item.proxyRequired),
+            isWorking: typeof item.isWorking === 'boolean' ? item.isWorking : undefined,
+            responseTimeMs: Number.isFinite(item.responseTimeMs) ? item.responseTimeMs : undefined,
+            priority: Number.isFinite(item.priority) ? item.priority : undefined,
+          }))
+          .filter((item) => item.url);
+
+        if (normalized.length > 0) return normalized;
+      }
+    } catch {
+      // ignore malformed JSON
+    }
+  }
+
+  if (!fallbackUrl) return [];
+  return [{ label: 'Server 1', url: fallbackUrl }];
+}
+
 function sortSources(sources: PlayerSource[]) {
   return [...sources].sort((a, b) => {
-    const statusRank = (source: PlayerSource) => source.status === 'working' || source.isWorking ? 3 : source.status === 'unknown' ? 2 : source.status === 'failing' ? 1 : 0;
-    const responseA = Number.isFinite(a.responseTimeMs as number) ? (a.responseTimeMs as number) : Number.MAX_SAFE_INTEGER;
-    const responseB = Number.isFinite(b.responseTimeMs as number) ? (b.responseTimeMs as number) : Number.MAX_SAFE_INTEGER;
+    const statusRank = (source: PlayerSource) =>
+      source.status === 'working' || source.isWorking
+        ? 3
+        : source.status === 'unknown'
+          ? 2
+          : source.status === 'failing'
+            ? 1
+            : 0;
+
+    const responseA = Number.isFinite(a.responseTimeMs as number)
+      ? (a.responseTimeMs as number)
+      : Number.MAX_SAFE_INTEGER;
+    const responseB = Number.isFinite(b.responseTimeMs as number)
+      ? (b.responseTimeMs as number)
+      : Number.MAX_SAFE_INTEGER;
+
     return (
       ((b.priority ?? 0) - (a.priority ?? 0)) ||
       (statusRank(b) - statusRank(a)) ||
@@ -206,11 +248,102 @@ function sortSources(sources: PlayerSource[]) {
   });
 }
 
-function getMediaKindLabel(kind: MediaKind) {
-  if (kind === 'direct') return 'Direct';
-  if (kind === 'dash') return 'DASH';
-  if (kind === 'youtube') return 'YouTube';
-  return 'Embedded';
+function formatPlaybackTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) return 'LIVE';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function applyProxy(url: string, proxyUrl: string | null) {
+  if (!proxyUrl) return url;
+
+  try {
+    const trimmed = proxyUrl.replace(/\/$/, '');
+    return `${trimmed}/${encodeURIComponent(url)}`;
+  } catch {
+    return url;
+  }
+}
+
+async function probeSource(source: PlayerSource, proxyUrl: string): Promise<SourceProbeResult> {
+  if (Platform.OS !== 'web') {
+    return {
+      ok: source.status === 'working' || source.isWorking !== false,
+      reason: 'native-skip',
+      latencyMs: source.responseTimeMs,
+    };
+  }
+
+  const targetUrl = source.proxyRequired ? applyProxy(source.url, proxyUrl) : source.url;
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+
+  try {
+    const headers = new Headers();
+
+    if (source.headers) {
+      Object.entries(source.headers).forEach(([k, v]) => {
+        if (typeof v === 'string') headers.set(k, v);
+      });
+    }
+
+    const response = await fetch(targetUrl, {
+      method: isHlsUrl(targetUrl) || isDashUrl(targetUrl) ? 'GET' : 'HEAD',
+      mode: 'cors',
+      cache: 'no-store',
+      signal: controller.signal,
+      headers,
+    });
+
+    clearTimeout(timeout);
+
+    return {
+      ok: response.ok || response.status === 206,
+      status: response.status,
+      latencyMs: Date.now() - startedAt,
+      reason: response.ok ? 'ok' : `http_${response.status}`,
+    };
+  } catch (error: any) {
+    clearTimeout(timeout);
+    return {
+      ok: false,
+      reason: error?.name === 'AbortError' ? 'timeout' : 'network_error',
+      latencyMs: Date.now() - startedAt,
+    };
+  }
+}
+
+function buildSourceBadgeText(source: PlayerSource) {
+  return [source.addon, source.quality, source.language].filter(Boolean).join(' • ');
+}
+
+function getSourceDisplayName(source: PlayerSource, index: number) {
+  return source.server || source.label || `Server ${index + 1}`;
+}
+
+function DiagnosticPill({
+  text,
+  tone = 'default',
+}: {
+  text: string;
+  tone?: 'default' | 'warn' | 'success';
+}) {
+  return (
+    <View
+      style={[
+        styles.diagnosticPill,
+        tone === 'warn' && styles.diagnosticPillWarn,
+        tone === 'success' && styles.diagnosticPillSuccess,
+      ]}
+    >
+      <Text style={styles.diagnosticPillText}>{text}</Text>
+    </View>
+  );
 }
 
 function SourceSelector({
@@ -229,21 +362,33 @@ function SourceSelector({
       <View style={styles.sourcesSheetHeader}>
         <Text style={styles.sourcesSheetEyebrow}>PLAYBACK SOURCES</Text>
         <Text style={styles.sourcesSheetTitle}>Servers</Text>
-        <Text style={styles.sourcesSheetSubtitle}>Switch instantly if one source is slow, blocked, or lower quality than expected.</Text>
+        <Text style={styles.sourcesSheetSubtitle}>
+          اختر الخادم الأسرع أو الأقوى. يتم التبديل فورًا بدون مغادرة الصفحة.
+        </Text>
       </View>
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sourcesRow}>
         {sources.map((source, index) => (
           <Pressable
-            key={`${source.label}-${index}`}
+            key={`${source.url}-${index}`}
             style={[styles.sourceChip, activeIndex === index && styles.sourceChipActive]}
             onPress={() => onSelect(index)}
           >
-            <Text style={[styles.sourceChipText, activeIndex === index && styles.sourceChipTextActive]}>{source.server || source.label}</Text>
-            {source.addon || source.quality ? (
+            <Text style={[styles.sourceChipText, activeIndex === index && styles.sourceChipTextActive]}>
+              {getSourceDisplayName(source, index)}
+            </Text>
+
+            {!!buildSourceBadgeText(source) && (
               <Text style={[styles.sourceChipMeta, activeIndex === index && styles.sourceChipMetaActive]}>
-                {[source.addon, source.quality].filter(Boolean).join(' • ')}
+                {buildSourceBadgeText(source)}
               </Text>
-            ) : null}
+            )}
+
+            {source.proxyRequired && (
+              <Text style={[styles.sourceChipMeta, activeIndex === index && styles.sourceChipMetaActive]}>
+                Proxy
+              </Text>
+            )}
           </Pressable>
         ))}
       </ScrollView>
@@ -251,13 +396,169 @@ function SourceSelector({
   );
 }
 
-function formatPlaybackTime(seconds: number) {
-  if (!Number.isFinite(seconds) || seconds < 0) return 'LIVE';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  return `${m}:${s.toString().padStart(2, '0')}`;
+function SpeedMenu({
+  playbackSpeed,
+  onSelect,
+}: {
+  playbackSpeed: number;
+  onSelect: (speed: number) => void;
+}) {
+  return (
+    <Animated.View entering={FadeIn.duration(150)} style={styles.speedMenu}>
+      <Text style={styles.menuTitle}>سرعة التشغيل</Text>
+
+      {[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((speed) => (
+        <Pressable
+          key={speed}
+          style={[styles.speedOption, playbackSpeed === speed && styles.speedOptionActive]}
+          onPress={() => onSelect(speed)}
+        >
+          <Text style={[styles.speedOptionText, playbackSpeed === speed && styles.speedOptionTextActive]}>
+            {speed === 1 ? 'عادي' : `${speed}x`}
+          </Text>
+        </Pressable>
+      ))}
+    </Animated.View>
+  );
+}
+
+function SettingsMenu({
+  onToggleFit,
+  fitMode,
+  onOpenProxy,
+  onReload,
+  onNextSource,
+  sourceCount,
+}: {
+  onToggleFit: () => void;
+  fitMode: FitMode;
+  onOpenProxy: () => void;
+  onReload: () => void;
+  onNextSource: () => void;
+  sourceCount: number;
+}) {
+  return (
+    <Animated.View entering={FadeIn.duration(150)} style={styles.settingsMenu}>
+      <Text style={styles.menuTitle}>إعدادات التشغيل</Text>
+
+      <Pressable style={styles.settingsRow} onPress={onToggleFit}>
+        <MaterialIcons
+          name={fitMode === 'cover' ? 'zoom-out-map' : 'zoom-in-map'}
+          size={18}
+          color="#FFF"
+        />
+        <Text style={styles.settingsRowText}>
+          {fitMode === 'cover' ? 'إظهار كامل' : 'تكبير / ملء الشاشة'}
+        </Text>
+      </Pressable>
+
+      <Pressable style={styles.settingsRow} onPress={onOpenProxy}>
+        <MaterialIcons name="security" size={18} color="#FFF" />
+        <Text style={styles.settingsRowText}>إعداد البروكسي</Text>
+      </Pressable>
+
+      <Pressable style={styles.settingsRow} onPress={onReload}>
+        <MaterialIcons name="refresh" size={18} color="#FFF" />
+        <Text style={styles.settingsRowText}>إعادة تحميل المصدر</Text>
+      </Pressable>
+
+      {sourceCount > 1 && (
+        <Pressable style={styles.settingsRow} onPress={onNextSource}>
+          <MaterialIcons name="skip-next" size={18} color="#FFF" />
+          <Text style={styles.settingsRowText}>الخادم التالي</Text>
+        </Pressable>
+      )}
+    </Animated.View>
+  );
+}
+
+function ProxySheet({
+  visible,
+  currentProxy,
+  onSave,
+  onClose,
+}: {
+  visible: boolean;
+  currentProxy: string;
+  onSave: (value: string) => void;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(currentProxy);
+
+  useEffect(() => {
+    setValue(currentProxy);
+  }, [currentProxy]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.modalBackdrop} onPress={onClose} />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <Text style={styles.sheetTitle}>إعداد البروكسي</Text>
+        <Text style={styles.sheetSubtitle}>
+          أدخل رابط البروكسي لتشغيل المصادر التي تتطلب وسيطًا. اتركه فارغًا لتعطيله.
+        </Text>
+
+        <TextInput
+          value={value}
+          onChangeText={setValue}
+          placeholder="https://proxy.example.com/"
+          placeholderTextColor="rgba(255,255,255,0.32)"
+          autoCapitalize="none"
+          keyboardType="url"
+          style={styles.proxyInput}
+        />
+
+        <View style={styles.sheetActions}>
+          <Pressable
+            style={[styles.sheetBtn, styles.sheetBtnGhost]}
+            onPress={() => {
+              onSave('');
+              onClose();
+            }}
+          >
+            <Text style={styles.sheetBtnGhostText}>إلغاء البروكسي</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.sheetBtn}
+            onPress={() => {
+              onSave(value.trim());
+              onClose();
+            }}
+          >
+            <Text style={styles.sheetBtnText}>حفظ</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function useWebFullscreen() {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', onChange);
+
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(async (element?: HTMLElement | null) => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await element?.requestFullscreen?.();
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  return { isFullscreen, toggleFullscreen };
 }
 
 function WebDirectPlayer({
@@ -271,6 +572,11 @@ function WebDirectPlayer({
   subtitleUrl,
   initialResumeTime = 0,
   onProgress,
+  proxyUrl,
+  onSaveProxy,
+  onTryNextSource,
+  reloadToken,
+  statusMessage,
 }: {
   url: string;
   title: string;
@@ -282,31 +588,46 @@ function WebDirectPlayer({
   subtitleUrl?: string;
   initialResumeTime?: number;
   onProgress?: (currentTime: number, duration: number) => void;
+  proxyUrl: string;
+  onSaveProxy: (value: string) => void;
+  onTryNextSource: () => void;
+  reloadToken: number;
+  statusMessage: string;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const progressTrackRef = useRef<View | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
+  const { toggleFullscreen, isFullscreen } = useWebFullscreen();
+
   const [showControls, setShowControls] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [showSourcesPanel, setShowSourcesPanel] = useState(false);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showProxySheet, setShowProxySheet] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [fitMode, setFitMode] = useState<FitMode>('contain');
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [playbackError, setPlaybackError] = useState('');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
-  const [showSourcesPanel, setShowSourcesPanel] = useState(false);
-  const [playbackError, setPlaybackError] = useState('');
-  const [captionsEnabled, setCaptionsEnabled] = useState(Boolean(subtitleUrl));
   const [progressTrackWidth, setProgressTrackWidth] = useState(0);
-  const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const activeSource = sources[selectedSourceIndex];
-  const didApplyResumeRef = useRef(false);
+  const [captionsEnabled, setCaptionsEnabled] = useState(Boolean(subtitleUrl));
+  const [startupStage, setStartupStage] = useState<'idle' | 'probing' | 'connecting' | 'playing' | 'fallback'>('idle');
 
-  const scheduleControlsHide = useCallback((delay = 2500) => {
+  const activeSource = sources[selectedSourceIndex];
+  const resolvedUrl = activeSource?.proxyRequired ? applyProxy(url, proxyUrl) : url;
+
+  const scheduleControlsHide = useCallback((delay = 2200) => {
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
     controlsTimer.current = setTimeout(() => setShowControls(false), delay);
   }, []);
 
-  const showControlsTemporarily = useCallback((delay = 2500) => {
+  const showControlsTemporarily = useCallback((delay = 2200) => {
     setShowControls(true);
     scheduleControlsHide(delay);
   }, [scheduleControlsHide]);
@@ -319,59 +640,71 @@ function WebDirectPlayer({
     const video = videoRef.current;
     if (!video) return;
 
-    let hls: Hls | null = null;
-    let startupTimer: ReturnType<typeof setTimeout> | null = null;
+    if (startupTimeoutRef.current) clearTimeout(startupTimeoutRef.current);
+    startupTimeoutRef.current = setTimeout(() => {
+      if (video.paused || video.readyState < 3) {
+        setStartupStage('fallback');
+        setPlaybackError('تأخر هذا المصدر في البدء. جاري تجربة خادم آخر...');
+        onPlaybackFailure('startup_timeout');
+      }
+    }, STARTUP_TIMEOUT_MS);
 
+    return () => {
+      if (startupTimeoutRef.current) clearTimeout(startupTimeoutRef.current);
+    };
+  }, [resolvedUrl, onPlaybackFailure, reloadToken]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let hls: Hls | null = null;
     setPlaybackError('');
+    setIsBuffering(true);
+    setStartupStage('connecting');
+
     video.pause();
     video.currentTime = 0;
     video.playbackRate = playbackSpeed;
 
-    const clearStartupTimer = () => {
-      if (startupTimer) {
-        clearTimeout(startupTimer);
-        startupTimer = null;
-      }
-    };
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
 
-    startupTimer = setTimeout(() => {
-      if (!didApplyResumeRef.current) {
-        setPlaybackError('Source took too long to start.');
-        setIsBuffering(false);
-        if (onPlaybackFailure) onPlaybackFailure('startup_timeout');
-      }
-    }, 7000);
-
-    if (isHlsUrl(url) && Hls.isSupported()) {
+    if (isHlsUrl(resolvedUrl) && Hls.isSupported()) {
       hls = new Hls({
         lowLatencyMode: true,
         enableWorker: true,
-        backBufferLength: 30,
-        maxBufferLength: 20,
+        backBufferLength: 15,
+        maxBufferLength: 15,
         maxMaxBufferLength: 30,
         startFragPrefetch: true,
         capLevelToPlayerSize: true,
-        manifestLoadingTimeOut: 8000,
-        fragLoadingTimeOut: 12000,
+        manifestLoadingTimeOut: 7000,
+        fragLoadingTimeOut: 9000,
         xhrSetup: (xhr) => {
           if (activeSource?.headers) {
             Object.entries(activeSource.headers).forEach(([key, value]) => {
-              xhr.setRequestHeader(key, value);
+              if (typeof value === 'string') xhr.setRequestHeader(key, value);
             });
           }
         },
       });
-      hls.loadSource(url);
+
+      hlsRef.current = hls;
+      hls.loadSource(resolvedUrl);
       hls.attachMedia(video);
+
       hls.on(Events.ERROR, (_event, data) => {
         if (data?.fatal) {
-          setPlaybackError('This HLS stream failed to load in the browser.');
+          setPlaybackError('تعذر تشغيل بث HLS لهذا الخادم.');
           setIsBuffering(false);
-          onPlaybackFailure('fatal_hls_error');
+          onPlaybackFailure(`fatal_hls_${data.type || 'error'}`);
         }
       });
     } else {
-      video.src = url;
+      video.src = resolvedUrl;
     }
 
     const syncState = () => {
@@ -384,39 +717,43 @@ function WebDirectPlayer({
     };
 
     const onLoadedMetadata = () => {
-      if (!didApplyResumeRef.current && initialResumeTime > 5 && Number.isFinite(video.duration)) {
+      if (initialResumeTime > 5 && Number.isFinite(video.duration)) {
         video.currentTime = Math.min(initialResumeTime, Math.max((video.duration || 0) - 3, 0));
-        didApplyResumeRef.current = true;
       }
       syncState();
     };
+
     const onCanPlay = () => {
       setIsBuffering(false);
+      setStartupStage('playing');
       scheduleControlsHide(2200);
+      if (startupTimeoutRef.current) clearTimeout(startupTimeoutRef.current);
     };
+
     const onTimeUpdate = () => syncState();
+
     const onPlay = () => {
       setIsPlaying(true);
       setIsBuffering(false);
-      clearStartupTimer();
+      setStartupStage('playing');
       scheduleControlsHide(2200);
+      if (startupTimeoutRef.current) clearTimeout(startupTimeoutRef.current);
     };
+
     const onPause = () => {
       setIsPlaying(false);
       setShowControls(true);
     };
-    const onWaiting = () => {
-      setIsBuffering(true);
-    };
-    const onSeeking = () => {
-      setIsBuffering(true);
-    };
+
+    const onWaiting = () => setIsBuffering(true);
+
     const onSeeked = () => {
       setIsBuffering(false);
       scheduleControlsHide(2200);
     };
+
     const onError = () => {
-      setPlaybackError('The browser could not play this source.');
+      setPlaybackError('المتصفح لم يستطع تشغيل هذا المصدر.');
       setIsBuffering(false);
       onPlaybackFailure('html5_error');
     };
@@ -427,7 +764,6 @@ function WebDirectPlayer({
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
     video.addEventListener('waiting', onWaiting);
-    video.addEventListener('seeking', onSeeking);
     video.addEventListener('seeked', onSeeked);
     video.addEventListener('error', onError);
 
@@ -443,18 +779,25 @@ function WebDirectPlayer({
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
       video.removeEventListener('waiting', onWaiting);
-      video.removeEventListener('seeking', onSeeking);
       video.removeEventListener('seeked', onSeeked);
       video.removeEventListener('error', onError);
-      clearStartupTimer();
-      if (hls) {
-        hls.destroy();
-      } else {
+
+      if (hls) hls.destroy();
+      else {
         video.removeAttribute('src');
         video.load();
       }
     };
-  }, [url, playbackSpeed, activeSource?.headers, onPlaybackFailure, scheduleControlsHide, initialResumeTime, onProgress]);
+  }, [
+    resolvedUrl,
+    activeSource?.headers,
+    playbackSpeed,
+    onPlaybackFailure,
+    initialResumeTime,
+    onProgress,
+    scheduleControlsHide,
+    reloadToken,
+  ]);
 
   useEffect(() => {
     if (!showControls) return;
@@ -469,30 +812,17 @@ function WebDirectPlayer({
     if (!video) return;
 
     const tracks = video.textTracks;
-    for (let index = 0; index < tracks.length; index += 1) {
-      tracks[index].mode = subtitleUrl && captionsEnabled ? 'showing' : 'disabled';
+    for (let i = 0; i < tracks.length; i += 1) {
+      tracks[i].mode = subtitleUrl && captionsEnabled ? 'showing' : 'disabled';
     }
-  }, [captionsEnabled, subtitleUrl, url]);
-
-  const toggleControls = useCallback(() => {
-    setShowControls((prev) => {
-      const next = !prev;
-      if (next && isPlaying) {
-        scheduleControlsHide(1600);
-      }
-      return next;
-    });
-  }, [isPlaying, scheduleControlsHide]);
+  }, [subtitleUrl, captionsEnabled, resolvedUrl]);
 
   const togglePlay = useCallback(() => {
     Haptics.selectionAsync();
     const video = videoRef.current;
     if (!video) return;
-    if (video.paused) {
-      void video.play();
-      return;
-    }
-    video.pause();
+    if (video.paused) void video.play();
+    else video.pause();
   }, []);
 
   const seek = useCallback((seconds: number) => {
@@ -500,7 +830,8 @@ function WebDirectPlayer({
     const video = videoRef.current;
     if (!video || !Number.isFinite(video.duration)) return;
     video.currentTime = Math.max(0, Math.min(video.currentTime + seconds, video.duration));
-  }, []);
+    showControlsTemporarily(1800);
+  }, [showControlsTemporarily]);
 
   const seekToRatio = useCallback((ratio: number) => {
     const video = videoRef.current;
@@ -512,134 +843,176 @@ function WebDirectPlayer({
     showControlsTemporarily(1800);
   }, [onProgress, showControlsTemporarily]);
 
-  const changeSpeed = useCallback((speed: number) => {
-    Haptics.selectionAsync();
-    const video = videoRef.current;
-    if (video) video.playbackRate = speed;
-    setPlaybackSpeed(speed);
-    setShowSpeedMenu(false);
-  }, []);
-
-  const toggleCaptions = useCallback(() => {
-    Haptics.selectionAsync();
-    setCaptionsEnabled((prev) => !prev);
-  }, []);
-
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const isLiveStream = duration <= 0;
+  const qualityLabel = activeSource?.quality || getMediaKindLabel(mediaKind);
 
   return (
     <View style={styles.container}>
       <StatusBar hidden />
-      <Pressable
-        style={styles.videoContainer}
-        onPress={toggleControls}
-      >
+
+      <Pressable style={styles.videoContainer} onPress={() => setShowControls((prev) => !prev)}>
         <video
           ref={videoRef}
-          style={styles.webFrame as any}
+          style={[styles.webFrame as any, { objectFit: fitMode, backgroundColor: '#000' }]}
           playsInline
           controls={false}
           autoPlay
           muted={false}
           preload="auto"
+          crossOrigin="anonymous"
         >
           {subtitleUrl ? (
-            <track
-              kind="subtitles"
-              src={subtitleUrl}
-              srcLang="ar"
-              label="Subtitles"
-              default
-            />
+            <track kind="subtitles" src={subtitleUrl} srcLang="ar" label="Arabic" default />
           ) : null}
         </video>
-        {isBuffering ? (
+
+        {isBuffering && (
           <View style={styles.bufferingWrap}>
             <ActivityIndicator size="large" color="#FFF" />
-            <Text style={styles.bufferingText}>Optimizing playback…</Text>
+            <Text style={styles.bufferingText}>
+              {startupStage === 'probing'
+                ? 'جارٍ فحص المصادر...'
+                : startupStage === 'fallback'
+                  ? 'جاري التحويل لخادم بديل...'
+                  : 'جارٍ تهيئة التشغيل...'}
+            </Text>
+            {!!statusMessage && <Text style={styles.bufferingSubtext}>{statusMessage}</Text>}
           </View>
-        ) : null}
+        )}
       </Pressable>
 
-      {showControls ? (
-        <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={[styles.controlsOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      {showControls && (
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(180)}
+          style={[styles.controlsOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+        >
           <View style={styles.topBar}>
             <Pressable style={styles.backButton} onPress={() => { videoRef.current?.pause(); router.back(); }}>
               <MaterialIcons name="arrow-back" size={24} color="#FFF" />
             </Pressable>
+
             <View style={styles.titleWrap}>
               <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
-              <Text style={styles.sourceStatusText}>{isLiveStream ? 'HLS live stream' : `${getMediaKindLabel(mediaKind)} player`}</Text>
+              <Text style={styles.sourceStatusText}>{qualityLabel}</Text>
             </View>
-            <Pressable style={styles.topBarBtn} onPress={() => { Haptics.selectionAsync(); setShowSpeedMenu(!showSpeedMenu); }}>
+
+            <Pressable style={styles.topBarBtn} onPress={() => setShowSpeedMenu((prev) => !prev)}>
               <Text style={styles.speedText}>{playbackSpeed}x</Text>
             </Pressable>
-            {sources.length > 1 ? (
-              <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => { Haptics.selectionAsync(); setShowSourcesPanel((prev) => !prev); }}>
-                <MaterialIcons name="dns" size={20} color="#FFF" />
-              </Pressable>
-            ) : null}
-            {subtitleUrl ? (
-              <Pressable style={[styles.topBarBtn, captionsEnabled && styles.topBarBtnActive]} onPress={toggleCaptions}>
-                <Text style={styles.speedText}>CC</Text>
-              </Pressable>
-            ) : null}
+
+            <Pressable style={styles.topBarBtn} onPress={() => setShowSettingsMenu((prev) => !prev)}>
+              <MaterialIcons name="tune" size={20} color="#FFF" />
+            </Pressable>
+
+            <Pressable
+              style={styles.topBarBtn}
+              onPress={() => toggleFullscreen(videoRef.current || undefined)}
+            >
+              <MaterialIcons
+                name={isFullscreen ? 'fullscreen-exit' : 'fullscreen'}
+                size={20}
+                color="#FFF"
+              />
+            </Pressable>
           </View>
 
-          {showSpeedMenu ? (
-            <Animated.View entering={FadeIn.duration(150)} style={styles.speedMenu}>
-              {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) => (
-                <Pressable key={speed} style={[styles.speedOption, playbackSpeed === speed && styles.speedOptionActive]} onPress={() => changeSpeed(speed)}>
-                  <Text style={[styles.speedOptionText, playbackSpeed === speed && styles.speedOptionTextActive]}>{speed}x</Text>
-                </Pressable>
-              ))}
-            </Animated.View>
-          ) : null}
+          {showSpeedMenu && (
+            <SpeedMenu
+              playbackSpeed={playbackSpeed}
+              onSelect={(speed) => {
+                setPlaybackSpeed(speed);
+                setShowSpeedMenu(false);
+              }}
+            />
+          )}
+
+          {showSettingsMenu && (
+            <SettingsMenu
+              fitMode={fitMode}
+              onToggleFit={() => setFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'))}
+              onOpenProxy={() => setShowProxySheet(true)}
+              onReload={() => onPlaybackFailure('manual_reload')}
+              onNextSource={onTryNextSource}
+              sourceCount={sources.length}
+            />
+          )}
 
           <View style={styles.centerControls}>
-            <Pressable style={[styles.seekBtn, isLiveStream && styles.disabledControl]} onPress={() => seek(-10)} disabled={isLiveStream}>
+            <Pressable
+              style={[styles.seekBtn, isLiveStream && styles.disabledControl]}
+              onPress={() => seek(-10)}
+              disabled={isLiveStream}
+            >
               <MaterialIcons name="replay-10" size={36} color="#FFF" />
             </Pressable>
+
             <Pressable style={styles.playPauseBtn} onPress={togglePlay}>
               <MaterialIcons name={isPlaying ? 'pause' : 'play-arrow'} size={48} color="#FFF" />
             </Pressable>
-            <Pressable style={[styles.seekBtn, isLiveStream && styles.disabledControl]} onPress={() => seek(10)} disabled={isLiveStream}>
+
+            <Pressable
+              style={[styles.seekBtn, isLiveStream && styles.disabledControl]}
+              onPress={() => seek(10)}
+              disabled={isLiveStream}
+            >
               <MaterialIcons name="forward-10" size={36} color="#FFF" />
             </Pressable>
           </View>
 
           <View style={styles.bottomBar}>
-            {showSourcesPanel ? (
-              <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
-            ) : null}
-            {playbackError ? <Text style={styles.errorText}>{playbackError}</Text> : null}
-            {activeSource?.proxyRequired ? (
-              <Text style={styles.helperText}>This source may require proxy or custom headers for browser playback.</Text>
-            ) : null}
-            {subtitleUrl ? (
-              <Text style={styles.helperText}>
-                {captionsEnabled ? 'Subtitles are enabled for this source.' : 'Subtitles available. Tap CC to show them.'}
-              </Text>
-            ) : null}
+            <View style={styles.bottomMetaRow}>
+              <DiagnosticPill text={getSourceDisplayName(activeSource, selectedSourceIndex)} tone="success" />
+              {activeSource?.proxyRequired && <DiagnosticPill text="Proxy" tone="warn" />}
+              {activeSource?.quality && <DiagnosticPill text={activeSource.quality} />}
+              {activeSource?.addon && <DiagnosticPill text={activeSource.addon} />}
+            </View>
+
+            {sources.length > 1 && (
+              <SourceSelector
+                sources={sources}
+                activeIndex={selectedSourceIndex}
+                onSelect={onSelectSource}
+              />
+            )}
+
+            {!!playbackError && <Text style={styles.errorText}>{playbackError}</Text>}
+
             {!isLiveStream ? (
               <>
                 <View style={styles.progressContainer}>
                   <Pressable
+                    ref={progressTrackRef as any}
                     style={styles.progressTrack}
                     onLayout={(event) => setProgressTrackWidth(event.nativeEvent.layout.width)}
                     onPress={(event) => {
                       if (!progressTrackWidth) return;
-                      const ratio = event.nativeEvent.locationX / progressTrackWidth;
-                      seekToRatio(ratio);
+                      seekToRatio(event.nativeEvent.locationX / progressTrackWidth);
                     }}
                   >
                     <View style={[styles.progressFill, { width: `${progress}%` }]} />
                     <View style={[styles.progressThumb, { left: `${progress}%` }]} />
                   </Pressable>
                 </View>
+
                 <View style={styles.timeRow}>
                   <Text style={styles.timeText}>{formatPlaybackTime(currentTime)}</Text>
+
+                  <View style={styles.bottomActionsRow}>
+                    <Pressable style={styles.smallActionBtn} onPress={() => setCaptionsEnabled((prev) => !prev)}>
+                      <Text style={styles.smallActionText}>CC</Text>
+                    </Pressable>
+
+                    <Pressable style={styles.smallActionBtn} onPress={() => Linking.openURL(resolvedUrl)}>
+                      <MaterialIcons name="open-in-new" size={16} color="#FFF" />
+                    </Pressable>
+
+                    <Pressable style={styles.smallActionBtn} onPress={onTryNextSource}>
+                      <MaterialIcons name="skip-next" size={16} color="#FFF" />
+                    </Pressable>
+                  </View>
+
                   <Text style={styles.timeText}>{formatPlaybackTime(duration)}</Text>
                 </View>
               </>
@@ -651,7 +1024,14 @@ function WebDirectPlayer({
             )}
           </View>
         </Animated.View>
-      ) : null}
+      )}
+
+      <ProxySheet
+        visible={showProxySheet}
+        currentProxy={proxyUrl}
+        onSave={onSaveProxy}
+        onClose={() => setShowProxySheet(false)}
+      />
     </View>
   );
 }
@@ -662,9 +1042,16 @@ function NativeDirectVideoPlayer({
   sources,
   selectedSourceIndex,
   onSelectSource,
-  onPlaybackFailure: _onPlaybackFailure,
+  onPlaybackFailure,
   mediaKind,
   subtitleUrl,
+  initialResumeTime = 0,
+  onProgress,
+  proxyUrl: _proxyUrl,
+  onSaveProxy,
+  onTryNextSource,
+  reloadToken,
+  statusMessage,
 }: {
   url: string;
   title: string;
@@ -674,38 +1061,74 @@ function NativeDirectVideoPlayer({
   onPlaybackFailure: (reason?: string) => void;
   mediaKind: MediaKind;
   subtitleUrl?: string;
+  initialResumeTime?: number;
+  onProgress?: (currentTime: number, duration: number) => void;
+  proxyUrl: string;
+  onSaveProxy: (value: string) => void;
+  onTryNextSource: () => void;
+  reloadToken: number;
+  statusMessage: string;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
   const [showControls, setShowControls] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showProxySheet, setShowProxySheet] = useState(false);
+  const [showSourcesPanel, setShowSourcesPanel] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [fitMode, setFitMode] = useState<FitMode>('contain');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
-  const [showSourcesPanel, setShowSourcesPanel] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scheduleControlsHide = useCallback((delay = 2500) => {
-    if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), delay);
-  }, []);
 
   const player = useVideoPlayer(url, (instance) => {
     instance.loop = false;
     instance.play();
   });
 
+  const scheduleControlsHide = useCallback((delay = 2200) => {
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    controlsTimer.current = setTimeout(() => setShowControls(false), delay);
+  }, []);
+
   useEffect(() => {
-    const sub = player.addListener('playingChange', (playing) => {
-      setIsPlaying(playing.isPlaying);
-      if (playing.isPlaying) {
-        scheduleControlsHide();
-      }
+    const sub = player.addListener('playingChange', (evt) => {
+      setIsPlaying(evt.isPlaying);
+      if (evt.isPlaying) scheduleControlsHide();
     });
-    return () => {
-      sub.remove();
-    };
+
+    return () => sub.remove();
   }, [player, scheduleControlsHide]);
+
+  useEffect(() => {
+    if (initialResumeTime > 5) {
+      try {
+        player.currentTime = initialResumeTime;
+      } catch {
+        // ignore
+      }
+    }
+  }, [player, initialResumeTime, reloadToken]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      try {
+        const nextTime = player.currentTime || 0;
+        const nextDuration = player.duration || 0;
+        setCurrentTime(nextTime);
+        setDuration(nextDuration);
+        onProgress?.(nextTime, nextDuration);
+      } catch {
+        // ignore
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [player, onProgress]);
 
   useEffect(() => {
     if (!showControls) return;
@@ -715,43 +1138,15 @@ function NativeDirectVideoPlayer({
     };
   }, [showControls, scheduleControlsHide]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      try {
-        setCurrentTime(player.currentTime || 0);
-        setDuration(player.duration || 0);
-      } catch {
-        // Ignore transient player state access issues while loading.
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [player]);
-
-  const toggleControls = useCallback(() => {
-    setShowControls((prev) => !prev);
-  }, []);
-
   const togglePlay = useCallback(() => {
     Haptics.selectionAsync();
-    if (isPlaying) {
-      player.pause();
-      return;
-    }
-    player.play();
-  }, [player, isPlaying]);
+    if (isPlaying) player.pause();
+    else player.play();
+  }, [isPlaying, player]);
 
   const seek = useCallback((seconds: number) => {
     Haptics.selectionAsync();
-    const newTime = Math.max(0, Math.min((player.currentTime || 0) + seconds, player.duration || 0));
-    player.currentTime = newTime;
-  }, [player]);
-
-  const changeSpeed = useCallback((speed: number) => {
-    Haptics.selectionAsync();
-    player.playbackRate = speed;
-    setPlaybackSpeed(speed);
-    setShowSpeedMenu(false);
+    player.currentTime = Math.max(0, Math.min((player.currentTime || 0) + seconds, player.duration || 0));
   }, [player]);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -759,75 +1154,140 @@ function NativeDirectVideoPlayer({
   return (
     <View style={styles.container}>
       <StatusBar hidden />
-      <Pressable style={styles.videoContainer} onPress={toggleControls}>
-        <VideoView player={player} style={styles.video} nativeControls={false} contentFit="contain" />
+
+      <Pressable style={styles.videoContainer} onPress={() => setShowControls((prev) => !prev)}>
+        <VideoView player={player} style={styles.video} nativeControls={false} contentFit={fitMode} />
+
+        {!!statusMessage && (
+          <View style={styles.nativeStatusWrap}>
+            <Text style={styles.nativeStatusText}>{statusMessage}</Text>
+          </View>
+        )}
       </Pressable>
 
-      {showControls ? (
-        <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={[styles.controlsOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      {showControls && (
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(180)}
+          style={[styles.controlsOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+        >
           <View style={styles.topBar}>
             <Pressable style={styles.backButton} onPress={() => { player.pause(); router.back(); }}>
               <MaterialIcons name="arrow-back" size={24} color="#FFF" />
             </Pressable>
+
             <View style={styles.titleWrap}>
               <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
-              <Text style={styles.sourceStatusText}>{getMediaKindLabel(mediaKind)} player</Text>
+              <Text style={styles.sourceStatusText}>{getMediaKindLabel(mediaKind)}</Text>
             </View>
-            <Pressable style={styles.topBarBtn} onPress={() => { Haptics.selectionAsync(); setShowSpeedMenu(!showSpeedMenu); }}>
+
+            <Pressable style={styles.topBarBtn} onPress={() => setShowSpeedMenu((prev) => !prev)}>
               <Text style={styles.speedText}>{playbackSpeed}x</Text>
             </Pressable>
-            {sources.length > 1 ? (
-              <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => { Haptics.selectionAsync(); setShowSourcesPanel((prev) => !prev); }}>
-                <MaterialIcons name="dns" size={20} color="#FFF" />
-              </Pressable>
-            ) : null}
-            {subtitleUrl ? (
-              <View style={[styles.topBarBtn, styles.topBarBtnActive]}>
-                <Text style={styles.speedText}>CC</Text>
-              </View>
-            ) : null}
+
+            <Pressable style={styles.topBarBtn} onPress={() => setShowSettingsMenu((prev) => !prev)}>
+              <MaterialIcons name="tune" size={20} color="#FFF" />
+            </Pressable>
           </View>
 
-          {showSpeedMenu ? (
-            <Animated.View entering={FadeIn.duration(150)} style={styles.speedMenu}>
-              {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) => (
-                <Pressable key={speed} style={[styles.speedOption, playbackSpeed === speed && styles.speedOptionActive]} onPress={() => changeSpeed(speed)}>
-                  <Text style={[styles.speedOptionText, playbackSpeed === speed && styles.speedOptionTextActive]}>{speed}x</Text>
-                </Pressable>
-              ))}
-            </Animated.View>
-          ) : null}
+          {showSpeedMenu && (
+            <SpeedMenu
+              playbackSpeed={playbackSpeed}
+              onSelect={(speed) => {
+                player.playbackRate = speed;
+                setPlaybackSpeed(speed);
+                setShowSpeedMenu(false);
+              }}
+            />
+          )}
+
+          {showSettingsMenu && (
+            <SettingsMenu
+              fitMode={fitMode}
+              onToggleFit={() => setFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'))}
+              onOpenProxy={() => setShowProxySheet(true)}
+              onReload={() => onPlaybackFailure('manual_reload')}
+              onNextSource={onTryNextSource}
+              sourceCount={sources.length}
+            />
+          )}
 
           <View style={styles.centerControls}>
             <Pressable style={styles.seekBtn} onPress={() => seek(-10)}>
               <MaterialIcons name="replay-10" size={36} color="#FFF" />
             </Pressable>
+
             <Pressable style={styles.playPauseBtn} onPress={togglePlay}>
               <MaterialIcons name={isPlaying ? 'pause' : 'play-arrow'} size={48} color="#FFF" />
             </Pressable>
+
             <Pressable style={styles.seekBtn} onPress={() => seek(10)}>
               <MaterialIcons name="forward-10" size={36} color="#FFF" />
             </Pressable>
           </View>
 
           <View style={styles.bottomBar}>
-            {showSourcesPanel ? (
-              <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
-            ) : null}
-            {subtitleUrl ? <Text style={styles.helperText}>This stream includes subtitles. For advanced caption rendering, web playback works best.</Text> : null}
+            <View style={styles.bottomMetaRow}>
+              <DiagnosticPill
+                text={getSourceDisplayName(sources[selectedSourceIndex], selectedSourceIndex)}
+                tone="success"
+              />
+              {sources[selectedSourceIndex]?.quality && (
+                <DiagnosticPill text={String(sources[selectedSourceIndex]?.quality)} />
+              )}
+              {sources[selectedSourceIndex]?.proxyRequired && (
+                <DiagnosticPill text="Proxy" tone="warn" />
+              )}
+            </View>
+
+            {showSourcesPanel && (
+              <SourceSelector
+                sources={sources}
+                activeIndex={selectedSourceIndex}
+                onSelect={onSelectSource}
+              />
+            )}
+
             <View style={styles.progressContainer}>
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${progress}%` }]} />
                 <View style={[styles.progressThumb, { left: `${progress}%` }]} />
               </View>
             </View>
+
             <View style={styles.timeRow}>
               <Text style={styles.timeText}>{formatPlaybackTime(currentTime)}</Text>
+
+              <View style={styles.bottomActionsRow}>
+                {sources.length > 1 && (
+                  <Pressable style={styles.smallActionBtn} onPress={() => setShowSourcesPanel((prev) => !prev)}>
+                    <MaterialIcons name="dns" size={16} color="#FFF" />
+                  </Pressable>
+                )}
+
+                {subtitleUrl && (
+                  <Pressable style={styles.smallActionBtn}>
+                    <Text style={styles.smallActionText}>CC</Text>
+                  </Pressable>
+                )}
+
+                <Pressable style={styles.smallActionBtn} onPress={onTryNextSource}>
+                  <MaterialIcons name="skip-next" size={16} color="#FFF" />
+                </Pressable>
+              </View>
+
               <Text style={styles.timeText}>{formatPlaybackTime(duration)}</Text>
             </View>
           </View>
         </Animated.View>
-      ) : null}
+      )}
+
+      <ProxySheet
+        visible={showProxySheet}
+        currentProxy=""
+        onSave={onSaveProxy}
+        onClose={() => setShowProxySheet(false)}
+      />
     </View>
   );
 }
@@ -841,11 +1301,15 @@ function DirectVideoPlayer(props: {
   onPlaybackFailure: (reason?: string) => void;
   mediaKind: MediaKind;
   subtitleUrl?: string;
+  initialResumeTime?: number;
+  onProgress?: (currentTime: number, duration: number) => void;
+  proxyUrl: string;
+  onSaveProxy: (value: string) => void;
+  onTryNextSource: () => void;
+  reloadToken: number;
+  statusMessage: string;
 }) {
-  if (Platform.OS === 'web') {
-    return <WebDirectPlayer {...props} />;
-  }
-
+  if (Platform.OS === 'web') return <WebDirectPlayer {...props} />;
   return <NativeDirectVideoPlayer {...props} />;
 }
 
@@ -893,7 +1357,7 @@ function DashPlayer({
 
   useEffect(() => {
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), 2600);
+    controlsTimer.current = setTimeout(() => setShowControls(false), 2400);
     return () => {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);
     };
@@ -902,6 +1366,7 @@ function DashPlayer({
   return (
     <View style={styles.container}>
       <StatusBar hidden />
+
       <Pressable style={styles.videoContainer} onPress={() => setShowControls((prev) => !prev)}>
         {Platform.OS === 'web' ? (
           <iframe
@@ -921,29 +1386,47 @@ function DashPlayer({
           />
         )}
       </Pressable>
-      {showControls ? (
-      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={[styles.controlsOverlay, styles.embeddedOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.topBar}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <MaterialIcons name="arrow-back" size={24} color="#FFF" />
-          </Pressable>
-          <View style={styles.titleWrap}>
-            <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
-            <Text style={styles.sourceStatusText}>DASH player</Text>
-          </View>
-          {sources.length > 1 ? (
-            <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => setShowSourcesPanel((prev) => !prev)}>
-              <MaterialIcons name="dns" size={20} color="#FFF" />
+
+      {showControls && (
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(180)}
+          style={[styles.controlsOverlay, styles.embeddedOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+        >
+          <View style={styles.topBar}>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <MaterialIcons name="arrow-back" size={24} color="#FFF" />
             </Pressable>
-          ) : null}
-        </View>
-        {showSourcesPanel ? (
-          <View style={styles.embedBottomSheet}>
-            <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
+
+            <View style={styles.titleWrap}>
+              <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
+              <Text style={styles.sourceStatusText}>DASH player</Text>
+            </View>
+
+            {sources.length > 1 && (
+              <Pressable
+                style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]}
+                onPress={() => setShowSourcesPanel((prev) => !prev)}
+              >
+                <MaterialIcons name="dns" size={20} color="#FFF" />
+              </Pressable>
+            )}
           </View>
-        ) : null}
-      </Animated.View>
-      ) : null}
+
+          {showSourcesPanel && (
+            <View style={styles.embedBottomSheet}>
+              <SourceSelector
+                sources={sources}
+                activeIndex={selectedSourceIndex}
+                onSelect={(index) => {
+                  onSelectSource(index);
+                  setShowSourcesPanel(false);
+                }}
+              />
+            </View>
+          )}
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -973,7 +1456,7 @@ function EmbeddedPlayer({
 
   useEffect(() => {
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), 2600);
+    controlsTimer.current = setTimeout(() => setShowControls(false), 2400);
     return () => {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);
     };
@@ -982,6 +1465,7 @@ function EmbeddedPlayer({
   return (
     <View style={styles.container}>
       <StatusBar hidden />
+
       <Pressable style={styles.videoContainer} onPress={() => setShowControls((prev) => !prev)}>
         {Platform.OS === 'web' ? (
           <iframe
@@ -1004,37 +1488,56 @@ function EmbeddedPlayer({
         )}
       </Pressable>
 
-      {showControls ? (
-      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={[styles.controlsOverlay, styles.embeddedOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.topBar}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <MaterialIcons name="arrow-back" size={24} color="#FFF" />
-          </Pressable>
-          <View style={styles.titleWrap}>
-            <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
-            <Text style={styles.sourceStatusText}>{getMediaKindLabel(mediaKind)} source</Text>
-          </View>
-          {sources.length > 1 ? (
-            <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => setShowSourcesPanel((prev) => !prev)}>
-              <MaterialIcons name="dns" size={20} color="#FFF" />
+      {showControls && (
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(180)}
+          style={[styles.controlsOverlay, styles.embeddedOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+        >
+          <View style={styles.topBar}>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <MaterialIcons name="arrow-back" size={24} color="#FFF" />
             </Pressable>
-          ) : null}
-          <Pressable style={styles.topBarBtn} onPress={() => Linking.openURL(originalUrl)}>
-            <MaterialIcons name="open-in-new" size={20} color="#FFF" />
-          </Pressable>
-        </View>
-        {showSourcesPanel ? (
-          <View style={styles.embedBottomSheet}>
-            <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
+
+            <View style={styles.titleWrap}>
+              <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
+              <Text style={styles.sourceStatusText}>{getMediaKindLabel(mediaKind)} source</Text>
+            </View>
+
+            {sources.length > 1 && (
+              <Pressable
+                style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]}
+                onPress={() => setShowSourcesPanel((prev) => !prev)}
+              >
+                <MaterialIcons name="dns" size={20} color="#FFF" />
+              </Pressable>
+            )}
+
+            <Pressable style={styles.topBarBtn} onPress={() => Linking.openURL(originalUrl)}>
+              <MaterialIcons name="open-in-new" size={20} color="#FFF" />
+            </Pressable>
           </View>
-        ) : null}
-        <View style={styles.embedHintWrap}>
-          <Text style={styles.embedHintText}>
-            Embedded pages may block playback. Switch servers or open externally if needed.
-          </Text>
-        </View>
-      </Animated.View>
-      ) : null}
+
+          {showSourcesPanel && (
+            <View style={styles.embedBottomSheet}>
+              <SourceSelector
+                sources={sources}
+                activeIndex={selectedSourceIndex}
+                onSelect={(index) => {
+                  onSelectSource(index);
+                  setShowSourcesPanel(false);
+                }}
+              />
+            </View>
+          )}
+
+          <View style={styles.embedHintWrap}>
+            <Text style={styles.embedHintText}>
+              المصادر المضمّنة قد تكون أبطأ أو محجوبة. بدّل الخادم أو افتح الرابط خارجيًا إذا احتجت.
+            </Text>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -1049,31 +1552,28 @@ export default function PlayerScreen() {
     viewerContentId?: string;
     viewerContentType?: api.ViewerContentType;
   }>();
-  
-  const initialSources = React.useMemo(() => sortSources(parseSourcesParam(sources, url)), [sources, url]);
-  const [availableSources, setAvailableSources] = useState<PlayerSource[]>(initialSources);
+
+  const availableSources = useMemo(() => sortSources(parseSourcesParam(sources, url)), [sources, url]);
+
   const [selectedSourceIndex, setSelectedSourceIndex] = useState(0);
   const [autoFallbackReason, setAutoFallbackReason] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
-
-  // Preflight & Proxy States
-  const [isPreflighting, setIsPreflighting] = useState(true);
-  const [preflightLogs, setPreflightLogs] = useState<string[]>(['Initializing player...']);
   const [proxyUrl, setProxyUrl] = useState('');
+  const [initialResumeTime, setInitialResumeTime] = useState(0);
+  const [statusMessage, setStatusMessage] = useState('');
 
   const activeSource = availableSources[selectedSourceIndex] || availableSources[0];
   const resolvedUrl = activeSource?.url || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
   const safeTitle = title || 'Now Playing';
-  const preferenceKey = `player-preference:${viewerContentType || 'unknown'}:${viewerContentId || safeTitle}`;
 
-  useEffect(() => {
-    AsyncStorage.getItem('player-cors-proxy').then((res) => {
-      setProxyUrl(res || 'https://corsproxy.io/?url=');
-    });
-  }, []);
+  const viewerKey = `${viewerContentType || 'unknown'}:${viewerContentId || safeTitle}`;
+  const preferenceKey = `${PREFERENCE_KEY_PREFIX}${viewerKey}`;
+  const resumeKey = `${RESUME_KEY_PREFIX}${viewerKey}`;
+  const lastGoodSourceKey = `${LAST_GOOD_SOURCE_PREFIX}${viewerKey}`;
 
   const rememberSourcePreference = useCallback(async (source?: PlayerSource | null) => {
     if (!source) return;
+
     try {
       await AsyncStorage.setItem(
         preferenceKey,
@@ -1082,106 +1582,132 @@ export default function PlayerScreen() {
           server: source.server || source.label || '',
           quality: source.quality || '',
           url: source.url,
-        })
+        }),
       );
     } catch {
-      // Ignore local preference persistence issues.
+      // ignore
     }
   }, [preferenceKey]);
 
-  useEffect(() => {
-    let cancelled = false;
-    
-    const runPreflight = async () => {
-      const mediaKind = getMediaKind(initialSources[0]?.url || '');
-      if (mediaKind === 'youtube' || mediaKind === 'web' || initialSources.length === 0) {
-        if (!cancelled) setIsPreflighting(false);
-        return;
-      }
+  const rememberGoodSource = useCallback(async (source?: PlayerSource | null) => {
+    if (!source) return;
+    try {
+      await AsyncStorage.setItem(lastGoodSourceKey, source.url);
+    } catch {
+      // ignore
+    }
+  }, [lastGoodSourceKey]);
 
-      setPreflightLogs(['Checking available sources...']);
-      
-      const toProbe = initialSources.slice(0, 3);
-      const probeSource = async (source: PlayerSource, forceProxy: boolean = false): Promise<PlayerSource> => {
-        const startTime = Date.now();
-        let targetUrl = source.url;
-        const needsProxy = forceProxy || source.proxyRequired;
-        
-        if (needsProxy && proxyUrl) {
-          targetUrl = `${proxyUrl}${encodeURIComponent(source.url)}`;
-        }
-        
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 2500); // 2.5s super fast probe
-          
-          const res = await fetch(targetUrl, {
-            method: 'GET',
-            headers: { ...source.headers, 'Range': 'bytes=0-100' },
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          
-          if (res.ok || res.status === 206) {
-             return { ...source, url: targetUrl, isWorking: true, responseTimeMs: Date.now() - startTime };
-          }
-          throw new Error(`HTTP ${res.status}`);
-        } catch (error: any) {
-           if (!needsProxy && proxyUrl) {
-              return probeSource(source, true); // retry automatically with proxy
-           }
-           // Use untouched URL but mark as failed so it naturally falls back or shows error
-           return { ...source, url: targetUrl, isWorking: false, responseTimeMs: Infinity };
-        }
-      };
+  const saveProgress = useCallback(async (currentTime: number, duration: number) => {
+    if (!viewerKey || duration < 60 || currentTime < 10) return;
 
-      const results = await Promise.all(toProbe.map(s => probeSource(s, false)));
-      if (cancelled) return;
+    try {
+      await AsyncStorage.setItem(
+        resumeKey,
+        JSON.stringify({ position: Math.floor(currentTime), duration: Math.floor(duration) }),
+      );
+    } catch {
+      // ignore
+    }
+  }, [resumeKey, viewerKey]);
 
-      const updatedSources = [...initialSources];
-      results.forEach((r, idx) => {
-        updatedSources[idx] = r;
-      });
-      
-      const newSorted = sortSources(updatedSources);
-      setAvailableSources(newSorted);
-      setPreflightLogs(prev => [...prev, 'Testing fastest server...', 'Optimizing playback...']);
-      
-      setTimeout(() => {
-        if (!cancelled) setIsPreflighting(false);
-      }, 600);
-    };
-
-    if (proxyUrl) runPreflight();
-
-    return () => { cancelled = true; };
-  }, [initialSources, proxyUrl]);
+  const handleProgress = useCallback((currentTime: number, duration: number) => {
+    void saveProgress(currentTime, duration);
+  }, [saveProgress]);
 
   const moveToBestAlternative = useCallback((reason?: string) => {
     if (availableSources.length <= 1) return false;
 
-    const nextIndex = availableSources.findIndex((source, index) => index !== selectedSourceIndex && source.url !== activeSource?.url);
+    const nextIndex = availableSources.findIndex(
+      (source, index) => index !== selectedSourceIndex && source.url !== activeSource?.url,
+    );
+
     if (nextIndex === -1) return false;
 
-    setAutoFallbackReason(reason || 'Switched to the next available source automatically.');
+    setAutoFallbackReason(reason || 'تم التحويل تلقائيًا إلى الخادم التالي.');
     setSelectedSourceIndex(nextIndex);
     setRetryToken((value) => value + 1);
     void rememberSourcePreference(availableSources[nextIndex]);
     return true;
   }, [activeSource?.url, availableSources, rememberSourcePreference, selectedSourceIndex]);
 
+  const runSourceProbe = useCallback(async () => {
+    if (availableSources.length === 0) return;
+
+    setStatusMessage('جارٍ فحص المصادر الأسرع...');
+
+    const checks = await Promise.all(
+      availableSources.slice(0, Math.min(3, availableSources.length)).map(async (source) => {
+        const result = await probeSource(source, proxyUrl);
+        return { source, result };
+      }),
+    );
+
+    const bestCandidate = checks
+      .map((item) => ({
+        source: item.source,
+        index: availableSources.findIndex((s) => s.url === item.source.url),
+        probe: item.result,
+      }))
+      .sort((a, b) => {
+        const score = (item: { source: PlayerSource; probe?: SourceProbeResult }) => {
+          const okScore = item.probe?.ok ? 1000 : 0;
+          const latencyScore = item.probe?.latencyMs ? Math.max(0, 500 - item.probe.latencyMs) : 0;
+          const qualityScore = rankQuality(item.source.quality) * 20;
+          const priorityScore = (item.source.priority || 0) * 30;
+          return okScore + latencyScore + qualityScore + priorityScore;
+        };
+        return score(b) - score(a);
+      })[0];
+
+    if (bestCandidate && bestCandidate.index >= 0 && bestCandidate.index !== selectedSourceIndex && bestCandidate.probe?.ok) {
+      setSelectedSourceIndex(bestCandidate.index);
+      void rememberSourcePreference(bestCandidate.source);
+      setStatusMessage(`تم اختيار أسرع خادم: ${getSourceDisplayName(bestCandidate.source, bestCandidate.index)}`);
+    } else {
+      setStatusMessage('تم اختيار أفضل خادم متاح حاليًا.');
+    }
+  }, [availableSources, proxyUrl, rememberSourcePreference, selectedSourceIndex]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(PROXY_KEY).then((value) => setProxyUrl(value || '')).catch(() => {});
+    AsyncStorage.getItem(resumeKey).then((raw) => {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.position > 30) setInitialResumeTime(parsed.position);
+      } catch {
+        // ignore
+      }
+    }).catch(() => {});
+  }, [resumeKey]);
+
   useEffect(() => {
     let cancelled = false;
 
     const restorePreference = async () => {
       try {
-        const raw = await AsyncStorage.getItem(preferenceKey);
-        if (!raw || cancelled) {
+        const [preferredRaw, goodUrl] = await Promise.all([
+          AsyncStorage.getItem(preferenceKey),
+          AsyncStorage.getItem(lastGoodSourceKey),
+        ]);
+
+        if (cancelled) return;
+
+        if (goodUrl) {
+          const lastGoodIndex = availableSources.findIndex((source) => source.url === goodUrl);
+          if (lastGoodIndex >= 0) {
+            setSelectedSourceIndex(lastGoodIndex);
+            return;
+          }
+        }
+
+        if (!preferredRaw) {
           setSelectedSourceIndex(0);
           return;
         }
 
-        const parsed = JSON.parse(raw);
+        const parsed = JSON.parse(preferredRaw);
         const preferredIndex = availableSources.findIndex((source) =>
           source.url === parsed?.url ||
           (
@@ -1197,18 +1723,22 @@ export default function PlayerScreen() {
       }
     };
 
-    if (!isPreflighting) void restorePreference();
-    setAutoFallbackReason(null);
-
+    void restorePreference();
     return () => {
       cancelled = true;
     };
-  }, [preferenceKey, isPreflighting]);
+  }, [availableSources, preferenceKey, lastGoodSourceKey]);
 
   useEffect(() => {
     if (!activeSource) return;
     void rememberSourcePreference(activeSource);
   }, [activeSource, rememberSourcePreference]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      void runSourceProbe();
+    }
+  }, [runSourceProbe]);
 
   useEffect(() => {
     if (!viewerContentId || !viewerContentType) return;
@@ -1247,38 +1777,70 @@ export default function PlayerScreen() {
 
   useEffect(() => {
     if (!autoFallbackReason) return;
-    const timer = setTimeout(() => setAutoFallbackReason(null), 3000);
+    const timer = setTimeout(() => setAutoFallbackReason(null), 3500);
     return () => clearTimeout(timer);
   }, [autoFallbackReason]);
-
-  if (isPreflighting) {
-    return (
-      <View style={styles.unsupportedContainer}>
-        <StatusBar hidden />
-        <ActivityIndicator size="large" color="#6366F1" />
-        <Text style={styles.unsupportedTitle}>Starting Stream</Text>
-        <View style={{ gap: 4, alignItems: 'center' }}>
-          {preflightLogs.map((log, i) => (
-            <Text key={i} style={styles.unsupportedHint}>{log}</Text>
-          ))}
-        </View>
-      </View>
-    );
-  }
 
   if (!isHttpUrl(resolvedUrl)) {
     return (
       <View style={styles.unsupportedContainer}>
         <StatusBar hidden />
         <Text style={styles.unsupportedTitle}>{safeTitle}</Text>
-        <Text style={styles.unsupportedText}>
-          Invalid link. Please use a full http or https URL.
-        </Text>
+        <Text style={styles.unsupportedText}>الرابط غير صالح. استخدم رابط http أو https كامل.</Text>
       </View>
     );
   }
 
   const mediaKind = getMediaKind(resolvedUrl);
+
+  const commonDirectProps = {
+    url: activeSource?.proxyRequired ? applyProxy(resolvedUrl, proxyUrl) : resolvedUrl,
+    title: safeTitle,
+    sources: availableSources,
+    selectedSourceIndex,
+    onSelectSource: (index: number) => {
+      setAutoFallbackReason(null);
+      setSelectedSourceIndex(index);
+      setRetryToken((value) => value + 1);
+      void rememberSourcePreference(availableSources[index]);
+    },
+    onPlaybackFailure: (reason?: string) => {
+      if (reason === 'manual_reload') {
+        setStatusMessage('جارٍ إعادة تحميل الخادم الحالي...');
+        setRetryToken((value) => value + 1);
+        return;
+      }
+
+      if (
+        moveToBestAlternative(
+          reason ? `فشل الخادم الحالي (${reason}) وتم التبديل تلقائيًا.` : 'فشل الخادم الحالي وتم التبديل تلقائيًا.',
+        )
+      ) {
+        return;
+      }
+
+      setAutoFallbackReason(reason ? `فشل التشغيل: ${reason}` : 'فشل التشغيل لهذا المصدر.');
+      setRetryToken((value) => value + 1);
+    },
+    mediaKind,
+    subtitleUrl,
+    initialResumeTime,
+    onProgress: handleProgress,
+    proxyUrl,
+    onSaveProxy: async (value: string) => {
+      setProxyUrl(value);
+      try {
+        await AsyncStorage.setItem(PROXY_KEY, value);
+      } catch {}
+    },
+    onTryNextSource: () => {
+      if (!moveToBestAlternative('تم الانتقال يدويًا إلى الخادم التالي.')) {
+        setAutoFallbackReason('لا يوجد خادم بديل متاح حاليًا.');
+      }
+    },
+    reloadToken: retryToken,
+    statusMessage,
+  };
 
   if (mediaKind === 'youtube') {
     return (
@@ -1296,27 +1858,19 @@ export default function PlayerScreen() {
 
   if (mediaKind === 'direct') {
     return (
-      <DirectVideoPlayer
-        url={resolvedUrl}
-        title={safeTitle}
-        sources={availableSources}
-        selectedSourceIndex={selectedSourceIndex}
-        onSelectSource={(index) => {
-          setAutoFallbackReason(null);
-          setSelectedSourceIndex(index);
-          void rememberSourcePreference(availableSources[index]);
-        }}
-        onPlaybackFailure={(reason) => {
-          if (moveToBestAlternative(reason ? `Source failed (${reason}). Switched automatically.` : 'Source failed. Switched automatically.')) {
-            return;
-          }
-          setAutoFallbackReason(reason ? `Playback failed: ${reason}` : 'Playback failed for this source.');
-          setRetryToken((value) => value + 1);
-        }}
-        mediaKind={mediaKind}
-        subtitleUrl={subtitleUrl}
-        key={`${resolvedUrl}:${selectedSourceIndex}:${retryToken}`}
-      />
+      <View style={styles.container}>
+        {autoFallbackReason && (
+          <View style={styles.autoFallbackBanner}>
+            <MaterialIcons name="bolt" size={16} color="#FFF" />
+            <Text style={styles.autoFallbackText}>{autoFallbackReason}</Text>
+          </View>
+        )}
+
+        <DirectVideoPlayer
+          {...commonDirectProps}
+          key={`${resolvedUrl}:${selectedSourceIndex}:${retryToken}:${proxyUrl}`}
+        />
+      </View>
     );
   }
 
@@ -1338,12 +1892,13 @@ export default function PlayerScreen() {
 
   return (
     <View style={styles.container}>
-      {autoFallbackReason ? (
+      {autoFallbackReason && (
         <View style={styles.autoFallbackBanner}>
           <MaterialIcons name="bolt" size={16} color="#FFF" />
           <Text style={styles.autoFallbackText}>{autoFallbackReason}</Text>
         </View>
-      ) : null}
+      )}
+
       <EmbeddedPlayer
         embedUrl={buildWebEmbedUrl(resolvedUrl)}
         originalUrl={resolvedUrl}
@@ -1366,59 +1921,235 @@ const styles = StyleSheet.create({
   videoContainer: { flex: 1 },
   video: { flex: 1, backgroundColor: '#000' },
   webFrame: { width: '100%', height: '100%', borderWidth: 0, backgroundColor: '#000' },
-  controlsOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.34)', justifyContent: 'space-between' },
+
+  controlsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.34)',
+    justifyContent: 'space-between',
+  },
   embeddedOverlay: { backgroundColor: 'transparent' },
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, gap: 12 },
-  backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
+
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 12,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
   titleWrap: { flex: 1 },
   titleText: { fontSize: 17, fontWeight: '800', color: '#FFF' },
   sourceStatusText: { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
-  topBarBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  topBarBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   topBarBtnActive: { backgroundColor: 'rgba(99,102,241,0.9)' },
   speedText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
-  sourcesSheet: { backgroundColor: 'rgba(9,13,24,0.96)', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, gap: 12 },
+
+  menuTitle: { fontSize: 13, fontWeight: '800', color: '#FFF', marginBottom: 6 },
+  speedMenu: {
+    position: 'absolute',
+    top: 84,
+    right: 16,
+    backgroundColor: 'rgba(26,26,38,0.96)',
+    borderRadius: 14,
+    padding: 8,
+    zIndex: 100,
+  },
+  speedOption: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  speedOptionActive: { backgroundColor: theme.primary },
+  speedOptionText: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.82)' },
+  speedOptionTextActive: { color: '#FFF' },
+
+  settingsMenu: {
+    position: 'absolute',
+    top: 84,
+    right: 68,
+    backgroundColor: 'rgba(20,24,36,0.97)',
+    borderRadius: 16,
+    padding: 10,
+    zIndex: 100,
+    minWidth: 220,
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  settingsRowText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+
+  sourcesSheet: {
+    backgroundColor: 'rgba(9,13,24,0.96)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 16,
+    gap: 12,
+  },
   sourcesSheetHeader: { gap: 4 },
-  sourcesSheetEyebrow: { fontSize: 11, fontWeight: '800', color: '#A5B4FC', letterSpacing: 1.2 },
+  sourcesSheetEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#A5B4FC',
+    letterSpacing: 1.2,
+  },
   sourcesSheetTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   sourcesSheetSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.64)' },
   sourcesRow: { gap: 8, paddingRight: 16 },
-  sourceChip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  sourceChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
   sourceChipActive: { backgroundColor: '#FFF', borderColor: '#FFF' },
   sourceChipText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
   sourceChipTextActive: { color: '#000' },
   sourceChipMeta: { fontSize: 10, color: 'rgba(255,255,255,0.68)', marginTop: 2 },
   sourceChipMetaActive: { color: 'rgba(0,0,0,0.6)' },
-  speedMenu: { position: 'absolute', top: 80, right: 16, backgroundColor: 'rgba(26,26,38,0.95)', borderRadius: 12, padding: 8, zIndex: 100 },
-  speedOption: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
-  speedOptionActive: { backgroundColor: theme.primary },
-  speedOptionText: { fontSize: 14, fontWeight: '600', color: theme.textSecondary },
-  speedOptionTextActive: { color: '#FFF' },
-  centerControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 48 },
-  seekBtn: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+
+  centerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 42,
+  },
+  seekBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
   disabledControl: { opacity: 0.4 },
-  playPauseBtn: { width: 78, height: 78, borderRadius: 39, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  playPauseBtn: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   bottomBar: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
+  bottomMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+  diagnosticPill: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  diagnosticPillWarn: { backgroundColor: 'rgba(245,158,11,0.22)' },
+  diagnosticPillSuccess: { backgroundColor: 'rgba(16,185,129,0.22)' },
+  diagnosticPillText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+
   progressContainer: { marginBottom: 8 },
-  progressTrack: { height: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, overflow: 'visible' },
+  progressTrack: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 2,
+    overflow: 'visible',
+  },
   progressFill: { height: 4, backgroundColor: theme.primary, borderRadius: 2 },
-  progressThumb: { position: 'absolute', top: -5, width: 14, height: 14, borderRadius: 7, backgroundColor: theme.primary, marginLeft: -7 },
-  timeRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  progressThumb: {
+    position: 'absolute',
+    top: -5,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: theme.primary,
+    marginLeft: -7,
+  },
+
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   timeText: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
-  errorText: { fontSize: 13, color: '#FCA5A5', textAlign: 'center', marginBottom: 10 },
-  helperText: { fontSize: 12, color: 'rgba(255,255,255,0.76)', textAlign: 'center' },
-  livePill: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.18)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-  liveDotMini: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.live },
-  livePillText: { fontSize: 12, fontWeight: '700', color: '#FFF', letterSpacing: 0.6 },
-  embedBottomSheet: { paddingHorizontal: 16, marginTop: 'auto', marginBottom: 12 },
+
+  bottomActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  smallActionBtn: {
+    minWidth: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  smallActionText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
+
+  errorText: {
+    fontSize: 13,
+    color: '#FCA5A5',
+    textAlign: 'center',
+    marginBottom: 10,
+    fontWeight: '700',
+  },
+
+  livePill: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(239,68,68,0.18)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  liveDotMini: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.live || '#ef4444',
+  },
+  livePillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFF',
+    letterSpacing: 0.6,
+  },
+
+  embedBottomSheet: {
+    paddingHorizontal: 16,
+    marginTop: 'auto',
+    marginBottom: 12,
+  },
   embedHintWrap: { paddingHorizontal: 16, paddingBottom: 12 },
   embedHintText: { fontSize: 12, color: 'rgba(255,255,255,0.65)', textAlign: 'center' },
-  unsupportedContainer: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 16 },
-  unsupportedBack: { position: 'absolute', top: 48, left: 16, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  unsupportedTitle: { fontSize: 22, fontWeight: '700', color: '#FFF', textAlign: 'center' },
-  unsupportedText: { fontSize: 15, color: theme.textSecondary, textAlign: 'center', lineHeight: 24 },
-  unsupportedHint: { fontSize: 12, color: theme.textMuted, textAlign: 'center' },
-  openExternalBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFF', paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12, marginTop: 8 },
-  openExternalText: { fontSize: 14, fontWeight: '700', color: '#000' },
+
   autoFallbackBanner: {
     position: 'absolute',
     top: 48,
@@ -1434,21 +2165,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
   },
-  autoFallbackText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFF',
-  },
+  autoFallbackText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
+
   bufferingWrap: {
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -80 }, { translateY: -26 }],
-    minWidth: 160,
+    transform: [{ translateX: -90 }, { translateY: -30 }],
+    minWidth: 180,
     paddingHorizontal: 18,
     paddingVertical: 14,
     borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -1456,6 +2184,118 @@ const styles = StyleSheet.create({
   bufferingText: {
     color: '#FFF',
     fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  bufferingSubtext: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    textAlign: 'center',
+  },
+
+  nativeStatusWrap: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 20,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  nativeStatusText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  unsupportedContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  unsupportedTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFF',
+    textAlign: 'center',
+  },
+  unsupportedText: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  sheet: {
+    backgroundColor: '#111827',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 18,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+  },
+  sheetHandle: {
+    width: 42,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  sheetSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  proxyInput: {
+    height: 48,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    color: '#FFF',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  sheetActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  sheetBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.primary,
+  },
+  sheetBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  sheetBtnGhost: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  sheetBtnGhostText: {
+    color: '#FFF',
+    fontSize: 14,
     fontWeight: '700',
   },
 });
