@@ -1361,7 +1361,7 @@ export default function PlayerScreen() {
   );
 }
 
-const styles = StyleSheet.create({nst styles = StyleSheet.create({
+const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   videoContainer: { flex: 1 },
   video: { flex: 1, backgroundColor: '#000' },
