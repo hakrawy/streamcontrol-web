@@ -585,7 +585,7 @@ function WebDirectPlayer({
       >
         <video
           ref={videoRef}
-          style={[styles.webFrame, { objectFit: videoFit }] as any}
+          style={{ ...(styles.webFrame as any), objectFit: videoFit }}
           playsInline
           controls={false}
           autoPlay
@@ -1161,7 +1161,28 @@ function EmbeddedPlayer({
   );
 }
 
-export default function PlayerScreen() {
+class ErrorBoundary extends React.Component<any, {hasError: boolean, error: any}> {
+  constructor(props: any) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error: any) { return { hasError: true, error }; }
+  componentDidCatch(error: any, errorInfo: any) { console.error('EB Caught:', error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{flex:1, backgroundColor:'red', padding:40, justifyContent:'center'}}>
+          <Text style={{color:'white', fontSize:20}}>CRASH!</Text>
+          <Text style={{color:'white'}}>{String(this.state.error)}</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function PlayerScreenWrapper() {
+  return <ErrorBoundary><PlayerScreen /></ErrorBoundary>;
+}
+
+function PlayerScreen() {
   const { user } = useAuth();
   const { url, title, sources, subtitleUrl, viewerContentId, viewerContentType } = useLocalSearchParams<{
     url?: string;
