@@ -317,14 +317,20 @@ function WebDirectPlayer({
   const toggleFullscreen = useCallback(() => {
     Haptics.selectionAsync();
     try {
-      if (!document.fullscreenElement) {
+      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
         if (containerRef.current?.requestFullscreen) {
           containerRef.current.requestFullscreen();
         } else if (videoRef.current?.requestFullscreen) {
           videoRef.current.requestFullscreen();
+        } else if ((videoRef.current as any)?.webkitEnterFullscreen) {
+          (videoRef.current as any).webkitEnterFullscreen();
         }
       } else {
-        document.exitFullscreen?.();
+        if (document.exitFullscreen) {
+           document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+           (document as any).webkitExitFullscreen();
+        }
       }
     } catch { }
   }, []);
@@ -715,6 +721,7 @@ function WebDirectPlayer({
                 <View style={styles.progressContainer}>
                   <Pressable
                     style={styles.progressTrack}
+                    hitSlop={{ top: 24, bottom: 24, left: 0, right: 0 }}
                     onLayout={(event) => setProgressTrackWidth(event.nativeEvent.layout.width)}
                     onPress={(event) => {
                       if (!progressTrackWidth) return;
@@ -728,10 +735,12 @@ function WebDirectPlayer({
                 </View>
                 <View style={styles.timeRow}>
                   <Text style={styles.timeText}>{formatPlaybackTime(currentTime)}</Text>
-                  <Text style={styles.timeText}>{formatPlaybackTime(duration)}</Text>
-                  <Pressable onPress={toggleFullscreen} style={{marginLeft: 16}}>
-                    <MaterialIcons name={isFullscreen ? 'fullscreen-exit' : 'fullscreen'} size={24} color="#FFF" />
-                  </Pressable>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.timeText}>{formatPlaybackTime(duration)}</Text>
+                    <Pressable onPress={toggleFullscreen} style={{ marginLeft: 16, padding: 4 }} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
+                      <MaterialIcons name={isFullscreen ? 'fullscreen-exit' : 'fullscreen'} size={24} color="#FFF" />
+                    </Pressable>
+                  </View>
                 </View>
               </>
             ) : (
@@ -942,10 +951,12 @@ function NativeDirectVideoPlayer({
             </View>
             <View style={styles.timeRow}>
                   <Text style={styles.timeText}>{formatPlaybackTime(currentTime)}</Text>
-                  <Text style={styles.timeText}>{formatPlaybackTime(duration)}</Text>
-                  <Pressable onPress={toggleFullscreen} style={{marginLeft: 16}}>
-                    <MaterialIcons name="fullscreen" size={24} color="#FFF" />
-                  </Pressable>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.timeText}>{formatPlaybackTime(duration)}</Text>
+                    <Pressable onPress={toggleFullscreen} style={{ marginLeft: 16, padding: 4 }} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
+                      <MaterialIcons name="fullscreen" size={24} color="#FFF" />
+                    </Pressable>
+                  </View>
                 </View>
           </View>
         </Animated.View>
