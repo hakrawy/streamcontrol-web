@@ -89,6 +89,45 @@ export interface AddonRepairSummary {
   errors: string[];
 }
 
+export interface AddonPreviewCatalogSummary {
+  catalogId: string;
+  catalogType: string;
+  catalogName: string;
+  sampledItems: number;
+  predictedMovies: number;
+  predictedSeries: number;
+  predictedChannels: number;
+}
+
+export interface AddonPreviewReport {
+  addonName: string;
+  addonKind: AddonKind;
+  resources: string[];
+  types: string[];
+  supportedActions: Array<'catalog' | 'stream' | 'meta' | 'subtitles'>;
+  missingRequiredConfig: string[];
+  warnings: string[];
+  catalogs: AddonPreviewCatalogSummary[];
+  totals: {
+    sampledItems: number;
+    predictedMovies: number;
+    predictedSeries: number;
+    predictedChannels: number;
+  };
+}
+
+export interface AddonHealthReport {
+  addonName: string;
+  status: 'healthy' | 'warning' | 'error' | 'needs_config';
+  latencyMs: number | null;
+  reachableCatalogs: number;
+  testedCatalogs: number;
+  resourceSupport: string[];
+  missingRequiredConfig: string[];
+  message: string;
+  sampleResult: string;
+}
+
 interface AddonExternalRef {
   id: string;
   addon_id: string;
@@ -187,6 +226,19 @@ function uniqueStreamSources(sources: StreamSource[]) {
     seen.add(key);
     return true;
   });
+}
+
+function getMissingRequiredConfig(addon: Partial<AddonRecord> | null | undefined) {
+  const schema = Array.isArray(addon?.config_schema) ? addon.config_schema : [];
+  const values = addon?.config_values && typeof addon.config_values === 'object' ? addon.config_values : {};
+  return schema
+    .filter((field) => field.required)
+    .filter((field) => {
+      const value = (values as Record<string, any>)[field.key];
+      if (field.type === 'boolean') return value !== true;
+      return value === null || value === undefined || String(value).trim() === '';
+    })
+    .map((field) => field.label || field.key);
 }
 
 function inferContentGenres(context: ImportedCatalogContext) {
@@ -751,6 +803,180 @@ async function fetchAddonStreams(addon: AddonRecord, externalType: string, exter
   ), addon);
   const payload = await fetchAddonJson<{ streams?: any[] }>(streamUrl, 8000, getAddonRequestHeaders(addon));
   return Array.isArray(payload?.streams) ? payload.streams : [];
+}
+
+async function buildAddonPreviewReport(addon: AddonRecord): Promise<AddonPreviewReport> {
+  const resources = getAddonResourceNames(addon.manifest_json?.resources || addon.resources || []);
+  const missingRequiredConfig = getMissingRequiredConfig(addon);
+  const supportedActions = [
+    addon.catalogs?.length ? 'catalog' : null,
+    resources.includes('stream') ? 'stream' : null,
+    resources.includes('meta') ? 'meta' : null,
+    resources.includes('subtitles') ? 'subtitles' : null,
+  ].filter(Boolean) as Array<'catalog' | 'stream' | 'meta' | 'subtitles'>;
+
+  const warnings: string[] = [];
+  if ((addon.catalogs || []).length === 0) {
+    warnings.push('This add-on has no catalogs. It will act only as a playback provider.');
+  }
+  if (missingRequiredConfig.length > 0) {
+    warnings.push(`Missing required settings: ${missingRequiredConfig.join(', ')}`);
+  }
+  if (!resources.includes('stream')) {
+    warnings.push('No stream resource was advertised, so imported items may not be playable.');
+  }
+
+  const catalogs: AddonPreviewCatalogSummary[] = [];
+
+  for (const catalog of (addon.catalogs || []).slice(0, 4)) {
+    try {
+      const metas = (await fetchAddonCatalogItems(addon, catalog)).slice(0, 4);
+      const summary: AddonPreviewCatalogSummary = {
+        catalogId: catalog.id,
+        catalogType: catalog.type,
+        catalogName: catalog.name || catalog.id,
+        sampledItems: metas.length,
+        predictedMovies: 0,
+        predictedSeries: 0,
+        predictedChannels: 0,
+      };
+
+      for (const meta of metas) {
+        const streams = resources.includes('stream')
+          ? await fetchAddonStreams(addon, catalog.type, meta.id).catch(() => [])
+          : [];
+        const predictedType = inferImportedItemContentType({ addon, catalog, meta, streams });
+        if (predictedType === 'movie') summary.predictedMovies += 1;
+        if (predictedType === 'series') summary.predictedSeries += 1;
+        if (predictedType === 'channel') summary.predictedChannels += 1;
+      }
+
+      if (
+        Number(summary.predictedMovies > 0) +
+          Number(summary.predictedSeries > 0) +
+          Number(summary.predictedChannels > 0) >
+        1
+      ) {
+        warnings.push(`Catalog "${summary.catalogName}" appears mixed and may need careful review.`);
+      }
+
+      catalogs.push(summary);
+    } catch (error: any) {
+      warnings.push(`Catalog "${catalog.name || catalog.id}" preview failed: ${error?.message || 'Unknown error'}`);
+    }
+  }
+
+  return {
+    addonName: addon.name,
+    addonKind: inferAddonKind(addon),
+    resources,
+    types: Array.isArray(addon.types) ? addon.types : [],
+    supportedActions,
+    missingRequiredConfig,
+    warnings: uniqueStrings(warnings),
+    catalogs,
+    totals: catalogs.reduce(
+      (acc, item) => ({
+        sampledItems: acc.sampledItems + item.sampledItems,
+        predictedMovies: acc.predictedMovies + item.predictedMovies,
+        predictedSeries: acc.predictedSeries + item.predictedSeries,
+        predictedChannels: acc.predictedChannels + item.predictedChannels,
+      }),
+      { sampledItems: 0, predictedMovies: 0, predictedSeries: 0, predictedChannels: 0 }
+    ),
+  };
+}
+
+export async function previewAddonImport(addonId: string) {
+  const { data, error } = await supabase.from('addons').select('*').eq('id', addonId).single();
+  if (error) throw error;
+  return buildAddonPreviewReport(normalizeAddonRecord(data));
+}
+
+export async function inspectAddonManifest(manifestUrl: string) {
+  const { manifestUrl: normalizedUrl, manifest } = await readAddonManifest(manifestUrl);
+  const addon = normalizeAddonRecord({
+    id: `preview:${manifest.id}`,
+    addon_key: manifest.id,
+    manifest_url: normalizedUrl,
+    name: manifest.name,
+    description: manifest.description || '',
+    logo: manifest.logo || '',
+    version: manifest.version || '',
+    catalogs: manifest.catalogs || [],
+    resources: getAddonResourceNames(manifest.resources || []),
+    types: manifest.types || [],
+    addon_kind: inferAddonKind(manifest),
+    config_schema: extractAddonConfigSchema(manifest),
+    config_values: {},
+    enabled: true,
+    manifest_json: manifest,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+  return buildAddonPreviewReport(addon);
+}
+
+export async function runAddonHealthCheck(addonId: string) {
+  const { data, error } = await supabase.from('addons').select('*').eq('id', addonId).single();
+  if (error) throw error;
+
+  const addon = normalizeAddonRecord(data);
+  const resources = getAddonResourceNames(addon.manifest_json?.resources || addon.resources || []);
+  const missingRequiredConfig = getMissingRequiredConfig(addon);
+  const startedAt = Date.now();
+  let reachableCatalogs = 0;
+  let sampleResult = 'Manifest loaded successfully.';
+  let status: AddonHealthReport['status'] = 'healthy';
+  let message = 'Addon is reachable and ready.';
+
+  try {
+    await readAddonManifest(addon.manifest_url);
+
+    for (const catalog of (addon.catalogs || []).slice(0, 2)) {
+      try {
+        const metas = await fetchAddonCatalogItems(addon, catalog);
+        if (Array.isArray(metas)) {
+          reachableCatalogs += 1;
+          sampleResult = `Catalog "${catalog.name || catalog.id}" responded with ${metas.length} items.`;
+        }
+      } catch (catalogError: any) {
+        if (!sampleResult || sampleResult === 'Manifest loaded successfully.') {
+          sampleResult = `Catalog "${catalog.name || catalog.id}" failed: ${catalogError?.message || 'Unknown error'}`;
+        }
+      }
+    }
+
+    if (missingRequiredConfig.length > 0) {
+      status = 'needs_config';
+      message = `Required settings missing: ${missingRequiredConfig.join(', ')}`;
+    } else if ((addon.catalogs || []).length > 0 && reachableCatalogs === 0) {
+      status = 'warning';
+      message = 'Manifest loaded, but no catalog sample could be reached.';
+    } else if (inferAddonKind(addon) === 'stream' && !resources.includes('stream')) {
+      status = 'warning';
+      message = 'The addon is marked as stream-focused but does not advertise a stream resource.';
+    }
+  } catch (healthError: any) {
+    status = missingRequiredConfig.length > 0 ? 'needs_config' : 'error';
+    message = healthError?.message || 'Health check failed.';
+    sampleResult = message;
+  }
+
+  const latencyMs = Date.now() - startedAt;
+  await updateAddon(addon.id, { last_tested_at: new Date().toISOString() } as Partial<AddonRecord>).catch(() => null);
+
+  return {
+    addonName: addon.name,
+    status,
+    latencyMs,
+    reachableCatalogs,
+    testedCatalogs: Math.min((addon.catalogs || []).length, 2),
+    resourceSupport: resources,
+    missingRequiredConfig,
+    message,
+    sampleResult,
+  } as AddonHealthReport;
 }
 
 async function resolveOrCreateMovieForAddon(meta: any, streamSources: StreamSource[] = [], catalog?: AddonCatalog) {
