@@ -80,6 +80,9 @@ export default function WatchRoomScreen() {
         noRooms: 'لا توجد غرف نشطة',
         noRoomsDesc: 'أنشئ غرفة جديدة لبدء المشاهدة الجماعية!',
         room: 'الغرفة',
+        updateRoomContent: 'تحديث محتوى الغرفة',
+        roomUpdated: 'تم تحديث الغرفة',
+        roomUpdatedDesc: 'تم ربط الغرفة بالمحتوى المحدد الجديد.',
       }
     : {
         error: 'Error',
