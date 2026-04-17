@@ -401,6 +401,7 @@ export interface ActiveViewerSession {
 }
 
 export type ContentItem = (Movie | Series) & { type: 'movie' | 'series' };
+export type SearchResultItem = ContentItem | (Channel & { type: 'channel' });
 
 function isStreamSource(value: unknown): value is StreamSource {
   return Boolean(
@@ -2539,6 +2540,20 @@ export async function searchContent(query: string) {
     ...(moviesData || []).map((m: any) => normalizeMovie(m)),
     ...(seriesData || []).map((s: any) => normalizeSeries(s)),
   ] as ContentItem[];
+}
+
+export async function searchCatalog(query: string): Promise<SearchResultItem[]> {
+  const q = `%${query}%`;
+  const [{ data: moviesData }, { data: seriesData }, { data: channelsData }] = await Promise.all([
+    supabase.from('movies').select('*').eq('is_published', true).or(`title.ilike.${q},description.ilike.${q}`),
+    supabase.from('series').select('*').eq('is_published', true).or(`title.ilike.${q},description.ilike.${q}`),
+    supabase.from('channels').select('*').or(`name.ilike.${q},category.ilike.${q},current_program.ilike.${q}`),
+  ]);
+
+  const movies = (moviesData || []).map((m: any) => normalizeMovie(m)) as ContentItem[];
+  const series = (seriesData || []).map((s: any) => normalizeSeries(s)) as ContentItem[];
+  const channels = (channelsData || []).map((channel: any) => ({ ...normalizeChannel(channel), type: 'channel' as const }));
+  return [...movies, ...series, ...channels];
 }
 
 // ===== CHANNELS =====
