@@ -1225,10 +1225,12 @@ export async function importSeriesFromM3UUrl(playlistUrl: string) {
         is_published: true,
       });
       seriesId = created.id;
+      if (!seriesId) continue;
       seriesMap.set(tokens.seriesTitle, { id: seriesId, title: tokens.seriesTitle });
       importedSeries += 1;
     }
 
+    if (!seriesId) continue;
     const seasonKey = `${seriesId}:${tokens.seasonNumber}`;
     let seasonId = seasonMap.get(seasonKey);
 
@@ -1239,8 +1241,10 @@ export async function importSeriesFromM3UUrl(playlistUrl: string) {
         title: `Season ${tokens.seasonNumber}`,
       });
       seasonId = season.id;
-      seasonMap.set(seasonKey, seasonId);
+      if (seasonId) seasonMap.set(seasonKey, seasonId);
     }
+
+    if (!seriesId || !seasonId) continue;
 
     await upsertEpisode({
       season_id: seasonId,
@@ -1716,7 +1720,8 @@ export async function resolvePlayableMediaForContent(input: {
   if (input.contentType === 'episode') {
     const episode = await fetchEpisodeById(input.contentId);
     const parentSeries = await fetchSeriesById(episode.series_id).catch(() => null);
-    const seasonRecord = await supabase.from('seasons').select('number').eq('id', episode.season_id).single().catch(() => ({ data: null }));
+    const seasonResult = await supabase.from('seasons').select('number').eq('id', episode.season_id).single();
+    const seasonRecord = seasonResult.error ? { data: null } : seasonResult;
     const addonSources = await fetchPlaybackSourcesForContent('episode', episode.id, {
       id: episode.id,
       imdb_id: parentSeries?.imdb_id || null,
@@ -2717,6 +2722,7 @@ export async function fetchAppSettings() {
 export async function updateAppSetting(key: string, value: string) {
   const { error } = await supabase.from('app_settings').update({ value, updated_at: new Date().toISOString() }).eq('key', key);
   if (error) throw error;
+  if (key === 'tmdb_api_key') tmdbCredentialCache = null;
 }
 
 export async function upsertAppSetting(key: string, value: string) {
@@ -2726,10 +2732,13 @@ export async function upsertAppSetting(key: string, value: string) {
   );
   if (error) throw error;
   visibilitySettingsCache = null;
+  if (key === 'tmdb_api_key') tmdbCredentialCache = null;
 }
 
 let visibilitySettingsCache: { value: VisibilitySettings; fetchedAt: number } | null = null;
+let tmdbCredentialCache: { value: string; fetchedAt: number } | null = null;
 const VISIBILITY_CACHE_MS = 60 * 1000;
+const TMDB_CREDENTIAL_CACHE_MS = 5 * 60 * 1000;
 const TMDB_API_BASE = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/original';
 const TMDB_API_KEY =
@@ -2746,7 +2755,7 @@ export async function fetchVisibilitySettings(force = false): Promise<Visibility
     return visibilitySettingsCache.value;
   }
 
-  const settings = await fetchAppSettings().catch(() => ({}));
+  const settings: Record<string, string> = await fetchAppSettings().catch(() => ({} as Record<string, string>));
   const normalized = {
     adultSectionEnabled: settings.adult_content_enabled === 'true',
     adultSectionVisible: settings.adult_content_visible === 'true',
@@ -2756,26 +2765,83 @@ export async function fetchVisibilitySettings(force = false): Promise<Visibility
   return normalized;
 }
 
+function looksLikeTmdbReadAccessToken(value: string) {
+  return value.startsWith('eyJ');
+}
+
+async function getTmdbCredential(force = false) {
+  const now = Date.now();
+  if (!force && tmdbCredentialCache && now - tmdbCredentialCache.fetchedAt < TMDB_CREDENTIAL_CACHE_MS) {
+    return tmdbCredentialCache.value;
+  }
+
+  const appSettings = await fetchAppSettings().catch(() => ({} as Record<string, string>));
+  const storedCredential = String(appSettings.tmdb_api_key || '').trim();
+  const credential = storedCredential || String(TMDB_API_KEY || '').trim();
+  tmdbCredentialCache = { value: credential, fetchedAt: now };
+  return credential;
+}
+
 async function tmdbRequest<T>(path: string, params?: Record<string, string | number | undefined | null>): Promise<T> {
-  if (!TMDB_API_KEY) {
-    throw new Error('EXPO_PUBLIC_TMDB_API_KEY is not configured.');
+  const credential = await getTmdbCredential();
+  if (!credential) {
+    throw new Error('TMDB credential is not configured.');
   }
 
   const url = new URL(`${TMDB_API_BASE}${path}`);
-  url.searchParams.set('api_key', TMDB_API_KEY);
-  url.searchParams.set('language', 'en-US');
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  };
+
+  if (looksLikeTmdbReadAccessToken(credential)) {
+    headers.Authorization = `Bearer ${credential}`;
+  } else {
+    url.searchParams.set('api_key', credential);
+  }
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value === undefined || value === null || value === '') return;
     url.searchParams.set(key, String(value));
   });
 
-  const response = await fetch(url.toString());
+  if (!url.searchParams.has('language')) {
+    url.searchParams.set('language', 'en-US');
+  }
+
+  const response = await fetch(url.toString(), { headers });
   if (!response.ok) {
     throw new Error(`TMDB request failed (${response.status})`);
   }
 
   return response.json() as Promise<T>;
+}
+
+export async function validateTmdbCredential(rawCredential: string) {
+  const credential = rawCredential.trim();
+  if (!credential) {
+    throw new Error('Missing TMDB credential.');
+  }
+
+  const url = new URL(`${TMDB_API_BASE}/movie/550`);
+  url.searchParams.set('language', 'en-US');
+  const headers: Record<string, string> = { Accept: 'application/json' };
+
+  if (looksLikeTmdbReadAccessToken(credential)) {
+    headers.Authorization = `Bearer ${credential}`;
+  } else {
+    url.searchParams.set('api_key', credential);
+  }
+
+  const response = await fetch(url.toString(), { headers });
+  if (!response.ok) {
+    throw new Error(`TMDB validation failed (${response.status})`);
+  }
+
+  const data = await response.json();
+  return {
+    ok: Boolean(data?.id),
+    mode: looksLikeTmdbReadAccessToken(credential) ? 'token' as const : 'api_key' as const,
+  };
 }
 
 export async function searchTMDB(query: string, mediaType: 'movie' | 'tv' | 'multi' = 'multi') {
