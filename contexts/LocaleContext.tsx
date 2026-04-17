@@ -37,7 +37,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     setLanguageState(nextLanguage);
   };
 
-  const value = useMemo(() => ({
+  const value: LocaleContextValue = useMemo(() => ({
     language,
     isRTL: language === 'Arabic',
     direction: language === 'Arabic' ? 'rtl' : 'ltr',
