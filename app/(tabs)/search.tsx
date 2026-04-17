@@ -1,155 +1,186 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, Pressable, TextInput, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
-import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { theme } from '../../constants/theme';
-import { useAppContext } from '../../contexts/AppContext';
+import { config } from '../../constants/config';
 import * as api from '../../services/api';
-import type { ContentItem } from '../../services/api';
+import { useAppContext } from '../../contexts/AppContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { buildContentRoute } from '../../services/navigation';
 
-const GRID_GAP = 12;
-
-type FilterType = 'all' | 'movie' | 'series';
-
-const genreList = ['Action', 'Comedy', 'Drama', 'Sci-Fi', 'Horror', 'Romance', 'Thriller', 'Fantasy', 'Adventure', 'Documentary'];
+type SearchFilter = 'all' | 'movie' | 'series' | 'channel';
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ q?: string }>();
   const { language, isRTL, direction } = useLocale();
-  const { allMovies, allSeries } = useAppContext();
+  const { allMovies, allSeries, channels } = useAppContext();
   const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [activeFilter, setActiveFilter] = useState<SearchFilter>('all');
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
-  const [searchResults, setSearchResults] = useState<ContentItem[]>([]);
+  const [results, setResults] = useState<api.SearchResultItem[]>([]);
   const [searching, setSearching] = useState(false);
-  const { width: screenWidth } = (require('react-native') as any).useWindowDimensions();
-  const GRID_COLUMNS = screenWidth > 1200 ? 5 : screenWidth > 900 ? 4 : screenWidth > 680 ? 3 : 2;
-
-  const allContent = useMemo(() => [...allMovies, ...allSeries], [allMovies, allSeries]);
+  const { width } = (require('react-native') as any).useWindowDimensions();
+  const gridColumns = width > 1200 ? 5 : width > 900 ? 4 : width > 680 ? 3 : 2;
+  const copy = language === 'Arabic'
+    ? {
+        placeholder: 'ابحث عن الأفلام والمسلسلات والقنوات...',
+        noResults: 'لا توجد نتائج',
+        noResultsSubtitle: 'جرّب كلمة بحث أو تصنيفاً مختلفاً',
+        movie: 'فيلم',
+        series: 'مسلسل',
+        channel: 'قناة',
+        featured: 'مميز',
+        live: 'مباشر',
+        all: 'الكل',
+        new: 'جديد',
+      }
+    : {
+        placeholder: 'Search movies, series, and channels...',
+        noResults: 'No results found',
+        noResultsSubtitle: 'Try a different search term or category',
+        movie: 'Movie',
+        series: 'Series',
+        channel: 'Channel',
+        featured: 'Featured',
+        live: 'LIVE',
+        all: 'All',
+        new: 'NEW',
+      };
 
   useEffect(() => {
-    if (query.length < 2) { setSearchResults([]); return; }
+    if (typeof params.q === 'string') setQuery(params.q);
+  }, [params.q]);
+
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setResults([]);
+      return;
+    }
     const timer = setTimeout(async () => {
       setSearching(true);
-      try {
-        const results = await api.searchContent(query);
-        setSearchResults(results);
-      } catch { setSearchResults([]); }
+      try { setResults(await api.searchCatalog(query.trim())); } catch { setResults([]); }
       setSearching(false);
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);
 
-  useEffect(() => {
-    if (typeof params.q === 'string') {
-      setQuery(params.q);
+  const localItems = useMemo(() => [
+    ...allMovies,
+    ...allSeries,
+    ...channels.map((channel) => ({ ...channel, type: 'channel' as const })),
+  ], [allMovies, allSeries, channels]);
+
+  const genreCatalog = config.categories.map((item) => item.name);
+
+  const visibleItems = useMemo(() => {
+    let items = query.trim().length >= 2 ? results : localItems;
+    if (activeFilter !== 'all') items = items.filter((item: any) => item.type === activeFilter);
+    if (activeGenre) {
+      items = items.filter((item: any) => {
+        if (item.type === 'channel') return String(item.category || '').toLowerCase() === activeGenre.toLowerCase();
+        return Array.isArray(item.genre) && item.genre.some((genre: string) => genre.toLowerCase() === activeGenre.toLowerCase());
+      });
     }
-  }, [params.q]);
-
-  const results = useMemo(() => {
-    let items = query.length >= 2 ? searchResults : allContent;
-    if (activeFilter === 'movie') items = items.filter(i => i.type === 'movie');
-    if (activeFilter === 'series') items = items.filter(i => i.type === 'series');
-    if (activeGenre) items = items.filter(i => i.genre.includes(activeGenre));
     return items;
-  }, [query, searchResults, allContent, activeFilter, activeGenre]);
+  }, [query, results, localItems, activeFilter, activeGenre]);
 
-  const filters: { key: FilterType; label: string }[] = [
-    { key: 'all', label: language === 'Arabic' ? 'الكل' : 'All' },
-    { key: 'movie', label: language === 'Arabic' ? 'أفلام' : 'Movies' },
-    { key: 'series', label: language === 'Arabic' ? 'مسلسلات' : 'Series' },
-  ];
-  const localizedGenreList = language === 'Arabic'
-    ? ['أكشن', 'كوميديا', 'دراما', 'خيال علمي', 'رعب', 'رومانسي', 'إثارة', 'فانتازيا', 'مغامرة', 'وثائقي']
-    : genreList;
-  const copy = language === 'Arabic'
-    ? {
-        searchPlaceholder: 'ابحث عن الأفلام والمسلسلات والممثلين...',
-        new: 'جديد',
-        movie: 'فيلم',
-        series: 'مسلسل',
-        featured: 'مميز',
-        noResults: 'لا توجد نتائج',
-        noResultsSubtitle: 'جرّب كلمة بحث أو تصنيفًا مختلفًا',
-      }
-    : {
-        searchPlaceholder: 'Search movies, series, actors...',
-        new: 'NEW',
-        movie: 'Movie',
-        series: 'Series',
-        featured: 'Featured',
-        noResults: 'No results found',
-        noResultsSubtitle: 'Try a different search term or genre',
-      };
+  const openItem = (item: api.SearchResultItem) => {
+    Haptics.selectionAsync();
+    if (item.type === 'channel') {
+      router.push({
+        pathname: '/player',
+        params: {
+          title: item.name,
+          url: item.stream_url,
+          sources: JSON.stringify(item.stream_sources || []),
+          viewerContentId: item.id,
+          viewerContentType: 'channel',
+        },
+      });
+      return;
+    }
+    router.push(buildContentRoute(item));
+  };
 
-
+  const typeLabel = (item: api.SearchResultItem) => item.type === 'movie' ? copy.movie : item.type === 'series' ? copy.series : copy.channel;
+  const posterUri = (item: api.SearchResultItem) => item.type === 'channel' ? item.logo : item.poster;
+  const subtitle = (item: api.SearchResultItem) => item.type === 'channel' ? String(item.category || copy.live).toUpperCase() : (item.genre?.[0] || copy.featured);
 
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background, direction }]}>
       <View style={styles.searchBarWrap}>
         <View style={styles.searchBar}>
           <MaterialIcons name="search" size={22} color={theme.textMuted} />
-          <TextInput style={styles.searchInput} placeholder={copy.searchPlaceholder} placeholderTextColor={theme.textMuted} value={query} onChangeText={setQuery} returnKeyType="search" autoCorrect={false} textAlign={isRTL ? 'right' : 'left'} />
-          {query.length > 0 ? <Pressable onPress={() => setQuery('')}><MaterialIcons name="close" size={20} color={theme.textMuted} /></Pressable> : null}
+          <TextInput
+            style={styles.searchInput}
+            placeholder={copy.placeholder}
+            placeholderTextColor={theme.textMuted}
+            value={query}
+            onChangeText={setQuery}
+            autoCorrect={false}
+            textAlign={isRTL ? 'right' : 'left'}
+          />
+          {searching ? <ActivityPill /> : query.length > 0 ? <Pressable onPress={() => setQuery('')}><MaterialIcons name="close" size={20} color={theme.textMuted} /></Pressable> : null}
         </View>
       </View>
 
-      <View style={styles.filterRow}>
-        {filters.map(f => (
-          <Pressable key={f.key} onPress={() => { Haptics.selectionAsync(); setActiveFilter(f.key); }} style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}>
-            <Text style={[styles.filterText, activeFilter === f.key && styles.filterTextActive]}>{f.label}</Text>
+      <View style={styles.chipRow}>
+        {[
+          { key: 'all', label: copy.all },
+          { key: 'movie', label: copy.movie },
+          { key: 'series', label: copy.series },
+          { key: 'channel', label: copy.channel },
+        ].map((filter) => (
+          <Pressable key={filter.key} onPress={() => setActiveFilter(filter.key as SearchFilter)} style={[styles.chip, activeFilter === filter.key && styles.chipActive]}>
+            <Text style={[styles.chipText, activeFilter === filter.key && styles.chipTextActive]}>{filter.label}</Text>
           </Pressable>
         ))}
       </View>
 
-      <View style={styles.genreWrap}>
-        {genreList.map((g, index) => (
-          <Pressable key={g} onPress={() => { Haptics.selectionAsync(); setActiveGenre(activeGenre === g ? null : g); }} style={[styles.genreChip, activeGenre === g && styles.genreChipActive]}>
-            <Text style={[styles.genreText, activeGenre === g && styles.genreTextActive]}>{localizedGenreList[index]}</Text>
+      <View style={styles.genreRow}>
+        {genreCatalog.map((genre) => (
+          <Pressable key={genre} onPress={() => setActiveGenre(activeGenre === genre ? null : genre)} style={[styles.genreChip, activeGenre === genre && styles.genreChipActive]}>
+            <Text style={[styles.genreText, activeGenre === genre && styles.genreTextActive]}>{genre}</Text>
           </Pressable>
         ))}
       </View>
 
       <View style={{ flex: 1, paddingHorizontal: 16 }}>
-        {results.length > 0 ? (
+        {visibleItems.length > 0 ? (
           <FlashList
-            data={results}
-            numColumns={GRID_COLUMNS}
+            data={visibleItems}
+            numColumns={gridColumns}
             estimatedItemSize={280}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: insets.bottom + 24, paddingTop: 6 }}
+            keyExtractor={(item) => `${item.type}-${item.id}`}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 22, paddingTop: 8 }}
             renderItem={({ item, index }) => (
-              <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 30).duration(300)} style={{ flex: 1, paddingRight: (index % GRID_COLUMNS !== GRID_COLUMNS - 1) ? GRID_GAP : 0, marginBottom: GRID_GAP }}>
-                <Pressable onPress={() => { Haptics.selectionAsync(); router.push(buildContentRoute(item)); }}>
-                  <View style={styles.gridShell}>
-                    <View style={styles.gridCard}>
-                    <Image source={{ uri: item.poster }} style={styles.gridPoster} contentFit="cover" transition={200} />
-                    {item.is_new ? <View style={styles.gridBadge}><Text style={styles.gridBadgeText}>{copy.new}</Text></View> : null}
+              <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 28).duration(260)} style={{ flex: 1, marginBottom: 12, paddingRight: index % gridColumns === gridColumns - 1 ? 0 : 12 }}>
+                <Pressable onPress={() => openItem(item)}>
+                  <View style={styles.card}>
+                    <View style={styles.posterWrap}>
+                      <Image source={{ uri: posterUri(item) }} style={styles.poster} contentFit={item.type === 'channel' ? 'contain' : 'cover'} transition={180} />
+                      {item.type !== 'channel' && (item as any).is_new ? <View style={styles.newBadge}><Text style={styles.newBadgeText}>{copy.new}</Text></View> : null}
                     </View>
-                    <View style={styles.gridInfo}>
-                      <Text style={styles.gridTitle} numberOfLines={1}>{item.title}</Text>
-                      <View style={styles.gridMeta}>
-                        <MaterialIcons name="star" size={11} color={theme.accent} />
-                        <Text style={styles.gridRating}>{item.rating}</Text>
-                        <Text style={styles.gridMetaDot}>•</Text>
-                        <Text style={styles.gridType}>{item.type === 'movie' ? copy.movie : copy.series}</Text>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardTitle} numberOfLines={1}>{item.type === 'channel' ? item.name : item.title}</Text>
+                      <View style={styles.metaRow}>
+                        {item.type !== 'channel' ? <><MaterialIcons name="star" size={11} color={theme.accent} /><Text style={styles.rating}>{(item as any).rating}</Text><Text style={styles.dot}>•</Text></> : null}
+                        <Text style={styles.typeText}>{typeLabel(item)}</Text>
                       </View>
-                      <Text style={styles.gridGenre} numberOfLines={1}>{item.genre?.[0] || copy.featured}</Text>
+                      <Text style={styles.genreLine} numberOfLines={1}>{subtitle(item)}</Text>
                     </View>
                   </View>
                 </Pressable>
               </Animated.View>
             )}
-            keyExtractor={item => item.id}
           />
         ) : (
           <View style={styles.emptyState}>
@@ -163,34 +194,38 @@ export default function SearchScreen() {
   );
 }
 
+function ActivityPill() {
+  return <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: `${theme.primary}55` }} />;
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   searchBarWrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: theme.surface, borderRadius: 12, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: theme.border },
-  searchInput: { flex: 1, fontSize: 15, color: '#FFF', fontWeight: '400' },
-  filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12 },
-  filterChip: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
-  filterChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
-  filterText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
-  filterTextActive: { color: '#FFF' },
-  genreWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8, paddingBottom: 16 },
-  genreChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  searchInput: { flex: 1, fontSize: 15, color: '#FFF' },
+  chipRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12, flexWrap: 'wrap' },
+  chip: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  chipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  chipText: { fontSize: 13, fontWeight: '700', color: theme.textSecondary },
+  chipTextActive: { color: '#FFF' },
+  genreRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
+  genreChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
   genreChipActive: { backgroundColor: theme.primaryDark, borderColor: theme.primary },
-  genreText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
+  genreText: { color: theme.textSecondary, fontSize: 12, fontWeight: '600' },
   genreTextActive: { color: '#FFF' },
-  gridShell: { backgroundColor: theme.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: theme.border },
-  gridCard: { width: '100%', aspectRatio: 2 / 3, overflow: 'hidden', backgroundColor: theme.surfaceLight },
-  gridPoster: { width: '100%', height: '100%' },
-  gridBadge: { position: 'absolute', top: 6, left: 6, backgroundColor: theme.primary, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3 },
-  gridBadgeText: { fontSize: 9, fontWeight: '700', color: '#FFF', letterSpacing: 0.5 },
-  gridInfo: { padding: 12, gap: 4 },
-  gridTitle: { fontSize: 13, fontWeight: '700', color: '#FFF' },
-  gridMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  gridRating: { fontSize: 11, fontWeight: '700', color: theme.accent },
-  gridMetaDot: { fontSize: 12, color: theme.textMuted, marginHorizontal: 2 },
-  gridType: { fontSize: 11, fontWeight: '600', color: theme.textSecondary },
-  gridGenre: { fontSize: 11, color: theme.textMuted },
+  card: { backgroundColor: theme.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: theme.border },
+  posterWrap: { width: '100%', aspectRatio: 2 / 3, backgroundColor: theme.surfaceLight },
+  poster: { width: '100%', height: '100%' },
+  newBadge: { position: 'absolute', top: 6, left: 6, backgroundColor: theme.primary, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
+  newBadgeText: { color: '#FFF', fontSize: 9, fontWeight: '800' },
+  cardInfo: { padding: 12, gap: 4 },
+  cardTitle: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  rating: { color: theme.accent, fontSize: 11, fontWeight: '700' },
+  dot: { color: theme.textMuted, fontSize: 12 },
+  typeText: { color: theme.textSecondary, fontSize: 11, fontWeight: '600' },
+  genreLine: { color: theme.textMuted, fontSize: 11 },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#FFF' },
-  emptySubtitle: { fontSize: 14, color: theme.textSecondary },
+  emptyTitle: { color: '#FFF', fontSize: 18, fontWeight: '700' },
+  emptySubtitle: { color: theme.textSecondary, fontSize: 14 },
 });
