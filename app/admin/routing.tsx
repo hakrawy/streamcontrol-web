@@ -34,6 +34,7 @@ export default function AdminRoutingScreen() {
     series: ar ? 'مسلسلات' : 'Series',
     channel: ar ? 'قنوات' : 'Channels',
   };
+  const moveAllLabel = ar ? 'نقل الكل إلى' : 'Move All To';
 
   const load = async () => {
     if (!addonId) {
@@ -94,6 +95,27 @@ export default function AdminRoutingScreen() {
     }
   };
 
+  const handleBulkMove = async (targetType: 'movie' | 'series' | 'channel') => {
+    const candidates = visibleItems.filter((item) => item.currentType !== targetType);
+    if (candidates.length === 0) {
+      showAlert(copy.title, ar ? 'لا توجد عناصر تحتاج نقلًا في النتائج الحالية.' : 'No visible items need moving.');
+      return;
+    }
+
+    setWorkingKey(`bulk:${targetType}`);
+    try {
+      for (const item of candidates) {
+        await api.moveAddonImportedItem(item.refId, targetType);
+      }
+      showAlert(copy.title, ar ? `تم نقل ${candidates.length} عنصر إلى ${targetType}.` : `Moved ${candidates.length} items to ${targetType}.`);
+      await load();
+    } catch (error: any) {
+      showAlert(copy.title, error?.message || 'Bulk move failed.');
+    } finally {
+      setWorkingKey('');
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -125,6 +147,14 @@ export default function AdminRoutingScreen() {
             <MaterialIcons name="auto-fix-high" size={18} color="#000" />
             <Text style={styles.autoFixText}>{workingKey === 'autofix' ? '...' : copy.fixAll}</Text>
           </Pressable>
+          <View style={styles.bulkActions}>
+            <Text style={styles.bulkLabel}>{moveAllLabel}</Text>
+            <View style={styles.bulkButtonsRow}>
+              <MoveButton label={copy.movie} loading={workingKey === 'bulk:movie'} onPress={() => void handleBulkMove('movie')} />
+              <MoveButton label={copy.series} loading={workingKey === 'bulk:series'} onPress={() => void handleBulkMove('series')} />
+              <MoveButton label={copy.channel} loading={workingKey === 'bulk:channel'} primary onPress={() => void handleBulkMove('channel')} />
+            </View>
+          </View>
         </View>
       </View>
 
@@ -203,6 +233,9 @@ const styles = StyleSheet.create({
   subtitle: { color: theme.textSecondary, fontSize: 13, lineHeight: 20 },
   addonName: { color: '#A5B4FC', fontSize: 14, fontWeight: '700' },
   toolbar: { gap: 10 },
+  bulkActions: { gap: 8 },
+  bulkLabel: { color: theme.textSecondary, fontSize: 12, fontWeight: '700' },
+  bulkButtonsRow: { flexDirection: 'row', gap: 8 },
   searchInput: { height: 46, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, color: '#FFF', paddingHorizontal: 12 },
   autoFixBtn: { height: 44, borderRadius: 12, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   autoFixText: { color: '#000', fontWeight: '800' },
