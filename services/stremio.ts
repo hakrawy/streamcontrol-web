@@ -128,6 +128,23 @@ export interface AddonHealthReport {
   sampleResult: string;
 }
 
+export interface AddonRuntimeSearchResult {
+  id: string;
+  type: 'movie' | 'series' | 'channel';
+  title: string;
+  description: string;
+  poster: string;
+  backdrop?: string;
+  year?: number | null;
+  genre?: string[];
+  category?: string | null;
+  addonId: string;
+  addonName: string;
+  externalType: string;
+  externalId: string;
+  streamCount: number;
+}
+
 interface AddonExternalRef {
   id: string;
   addon_id: string;
@@ -778,6 +795,25 @@ export async function fetchAddonCatalogItems(addon: AddonRecord, catalog: AddonC
   return Array.isArray(payload?.metas) ? payload.metas : [];
 }
 
+export async function searchAddonCatalogItems(
+  addon: AddonRecord,
+  catalog: AddonCatalog,
+  query: string,
+  limit = 8
+) {
+  const extras = Array.isArray(catalog.extra) ? catalog.extra : [];
+  const searchField = extras.find((extra) => ['search', 'query', 'q'].includes(String(extra.name || '').toLowerCase()))?.name || 'search';
+  const catalogUrl = applyAddonConfigToUrl(
+    buildAddonResourceUrl(
+      addon.manifest_url,
+      `catalog/${encodeURIComponent(catalog.type)}/${encodeURIComponent(catalog.id)}/${encodeURIComponent(searchField)}=${encodeURIComponent(query)}/skip=0.json`
+    ),
+    addon
+  );
+  const payload = await fetchAddonJson<{ metas?: any[] }>(catalogUrl, 12000, getAddonRequestHeaders(addon));
+  return Array.isArray(payload?.metas) ? payload.metas.slice(0, limit) : [];
+}
+
 export async function fetchAddonMeta(addon: AddonRecord, externalType: string, externalId: string) {
   const metaUrl = applyAddonConfigToUrl(buildAddonResourceUrl(
     addon.manifest_url,
@@ -1356,6 +1392,51 @@ async function fetchStreamSourcesFromAddon(addon: AddonRecord, candidates: Strea
     }
   }
   return [];
+}
+
+function supportsCatalogSearch(catalog: AddonCatalog) {
+  const haystack = normalizeLooseText([catalog.id, catalog.name, catalog.type].join(' '));
+  const extras = Array.isArray(catalog.extra) ? catalog.extra : [];
+  return extras.some((extra) => ['search', 'query', 'q'].includes(String(extra.name || '').toLowerCase())) || haystack.includes('search');
+}
+
+export async function searchAddonRuntime(query: string, limit = 20): Promise<AddonRuntimeSearchResult[]> {
+  const addons = (await fetchAllAddons()).filter((addon) => addon.enabled && inferAddonKind(addon) !== 'stream');
+  const results: AddonRuntimeSearchResult[] = [];
+
+  for (const addon of addons) {
+    const searchableCatalogs = (addon.catalogs || []).filter(supportsCatalogSearch).slice(0, 3);
+    for (const catalog of searchableCatalogs) {
+      try {
+        const metas = await searchAddonCatalogItems(addon, catalog, query, 6);
+        for (const meta of metas) {
+          const streams = await fetchAddonStreams(addon, catalog.type, meta.id).catch(() => []);
+          const localType = inferImportedItemContentType({ addon, catalog, meta, streams });
+          results.push({
+            id: `${addon.id}:${catalog.type}:${meta.id}`,
+            type: localType,
+            title: String(meta?.name || meta?.title || meta?.id || 'Untitled'),
+            description: String(meta?.description || ''),
+            poster: String(meta?.poster || meta?.logo || meta?.background || ''),
+            backdrop: String(meta?.background || meta?.poster || ''),
+            year: toNumericYear(meta?.releaseInfo),
+            genre: localType === 'channel' ? [] : inferContentGenres({ addon, catalog, meta }),
+            category: localType === 'channel' ? inferChannelCategory({ addon, catalog, meta }) : inferPrimaryCategoryId(inferContentGenres({ addon, catalog, meta })),
+            addonId: addon.id,
+            addonName: addon.name,
+            externalType: catalog.type,
+            externalId: String(meta.id || ''),
+            streamCount: streams.length,
+          });
+          if (results.length >= limit) return results.slice(0, limit);
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return results.slice(0, limit);
 }
 
 export async function fetchPlaybackSourcesForContent(
