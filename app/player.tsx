@@ -14,9 +14,17 @@ import { theme } from '../constants/theme';
 import { useAuth } from '@/template';
 import * as api from '../services/api';
 import { useAppContext } from '../contexts/AppContext';
+import { createProxyAdapter } from '../services/playback/proxyAdapter';
+import { inspectPlaybackSources } from '../services/playback/sourceInspector';
+import { rankPlaybackSources } from '../services/playback/sourceRanker';
+import { mapPlaybackFailureToUserMessage, mapFallbackBannerMessage, mapInspectionToUserMessage } from '../services/playback/playerErrorMapper';
+import { mapSourceHealthMeta } from '../services/playback/sourceHealthMapper';
+import { pickFallbackIndex } from '../services/playback/fallbackManager';
+import { buildSourceKey, createPlaybackDiagnostic } from '../services/playback/diagnostics';
+import type { PlaybackSource, PlaybackSourceDiagnostic, SourceHistoryRecord } from '../services/playback/types';
 
 type MediaKind = 'direct' | 'youtube' | 'web' | 'dash';
-type PlayerSource = api.StreamSource & Partial<api.IntelligentSource>;
+type PlayerSource = PlaybackSource;
 
 function getYouTubeVideoId(rawUrl: string): string | null {
   try {
@@ -192,19 +200,53 @@ function rankQuality(quality?: string) {
   return 0;
 }
 
-function sortSources(sources: PlayerSource[]) {
-  return api.rankStreamingSources(sources) as PlayerSource[];
+function sortSources(sources: api.StreamSource[], input?: {
+  historyByKey?: Record<string, SourceHistoryRecord | undefined>;
+  failedSourceKeys?: string[];
+  inspectionByKey?: Record<string, any>;
+}) {
+  return rankPlaybackSources(sources, input);
 }
 
 function getSourceHealthMeta(source?: PlayerSource | null) {
-  const score = Math.max(0, Math.min(100, Math.round(source?.healthScore ?? 0)));
-  if (score >= 80) {
-    return { label: `Healthy ${score}%`, tint: '#22C55E', background: 'rgba(34,197,94,0.16)' };
+  return mapSourceHealthMeta(source);
+}
+
+const HISTORY_PREFIX = 'player-source-history:';
+
+function sanitizeProxyBaseUrl(rawValue?: string | null) {
+  const value = String(rawValue || '').trim();
+  if (!value) return '';
+  if (value.includes('corsproxy.io')) return '';
+  return value;
+}
+
+async function readSourceHistory(keys: string[]) {
+  const uniqueKeys = [...new Set(keys.filter(Boolean))];
+  if (uniqueKeys.length === 0) return {} as Record<string, SourceHistoryRecord>;
+  const entries = await AsyncStorage.multiGet(uniqueKeys.map((key) => `${HISTORY_PREFIX}${key}`));
+  return entries.reduce<Record<string, SourceHistoryRecord>>((accumulator, [storageKey, rawValue]) => {
+    const sourceKey = storageKey.replace(HISTORY_PREFIX, '');
+    if (!rawValue) return accumulator;
+    try {
+      accumulator[sourceKey] = JSON.parse(rawValue) as SourceHistoryRecord;
+    } catch {
+      // Ignore malformed persisted history.
+    }
+    return accumulator;
+  }, {});
+}
+
+async function writeSourceHistory(sourceKey: string, updater: (previous: SourceHistoryRecord | null) => SourceHistoryRecord) {
+  const storageKey = `${HISTORY_PREFIX}${sourceKey}`;
+  const currentRaw = await AsyncStorage.getItem(storageKey);
+  let currentValue: SourceHistoryRecord | null = null;
+  try {
+    currentValue = currentRaw ? JSON.parse(currentRaw) as SourceHistoryRecord : null;
+  } catch {
+    currentValue = null;
   }
-  if (score >= 55) {
-    return { label: `Stable ${score}%`, tint: '#F59E0B', background: 'rgba(245,158,11,0.16)' };
-  }
-  return { label: score > 0 ? `Risk ${score}%` : 'Unverified', tint: '#EF4444', background: 'rgba(239,68,68,0.16)' };
+  await AsyncStorage.setItem(storageKey, JSON.stringify(updater(currentValue)));
 }
 
 function getMediaKindLabel(kind: MediaKind) {
@@ -272,6 +314,7 @@ function WebDirectPlayer({
   subtitleUrl,
   initialResumeTime = 0,
   onProgress,
+  onPlaybackSuccess,
 }: {
   url: string;
   title: string;
@@ -283,6 +326,7 @@ function WebDirectPlayer({
   subtitleUrl?: string;
   initialResumeTime?: number;
   onProgress?: (currentTime: number, duration: number) => void;
+  onPlaybackSuccess?: () => void;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -345,6 +389,7 @@ function WebDirectPlayer({
     setShowQualityMenu(false);
   }, []);
   const activeSource = sources[selectedSourceIndex];
+  const playbackUrl = activeSource?.resolvedPlaybackUrl || url;
   const didApplyResumeRef = useRef(false);
 
   const scheduleControlsHide = useCallback((delay = 2500) => {
@@ -382,7 +427,7 @@ function WebDirectPlayer({
 
     startupTimer = setTimeout(() => {
       if (!didApplyResumeRef.current) {
-        setPlaybackError('Source took too long to start.');
+        setPlaybackError(mapPlaybackFailureToUserMessage('startup_timeout', activeSource?.inspection));
         setIsBuffering(false);
         if (onPlaybackFailure) onPlaybackFailure('startup_timeout');
       }
@@ -407,7 +452,7 @@ function WebDirectPlayer({
           }
         },
       });
-      hls.loadSource(url);
+      hls.loadSource(playbackUrl);
       hls.attachMedia(video);
       hlsRef.current = hls;
       hls.on(Events.MANIFEST_PARSED, (_event, data) => {
@@ -420,13 +465,13 @@ function WebDirectPlayer({
 
       hls.on(Events.ERROR, (_event, data) => {
         if (data?.fatal) {
-          setPlaybackError('This HLS stream failed to load in the browser.');
+          setPlaybackError(mapPlaybackFailureToUserMessage('fatal_hls_error', activeSource?.inspection));
           setIsBuffering(false);
           onPlaybackFailure('fatal_hls_error');
         }
       });
     } else {
-      video.src = url;
+      video.src = playbackUrl;
     }
 
     const syncState = () => {
@@ -447,6 +492,7 @@ function WebDirectPlayer({
     };
     const onCanPlay = () => {
       setIsBuffering(false);
+      onPlaybackSuccess?.();
       scheduleControlsHide(2200);
     };
     const onTimeUpdate = () => syncState();
@@ -471,7 +517,7 @@ function WebDirectPlayer({
       scheduleControlsHide(2200);
     };
     const onError = () => {
-      setPlaybackError('The browser could not play this source.');
+      setPlaybackError(mapPlaybackFailureToUserMessage('html5_error', activeSource?.inspection));
       setIsBuffering(false);
       onPlaybackFailure('html5_error');
     };
@@ -509,7 +555,7 @@ function WebDirectPlayer({
         video.load();
       }
     };
-  }, [url, playbackSpeed, activeSource?.headers, onPlaybackFailure, scheduleControlsHide, initialResumeTime, onProgress]);
+  }, [playbackUrl, playbackSpeed, activeSource?.headers, activeSource?.inspection, onPlaybackFailure, scheduleControlsHide, initialResumeTime, onProgress, onPlaybackSuccess]);
 
   useEffect(() => {
     if (!showControls) return;
@@ -717,6 +763,12 @@ function WebDirectPlayer({
                 {captionsEnabled ? 'Subtitles are enabled for this source.' : 'Subtitles available. Tap CC to show them.'}
               </Text>
             ) : null}
+            {activeSource?.inspection ? (
+              <Text style={styles.helperText}>
+                {mapInspectionToUserMessage(activeSource.inspection)}
+                {activeSource.inspection.httpStatus ? ` • HTTP ${activeSource.inspection.httpStatus}` : ''}
+              </Text>
+            ) : null}
             {!isLiveStream ? (
               <>
                 <View style={styles.progressContainer}>
@@ -764,6 +816,7 @@ function NativeDirectVideoPlayer({
   selectedSourceIndex,
   onSelectSource,
   onPlaybackFailure: _onPlaybackFailure,
+  onPlaybackSuccess: _onPlaybackSuccess,
   mediaKind,
   subtitleUrl,
 }: {
@@ -773,6 +826,7 @@ function NativeDirectVideoPlayer({
   selectedSourceIndex: number;
   onSelectSource: (index: number) => void;
   onPlaybackFailure: (reason?: string) => void;
+  onPlaybackSuccess?: () => void;
   mediaKind: MediaKind;
   subtitleUrl?: string;
 }) {
@@ -973,6 +1027,7 @@ function DirectVideoPlayer(props: {
   selectedSourceIndex: number;
   onSelectSource: (index: number) => void;
   onPlaybackFailure: (reason?: string) => void;
+  onPlaybackSuccess?: () => void;
   mediaKind: MediaKind;
   subtitleUrl?: string;
 }) {
@@ -1205,19 +1260,24 @@ function PlayerScreen() {
     viewerContentType?: api.ViewerContentType;
   }>();
   
-  const initialSources = React.useMemo(() => sortSources(parseSourcesParam(sources, url)), [sources, url]);
-  const [availableSources, setAvailableSources] = useState<PlayerSource[]>(initialSources);
+  const parsedSources = React.useMemo(() => parseSourcesParam(sources, url), [sources, url]);
+  const [availableSources, setAvailableSources] = useState<PlayerSource[]>(sortSources(parsedSources));
   const [selectedSourceIndex, setSelectedSourceIndex] = useState(0);
   const [autoFallbackReason, setAutoFallbackReason] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  const [inspectionByKey, setInspectionByKey] = useState<Record<string, PlayerSource['inspection']>>({});
+  const [historyByKey, setHistoryByKey] = useState<Record<string, SourceHistoryRecord | undefined>>({});
+  const [failedSourceKeys, setFailedSourceKeys] = useState<string[]>([]);
+  const [diagnostics, setDiagnostics] = useState<PlaybackSourceDiagnostic[]>([]);
 
   // Preflight & Proxy States
   const [isPreflighting, setIsPreflighting] = useState(true);
   const [preflightLogs, setPreflightLogs] = useState<string[]>(['Initializing player...']);
   const [proxyUrl, setProxyUrl] = useState('');
+  const proxyAdapter = React.useMemo(() => createProxyAdapter(proxyUrl), [proxyUrl]);
 
   const activeSource = availableSources[selectedSourceIndex] || availableSources[0];
-  const resolvedUrl = activeSource?.url || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  const resolvedUrl = activeSource?.resolvedPlaybackUrl || activeSource?.url || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
   const safeTitle = title || 'Now Playing';
   const preferenceKey = `player-preference:${viewerContentType || 'unknown'}:${viewerContentId || safeTitle}`;
   const sourceHealthMeta = getSourceHealthMeta(activeSource);
@@ -1225,9 +1285,18 @@ function PlayerScreen() {
     .filter(Boolean)
     .join(' • ');
 
+  const effectiveSourceIndicatorLabel = [sourceIndicatorLabel, activeSource?.inspection ? mapInspectionToUserMessage(activeSource.inspection) : null]
+    .filter(Boolean)
+    .join(' • ');
+
+  const appendDiagnostic = useCallback((diagnostic: PlaybackSourceDiagnostic) => {
+    setDiagnostics((current) => [...current.slice(-29), diagnostic]);
+    console.debug('[playback]', diagnostic);
+  }, []);
+
   useEffect(() => {
     AsyncStorage.getItem('player-cors-proxy').then((res) => {
-      setProxyUrl(res || 'https://corsproxy.io/?url=');
+      setProxyUrl(sanitizeProxyBaseUrl(res));
     });
   }, []);
 
@@ -1252,82 +1321,149 @@ function PlayerScreen() {
     let cancelled = false;
     
     const runPreflight = async () => {
-      const mediaKind = getMediaKind(initialSources[0]?.url || '');
-      if (mediaKind === 'youtube' || mediaKind === 'web' || initialSources.length === 0) {
+      const mediaKind = getMediaKind(parsedSources[0]?.url || '');
+      if (mediaKind === 'youtube' || mediaKind === 'web' || parsedSources.length === 0) {
         if (!cancelled) setIsPreflighting(false);
         return;
       }
 
-      setPreflightLogs(['Checking available sources...']);
-      
-      const toProbe = initialSources.slice(0, 3);
-      const probeSource = async (source: PlayerSource, forceProxy: boolean = false): Promise<PlayerSource> => {
-        const startTime = Date.now();
-        let targetUrl = source.url;
-        const needsProxy = forceProxy || source.proxyRequired;
-        
-        if (needsProxy && proxyUrl) {
-          targetUrl = `${proxyUrl}${encodeURIComponent(source.url)}`;
-        }
-        
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 2500); // 2.5s super fast probe
-          
-          const res = await fetch(targetUrl, {
-            method: 'GET',
-            headers: { ...source.headers, 'Range': 'bytes=0-100' },
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          
-          if (res.ok || res.status === 206) {
-             return { ...source, url: targetUrl, isWorking: true, responseTimeMs: Date.now() - startTime };
-          }
-          throw new Error(`HTTP ${res.status}`);
-        } catch (error: any) {
-           if (!needsProxy && proxyUrl) {
-              return probeSource(source, true); // retry automatically with proxy
-           }
-           // Use untouched URL but mark as failed so it naturally falls back or shows error
-           return { ...source, url: targetUrl, isWorking: false, responseTimeMs: Infinity };
-        }
-      };
-
-      const results = await Promise.all(toProbe.map(s => probeSource(s, false)));
+      setPreflightLogs(['Initializing player...', 'Inspecting sources...']);
+      const historyMap = await readSourceHistory(parsedSources.map((source) => buildSourceKey(source)));
+      const inspectionMap = await inspectPlaybackSources(parsedSources, {
+        proxyAdapter,
+        limit: 3,
+        timeoutMs: 3200,
+      });
       if (cancelled) return;
 
-      const updatedSources = [...initialSources];
-      results.forEach((r, idx) => {
-        updatedSources[idx] = r;
+      setHistoryByKey(historyMap);
+      setInspectionByKey(inspectionMap);
+      Object.entries(inspectionMap).forEach(([sourceKey, result]) => {
+        const matchedSource = parsedSources.find((source) => buildSourceKey(source) === sourceKey);
+        if (!matchedSource) return;
+        appendDiagnostic(
+          createPlaybackDiagnostic('inspect', {
+            sourceKey,
+            sourceHash: matchedSource.url,
+            url: matchedSource.url,
+            inspectionState: result.state,
+            httpStatus: result.httpStatus,
+            latencyMs: result.latencyMs,
+            reason: result.reason,
+          })
+        );
       });
-      
-      const newSorted = sortSources(updatedSources);
+
+      setPreflightLogs(['Initializing player...', 'Inspecting sources...', 'Ranking best source...', 'Optimizing playback...']);
+      const newSorted = sortSources(parsedSources, {
+        inspectionByKey: inspectionMap,
+        historyByKey: historyMap,
+        failedSourceKeys: [],
+      });
       setAvailableSources(newSorted);
-      setPreflightLogs(prev => [...prev, 'Testing fastest server...', 'Optimizing playback...']);
+      setSelectedSourceIndex(0);
       
       setTimeout(() => {
         if (!cancelled) setIsPreflighting(false);
       }, 600);
     };
 
-    if (proxyUrl) runPreflight();
+    void runPreflight();
 
     return () => { cancelled = true; };
-  }, [initialSources, proxyUrl]);
+  }, [appendDiagnostic, parsedSources, proxyAdapter]);
+
+  const rememberPlaybackFailure = useCallback((source?: PlayerSource | null, reason?: string) => {
+    if (!source?.sourceKey) return;
+    void writeSourceHistory(source.sourceKey, (previous) => ({
+      successCount: previous?.successCount || 0,
+      failureCount: (previous?.failureCount || 0) + 1,
+      lastSucceededAt: previous?.lastSucceededAt || null,
+      lastFailedAt: new Date().toISOString(),
+      lastFailureReason: reason || 'unknown',
+    }));
+    setHistoryByKey((current) => ({
+      ...current,
+      [source.sourceKey]: {
+        successCount: current[source.sourceKey]?.successCount || 0,
+        failureCount: (current[source.sourceKey]?.failureCount || 0) + 1,
+        lastSucceededAt: current[source.sourceKey]?.lastSucceededAt || null,
+        lastFailedAt: new Date().toISOString(),
+        lastFailureReason: reason || 'unknown',
+      },
+    }));
+    appendDiagnostic(
+      createPlaybackDiagnostic('playback_failure', {
+        sourceKey: source.sourceKey,
+        sourceHash: source.sourceHash,
+        url: source.url,
+        inspectionState: source.inspection?.state,
+        httpStatus: source.inspection?.httpStatus,
+        latencyMs: source.inspection?.latencyMs,
+        reason,
+      })
+    );
+  }, [appendDiagnostic]);
+
+  const rememberPlaybackSuccess = useCallback((source?: PlayerSource | null) => {
+    if (!source?.sourceKey) return;
+    void writeSourceHistory(source.sourceKey, (previous) => ({
+      successCount: (previous?.successCount || 0) + 1,
+      failureCount: previous?.failureCount || 0,
+      lastSucceededAt: new Date().toISOString(),
+      lastFailedAt: previous?.lastFailedAt || null,
+      lastFailureReason: previous?.lastFailureReason || null,
+    }));
+    setHistoryByKey((current) => ({
+      ...current,
+      [source.sourceKey]: {
+        successCount: (current[source.sourceKey]?.successCount || 0) + 1,
+        failureCount: current[source.sourceKey]?.failureCount || 0,
+        lastSucceededAt: new Date().toISOString(),
+        lastFailedAt: current[source.sourceKey]?.lastFailedAt || null,
+        lastFailureReason: current[source.sourceKey]?.lastFailureReason || null,
+      },
+    }));
+    appendDiagnostic(
+      createPlaybackDiagnostic('playback_success', {
+        sourceKey: source.sourceKey,
+        sourceHash: source.sourceHash,
+        url: source.url,
+        inspectionState: source.inspection?.state,
+        httpStatus: source.inspection?.httpStatus,
+        latencyMs: source.inspection?.latencyMs,
+        reason: 'playback_started',
+      })
+    );
+  }, [appendDiagnostic]);
 
   const moveToBestAlternative = useCallback((reason?: string) => {
     if (availableSources.length <= 1) return false;
 
-    const nextIndex = availableSources.findIndex((source, index) => index !== selectedSourceIndex && source.url !== activeSource?.url);
+    const nextFailedKeys = [...new Set([...(failedSourceKeys || []), activeSource?.sourceKey].filter(Boolean) as string[])];
+    const nextIndex = pickFallbackIndex(availableSources, selectedSourceIndex, nextFailedKeys);
     if (nextIndex === -1) return false;
 
-    setAutoFallbackReason(reason || 'Switched to the next available source automatically.');
+    setFailedSourceKeys(nextFailedKeys);
+    rememberPlaybackFailure(activeSource, reason);
+    setAutoFallbackReason(mapFallbackBannerMessage(reason, activeSource?.inspection));
     setSelectedSourceIndex(nextIndex);
     setRetryToken((value) => value + 1);
     void rememberSourcePreference(availableSources[nextIndex]);
+    appendDiagnostic(
+      createPlaybackDiagnostic('fallback', {
+        sourceKey: availableSources[nextIndex].sourceKey,
+        sourceHash: availableSources[nextIndex].sourceHash,
+        url: availableSources[nextIndex].url,
+        inspectionState: availableSources[nextIndex].inspection?.state,
+        httpStatus: availableSources[nextIndex].inspection?.httpStatus,
+        latencyMs: availableSources[nextIndex].inspection?.latencyMs,
+        reason,
+        fallbackUsed: true,
+      })
+    );
     return true;
-  }, [activeSource?.url, availableSources, rememberSourcePreference, selectedSourceIndex]);
+  }, [activeSource, appendDiagnostic, availableSources, failedSourceKeys, rememberPlaybackFailure, rememberSourcePreference, selectedSourceIndex]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1362,7 +1498,7 @@ function PlayerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [preferenceKey, isPreflighting]);
+  }, [availableSources, preferenceKey, isPreflighting]);
 
   useEffect(() => {
     if (!activeSource) return;
@@ -1469,9 +1605,11 @@ function PlayerScreen() {
           if (moveToBestAlternative(reason ? `Source failed (${reason}). Switched automatically.` : 'Source failed. Switched automatically.')) {
             return;
           }
+          rememberPlaybackFailure(activeSource, reason);
           setAutoFallbackReason(reason ? `Playback failed: ${reason}` : 'Playback failed for this source.');
           setRetryToken((value) => value + 1);
         }}
+        onPlaybackSuccess={() => rememberPlaybackSuccess(activeSource)}
         mediaKind={mediaKind}
         subtitleUrl={subtitleUrl}
         key={`${resolvedUrl}:${selectedSourceIndex}:${retryToken}`}
@@ -1515,7 +1653,7 @@ function PlayerScreen() {
         <View style={[styles.streamHealthDot, { backgroundColor: sourceHealthMeta.tint }]} />
         <View style={styles.streamHealthTextWrap}>
           <Text style={[styles.streamHealthTitle, { color: sourceHealthMeta.tint }]}>{sourceHealthMeta.label}</Text>
-          <Text style={styles.streamHealthSubtitle} numberOfLines={1}>{sourceIndicatorLabel || 'Auto-selected source'}</Text>
+          <Text style={styles.streamHealthSubtitle} numberOfLines={1}>{effectiveSourceIndicatorLabel || 'Auto-selected source'}</Text>
         </View>
       </View>
       {autoFallbackReason ? (
