@@ -82,6 +82,7 @@ export default function ContentDetailScreen() {
   const [selectedSeason, setSelectedSeason] = useState(0);
   const [loading, setLoading] = useState(!previewContent);
   const [relatedContent, setRelatedContent] = useState<ContentItem[]>([]);
+  const [runtimeInsight, setRuntimeInsight] = useState<api.RuntimeContentInsight | null>(null);
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
   const [playbackSources, setPlaybackSources] = useState<StreamSource[]>([]);
   const [sourcesLoading, setSourcesLoading] = useState(false);
@@ -165,6 +166,40 @@ export default function ContentDetailScreen() {
   }, [content]);
 
   useEffect(() => {
+    if (!content) return;
+
+    let cancelled = false;
+    const loadRuntimeInsight = async () => {
+      try {
+        const insight = await api.fetchRuntimeContentInsight(
+          content.type,
+          content.id,
+          {
+            id: content.id,
+            imdb_id: content.imdb_id,
+            tmdb_id: content.tmdb_id,
+            title: content.title,
+            year: content.year,
+          }
+        );
+
+        if (!cancelled) {
+          setRuntimeInsight(insight);
+        }
+      } catch {
+        if (!cancelled) {
+          setRuntimeInsight(null);
+        }
+      }
+    };
+
+    void loadRuntimeInsight();
+    return () => {
+      cancelled = true;
+    };
+  }, [content]);
+
+  useEffect(() => {
     if (selectedSeason >= normalizedSeasons.length) {
       setSelectedSeason(0);
     }
@@ -202,6 +237,17 @@ export default function ContentDetailScreen() {
     : isMovie
       ? (movieData.stream_sources?.length || 0)
       : normalizedSeasons.reduce((sum, season) => sum + (season.episodes || []).reduce((epSum, ep) => epSum + (ep.stream_sources?.length || (ep.stream_url ? 1 : 0)), 0), 0);
+  const runtimeAddonLabel = runtimeInsight?.addonNames?.length
+    ? runtimeInsight.addonNames.slice(0, 3).join(' • ')
+    : 'Local library only';
+  const runtimeBestSourceLabel = runtimeInsight?.bestSource
+    ? [runtimeInsight.bestSource.addon || runtimeInsight.bestSource.server || runtimeInsight.bestSource.label, runtimeInsight.bestSource.quality || 'Auto']
+        .filter(Boolean)
+        .join(' • ')
+    : 'Auto routing will pick the best source';
+  const runtimeHealthLabel = runtimeInsight?.bestSource
+    ? `${runtimeInsight.bestSource.healthScore}% healthy`
+    : 'Scanning playback graph';
   const availableQualityLabel = isMovie
     ? (movieData.quality?.filter(Boolean)?.join(' • ') || 'Auto')
     : Array.from(new Set(normalizedSeasons.flatMap((season) => (season.episodes || []).flatMap((episode) => (episode.stream_sources || []).map((source) => source.quality || 'Auto'))))).join(' • ') || 'Auto';
@@ -336,7 +382,7 @@ export default function ContentDetailScreen() {
         : target.fallbackUrl
           ? [{ label: 'Server 1', url: target.fallbackUrl }]
           : [];
-      const combinedSources = api.parseStreamSources(JSON.stringify([...fallbackSources, ...addonSources]));
+      const combinedSources = api.rankStreamingSources(api.parseStreamSources(JSON.stringify([...fallbackSources, ...addonSources])));
       if (combinedSources.length === 0) {
         showAlert('No sources available', 'No playable sources were found for this title yet.');
         return;
@@ -581,6 +627,36 @@ export default function ContentDetailScreen() {
             ) : null}
           </View>
 
+          <Animated.View entering={FadeInDown.delay(120).duration(400)} style={styles.runtimeCard}>
+            <View style={styles.runtimeHeader}>
+              <View>
+                <Text style={styles.sectionLabel}>STREAM INTELLIGENCE</Text>
+                <Text style={styles.runtimeTitle}>Addon runtime is active for this title</Text>
+              </View>
+              <View style={styles.runtimeHealthBadge}>
+                <Text style={styles.runtimeHealthBadgeText}>{runtimeHealthLabel}</Text>
+              </View>
+            </View>
+            <View style={styles.runtimeGrid}>
+              <View style={styles.runtimeMetric}>
+                <Text style={styles.runtimeMetricLabel}>Best Source</Text>
+                <Text style={styles.runtimeMetricValue}>{runtimeBestSourceLabel}</Text>
+              </View>
+              <View style={styles.runtimeMetric}>
+                <Text style={styles.runtimeMetricLabel}>Addons</Text>
+                <Text style={styles.runtimeMetricValue}>{runtimeAddonLabel}</Text>
+              </View>
+              <View style={styles.runtimeMetric}>
+                <Text style={styles.runtimeMetricLabel}>Subtitles</Text>
+                <Text style={styles.runtimeMetricValue}>{runtimeInsight?.subtitleCount || 0} available</Text>
+              </View>
+              <View style={styles.runtimeMetric}>
+                <Text style={styles.runtimeMetricLabel}>Routing</Text>
+                <Text style={styles.runtimeMetricValue}>Auto-select + instant fallback</Text>
+              </View>
+            </View>
+          </Animated.View>
+
           {safeCastMembers.length > 0 ? (
             <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.castSection}>
               <Text style={styles.sectionLabel}>CAST</Text>
@@ -769,6 +845,37 @@ const styles = StyleSheet.create({
   },
   detailLabel: { fontSize: 11, fontWeight: '700', color: theme.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
   detailValue: { fontSize: 14, fontWeight: '700', color: '#FFF' },
+  runtimeCard: {
+    backgroundColor: '#101724',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.25)',
+    padding: 16,
+    gap: 14,
+    marginBottom: 24,
+  },
+  runtimeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  runtimeTitle: { fontSize: 15, fontWeight: '700', color: '#FFF', marginTop: 2 },
+  runtimeHealthBadge: {
+    backgroundColor: 'rgba(34,197,94,0.16)',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.35)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  runtimeHealthBadgeText: { fontSize: 11, fontWeight: '800', color: '#BBF7D0', letterSpacing: 0.4 },
+  runtimeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  runtimeMetric: {
+    width: '48%',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  runtimeMetricLabel: { fontSize: 11, fontWeight: '700', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  runtimeMetricValue: { fontSize: 13, fontWeight: '700', color: '#FFF', lineHeight: 18 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: theme.textMuted, letterSpacing: 1, marginBottom: 10 },
   castSection: { marginBottom: 20 },
   castList: { fontSize: 14, color: theme.textSecondary, lineHeight: 22 },
