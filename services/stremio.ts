@@ -292,9 +292,10 @@ function inferPrimaryCategoryId(genres: string[]) {
   return match?.id || null;
 }
 
-function inferChannelCategory(context: ImportedCatalogContext) {
+export function predictChannelCategory(context: ImportedCatalogContext) {
   const haystack = normalizeLooseText([
     context.addon?.name,
+    context.addon?.description,
     context.catalog?.name,
     context.catalog?.id,
     context.catalog?.type,
@@ -307,9 +308,10 @@ function inferChannelCategory(context: ImportedCatalogContext) {
   return matchedRule?.id || 'entertainment';
 }
 
-function inferImportedItemContentType(context: ImportedCatalogContext): LocalContentType {
+export function predictImportedItemType(context: ImportedCatalogContext): LocalContentType {
   const catalogHaystack = normalizeLooseText([
     context.addon?.name,
+    context.addon?.description,
     context.catalog?.id,
     context.catalog?.type,
     context.catalog?.name,
@@ -325,6 +327,21 @@ function inferImportedItemContentType(context: ImportedCatalogContext): LocalCon
     ? context.streams.map((stream) => normalizeLooseText(`${stream?.name || ''} ${stream?.title || ''} ${stream?.description || ''}`)).join(' ')
     : '';
   const fullHaystack = normalizeLooseText(`${catalogHaystack} ${metaHaystack} ${streamNames}`);
+  const hasSeriesStructure =
+    hasKeyword(fullHaystack, SERIES_HINT_KEYWORDS) ||
+    (Array.isArray(context.meta?.videos) && context.meta.videos.length > 0) ||
+    /season\s*\d+|episode\s*\d+|s\d{1,2}e\d{1,2}/i.test(String(context.meta?.description || ''));
+  const hasMovieStructure =
+    Boolean(extractImdbId(context.meta)) ||
+    Boolean(context.meta?.releaseInfo) ||
+    hasKeyword(fullHaystack, MOVIE_HINT_KEYWORDS);
+  const liveProviderContext =
+    hasKeyword(catalogHaystack, CHANNEL_HINT_KEYWORDS) ||
+    ((context.catalog?.type || '').toLowerCase() === 'tv' &&
+      hasKeyword(
+        normalizeLooseText([context.addon?.name, context.addon?.description, context.catalog?.name, context.catalog?.id].join(' ')),
+        ['channel', 'channels', 'live tv', 'news', 'sports', 'weather', 'local', 'premium', 'kids', 'iptv', 'broadcast']
+      ));
 
   const movieScore =
     (extractImdbId(context.meta) ? 3 : 0) +
@@ -339,8 +356,11 @@ function inferImportedItemContentType(context: ImportedCatalogContext): LocalCon
     (hasKeyword(catalogHaystack, CHANNEL_HINT_KEYWORDS) ? 4 : 0) +
     (hasKeyword(metaHaystack, CHANNEL_HINT_KEYWORDS) ? 3 : 0) +
     ((context.catalog?.type || '').toLowerCase() === 'channel' ? 3 : 0) +
-    ((context.catalog?.type || '').toLowerCase() === 'tv' && hasKeyword(catalogHaystack, ['live', 'channel', 'iptv']) ? 2 : 0);
+    ((context.catalog?.type || '').toLowerCase() === 'tv' && hasKeyword(catalogHaystack, ['live', 'channel', 'iptv']) ? 2 : 0) +
+    (liveProviderContext ? 4 : 0) +
+    ((context.catalog?.type || '').toLowerCase() === 'tv' && Array.isArray(context.streams) && context.streams.length > 0 && !hasSeriesStructure && !hasMovieStructure ? 4 : 0);
 
+  if (liveProviderContext && !hasSeriesStructure && !hasMovieStructure) return 'channel';
   if (channelScore >= 4 && channelScore > Math.max(movieScore, seriesScore)) return 'channel';
   if (seriesScore >= movieScore && seriesScore > 0) return 'series';
   if (movieScore > 0) return 'movie';
@@ -881,7 +901,7 @@ async function buildAddonPreviewReport(addon: AddonRecord): Promise<AddonPreview
         const streams = resources.includes('stream')
           ? await fetchAddonStreams(addon, catalog.type, meta.id).catch(() => [])
           : [];
-        const predictedType = inferImportedItemContentType({ addon, catalog, meta, streams });
+        const predictedType = predictImportedItemType({ addon, catalog, meta, streams });
         if (predictedType === 'movie') summary.predictedMovies += 1;
         if (predictedType === 'series') summary.predictedSeries += 1;
         if (predictedType === 'channel') summary.predictedChannels += 1;
@@ -1161,7 +1181,7 @@ async function resolveOrCreateSeriesForAddon(meta: any, catalog?: AddonCatalog) 
 
 async function resolveOrCreateChannelForAddon(meta: any, streamSources: StreamSource[] = [], catalog?: AddonCatalog, addon?: AddonRecord) {
   const name = meta?.name?.trim() || 'Untitled Channel';
-  const category = inferChannelCategory({ addon, catalog, meta });
+  const category = predictChannelCategory({ addon, catalog, meta });
   const currentProgram = meta?.description?.trim() || catalog?.name?.trim() || 'Now Streaming';
   const { data: existingChannel } = await supabase
     .from('channels')
@@ -1241,7 +1261,7 @@ export async function importAddonContent(addonId: string) {
             continue;
           }
 
-          const localType = inferImportedItemContentType({
+          const localType = predictImportedItemType({
             addon,
             catalog,
             meta,
@@ -1411,7 +1431,7 @@ export async function searchAddonRuntime(query: string, limit = 20): Promise<Add
         const metas = await searchAddonCatalogItems(addon, catalog, query, 6);
         for (const meta of metas) {
           const streams = await fetchAddonStreams(addon, catalog.type, meta.id).catch(() => []);
-          const localType = inferImportedItemContentType({ addon, catalog, meta, streams });
+          const localType = predictImportedItemType({ addon, catalog, meta, streams });
           results.push({
             id: `${addon.id}:${catalog.type}:${meta.id}`,
             type: localType,
@@ -1421,7 +1441,7 @@ export async function searchAddonRuntime(query: string, limit = 20): Promise<Add
             backdrop: String(meta?.background || meta?.poster || ''),
             year: toNumericYear(meta?.releaseInfo),
             genre: localType === 'channel' ? [] : inferContentGenres({ addon, catalog, meta }),
-            category: localType === 'channel' ? inferChannelCategory({ addon, catalog, meta }) : inferPrimaryCategoryId(inferContentGenres({ addon, catalog, meta })),
+            category: localType === 'channel' ? predictChannelCategory({ addon, catalog, meta }) : inferPrimaryCategoryId(inferContentGenres({ addon, catalog, meta })),
             addonId: addon.id,
             addonName: addon.name,
             externalType: catalog.type,
