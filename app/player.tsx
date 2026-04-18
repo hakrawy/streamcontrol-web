@@ -8,16 +8,19 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { WebView } from 'react-native-webview';
-import Hls, { Events } from 'hls.js';
+import Hls, { Events, ErrorTypes } from 'hls.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../constants/theme';
 import { useAuth } from '@/template';
 import * as api from '../services/api';
-import { useAppContext } from '../contexts/AppContext';
 import { createProxyAdapter } from '../services/playback/proxyAdapter';
 import { inspectPlaybackSources } from '../services/playback/sourceInspector';
 import { rankPlaybackSources } from '../services/playback/sourceRanker';
-import { mapPlaybackFailureToUserMessage, mapFallbackBannerMessage, mapInspectionToUserMessage } from '../services/playback/playerErrorMapper';
+import {
+  mapPlaybackFailureToUserMessage,
+  mapFallbackBannerMessage,
+  mapInspectionToUserMessage,
+} from '../services/playback/playerErrorMapper';
 import { mapSourceHealthMeta } from '../services/playback/sourceHealthMapper';
 import { pickFallbackIndex } from '../services/playback/fallbackManager';
 import { buildSourceKey, createPlaybackDiagnostic } from '../services/playback/diagnostics';
@@ -83,9 +86,7 @@ function getMediaKind(rawUrl: string): MediaKind {
   try {
     const parsed = new URL(rawUrl);
     const pathname = parsed.pathname.toLowerCase();
-    if (/\.(mpd)(\?.*)?$/.test(pathname)) {
-      return 'dash';
-    }
+    if (/\.(mpd)(\?.*)?$/.test(pathname)) return 'dash';
     if (/\.(mp4|m3u8|webm|mov|m4v|mpd)(\?.*)?$/.test(pathname) || pathname.endsWith('.m3u8')) {
       return 'direct';
     }
@@ -104,17 +105,10 @@ function isHlsUrl(rawUrl: string) {
   }
 }
 
-function isDashUrl(rawUrl: string) {
-  try {
-    return new URL(rawUrl).pathname.toLowerCase().includes('.mpd');
-  } catch {
-    return false;
-  }
-}
-
 function buildYouTubeEmbedUrl(rawUrl: string): string | null {
   const videoId = getYouTubeVideoId(rawUrl);
   if (!videoId) return null;
+
   const params = new URLSearchParams({
     autoplay: '1',
     playsinline: '1',
@@ -181,7 +175,7 @@ function parseSourcesParam(rawSources?: string | string[], rawUrl?: string | str
         if (normalized.length > 0) return normalized;
       }
     } catch {
-      // Ignore malformed params and fall back to the plain URL below.
+      // ignore malformed param
     }
   }
 
@@ -189,22 +183,14 @@ function parseSourcesParam(rawSources?: string | string[], rawUrl?: string | str
   return [{ label: 'Server 1', url: fallbackUrl }];
 }
 
-function rankQuality(quality?: string) {
-  const value = String(quality || '').toLowerCase();
-  if (value.includes('4k') || value.includes('2160')) return 6;
-  if (value.includes('1440')) return 5;
-  if (value.includes('1080')) return 4;
-  if (value.includes('720')) return 3;
-  if (value.includes('480')) return 2;
-  if (value.includes('360')) return 1;
-  return 0;
-}
-
-function sortSources(sources: api.StreamSource[], input?: {
-  historyByKey?: Record<string, SourceHistoryRecord | undefined>;
-  failedSourceKeys?: string[];
-  inspectionByKey?: Record<string, any>;
-}) {
+function sortSources(
+  sources: api.StreamSource[],
+  input?: {
+    historyByKey?: Record<string, SourceHistoryRecord | undefined>;
+    failedSourceKeys?: string[];
+    inspectionByKey?: Record<string, any>;
+  }
+) {
   return rankPlaybackSources(sources, input);
 }
 
@@ -224,28 +210,37 @@ function sanitizeProxyBaseUrl(rawValue?: string | null) {
 async function readSourceHistory(keys: string[]) {
   const uniqueKeys = [...new Set(keys.filter(Boolean))];
   if (uniqueKeys.length === 0) return {} as Record<string, SourceHistoryRecord>;
+
   const entries = await AsyncStorage.multiGet(uniqueKeys.map((key) => `${HISTORY_PREFIX}${key}`));
+
   return entries.reduce<Record<string, SourceHistoryRecord>>((accumulator, [storageKey, rawValue]) => {
     const sourceKey = storageKey.replace(HISTORY_PREFIX, '');
     if (!rawValue) return accumulator;
+
     try {
       accumulator[sourceKey] = JSON.parse(rawValue) as SourceHistoryRecord;
     } catch {
-      // Ignore malformed persisted history.
+      // ignore malformed saved history
     }
+
     return accumulator;
   }, {});
 }
 
-async function writeSourceHistory(sourceKey: string, updater: (previous: SourceHistoryRecord | null) => SourceHistoryRecord) {
+async function writeSourceHistory(
+  sourceKey: string,
+  updater: (previous: SourceHistoryRecord | null) => SourceHistoryRecord
+) {
   const storageKey = `${HISTORY_PREFIX}${sourceKey}`;
   const currentRaw = await AsyncStorage.getItem(storageKey);
   let currentValue: SourceHistoryRecord | null = null;
+
   try {
-    currentValue = currentRaw ? JSON.parse(currentRaw) as SourceHistoryRecord : null;
+    currentValue = currentRaw ? (JSON.parse(currentRaw) as SourceHistoryRecord) : null;
   } catch {
     currentValue = null;
   }
+
   await AsyncStorage.setItem(storageKey, JSON.stringify(updater(currentValue)));
 }
 
@@ -272,8 +267,11 @@ function SourceSelector({
       <View style={styles.sourcesSheetHeader}>
         <Text style={styles.sourcesSheetEyebrow}>PLAYBACK SOURCES</Text>
         <Text style={styles.sourcesSheetTitle}>Servers</Text>
-        <Text style={styles.sourcesSheetSubtitle}>Switch instantly if one source is slow, blocked, or lower quality than expected.</Text>
+        <Text style={styles.sourcesSheetSubtitle}>
+          Switch instantly if one source is slow, blocked, or lower quality than expected.
+        </Text>
       </View>
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sourcesRow}>
         {sources.map((source, index) => (
           <Pressable
@@ -281,7 +279,9 @@ function SourceSelector({
             style={[styles.sourceChip, activeIndex === index && styles.sourceChipActive]}
             onPress={() => onSelect(index)}
           >
-            <Text style={[styles.sourceChipText, activeIndex === index && styles.sourceChipTextActive]}>{source.server || source.label}</Text>
+            <Text style={[styles.sourceChipText, activeIndex === index && styles.sourceChipTextActive]}>
+              {source.server || source.label}
+            </Text>
             {source.addon || source.quality ? (
               <Text style={[styles.sourceChipMeta, activeIndex === index && styles.sourceChipMetaActive]}>
                 {[source.addon, source.quality].filter(Boolean).join(' • ')}
@@ -296,9 +296,11 @@ function SourceSelector({
 
 function formatPlaybackTime(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return 'LIVE';
+
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
+
   if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
@@ -330,37 +332,66 @@ function WebDirectPlayer({
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
   const [showControls, setShowControls] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isBuffering, setIsBuffering] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [videoFit, setVideoFit] = useState<'contain' | 'cover'>('contain');
   const [showSourcesPanel, setShowSourcesPanel] = useState(false);
   const [playbackError, setPlaybackError] = useState('');
   const [captionsEnabled, setCaptionsEnabled] = useState(Boolean(subtitleUrl));
   const [progressTrackWidth, setProgressTrackWidth] = useState(0);
-  const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const containerRef = useRef<any>(null);
-  const hlsRef = useRef<any>(null);
-  const [hlsLevels, setHlsLevels] = useState<any[]>([]);
+  const [hlsLevels, setHlsLevels] = useState<Array<{ height: number; bitrate: number; index: number }>>([]);
   const [currentLevel, setCurrentLevel] = useState(-1);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
+
+  const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<any>(null);
+  const hlsRef = useRef<Hls | null>(null);
+  const didApplyResumeRef = useRef(false);
+
+  const activeSource = sources[selectedSourceIndex];
+  const playbackUrl = activeSource?.resolvedPlaybackUrl || url;
+
   useEffect(() => {
     if (typeof document === 'undefined') return;
+
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
+  const scheduleControlsHide = useCallback((delay = 2500) => {
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    controlsTimer.current = setTimeout(() => setShowControls(false), delay);
+  }, []);
+
+  const showControlsTemporarily = useCallback(
+    (delay = 2500) => {
+      setShowControls(true);
+      scheduleControlsHide(delay);
+    },
+    [scheduleControlsHide]
+  );
+
+  const toggleControls = useCallback(() => {
+    setShowControls((prev) => {
+      const next = !prev;
+      if (next && isPlaying) scheduleControlsHide(1800);
+      return next;
+    });
+  }, [isPlaying, scheduleControlsHide]);
+
   const toggleFullscreen = useCallback(() => {
     Haptics.selectionAsync();
+
     try {
       if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
         if (containerRef.current?.requestFullscreen) {
@@ -370,16 +401,16 @@ function WebDirectPlayer({
         } else if ((videoRef.current as any)?.webkitEnterFullscreen) {
           (videoRef.current as any).webkitEnterFullscreen();
         }
-      } else {
-        if (document.exitFullscreen) {
-           document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-           (document as any).webkitExitFullscreen();
-        }
+      } else if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
       }
-    } catch { }
+    } catch {
+      // ignore fullscreen issues
+    }
   }, []);
-  
+
   const changeQuality = useCallback((index: number) => {
     Haptics.selectionAsync();
     if (hlsRef.current) {
@@ -388,19 +419,6 @@ function WebDirectPlayer({
     }
     setShowQualityMenu(false);
   }, []);
-  const activeSource = sources[selectedSourceIndex];
-  const playbackUrl = activeSource?.resolvedPlaybackUrl || url;
-  const didApplyResumeRef = useRef(false);
-
-  const scheduleControlsHide = useCallback((delay = 2500) => {
-    if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), delay);
-  }, []);
-
-  const showControlsTemporarily = useCallback((delay = 2500) => {
-    setShowControls(true);
-    scheduleControlsHide(delay);
-  }, [scheduleControlsHide]);
 
   useEffect(() => {
     setCaptionsEnabled(Boolean(subtitleUrl));
@@ -411,57 +429,42 @@ function WebDirectPlayer({
     if (!video) return;
 
     let hls: Hls | null = null;
-    let startupTimer: ReturnType<typeof setTimeout> | null = null;
+    let mediaErrorCount = 0;
+    let networkErrorCount = 0;
 
     setPlaybackError('');
-    video.pause();
-    video.currentTime = 0;
-    video.playbackRate = playbackSpeed;
+    setIsBuffering(true);
+    setCurrentTime(0);
+    setDuration(0);
+    setHlsLevels([]);
+    setCurrentLevel(-1);
+
+    didApplyResumeRef.current = false;
+
+    try {
+      video.pause();
+      video.currentTime = 0;
+      video.playbackRate = playbackSpeed;
+    } catch {
+      // ignore reset issues
+    }
 
     const clearStartupTimer = () => {
-
-  const scheduleControlsHide = useCallback((delay = 2500) => {
-    if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), delay);
-  }, []);
-
-  const showControlsTemporarily = useCallback((delay = 2500) => {
-    setShowControls(true);
-    scheduleControlsHide(delay);
-  }, [scheduleControlsHide]);
-
-  useEffect(() => {
-    setCaptionsEnabled(Boolean(subtitleUrl));
-  }, [subtitleUrl]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    let hls: Hls | null = null;
-    let startupTimer: ReturnType<typeof setTimeout> | null = null;
-
-    setPlaybackError('');
-    video.pause();
-    video.currentTime = 0;
-    video.playbackRate = playbackSpeed;
-
-    const clearStartupTimer = () => {
-      if (startupTimer) {
-        clearTimeout(startupTimer);
-        startupTimer = null;
+      if (startupTimer.current) {
+        clearTimeout(startupTimer.current);
+        startupTimer.current = null;
       }
     };
 
-    startupTimer = setTimeout(() => {
+    startupTimer.current = setTimeout(() => {
       if (!didApplyResumeRef.current) {
         setPlaybackError(mapPlaybackFailureToUserMessage('startup_timeout', activeSource?.inspection));
         setIsBuffering(false);
-        if (onPlaybackFailure) onPlaybackFailure('startup_timeout');
+        onPlaybackFailure?.('startup_timeout');
       }
     }, 15000);
 
-    if (isHlsUrl(url) && Hls.isSupported()) {
+    if (isHlsUrl(playbackUrl) && Hls.isSupported()) {
       hls = new Hls({
         lowLatencyMode: false,
         enableWorker: true,
@@ -475,37 +478,47 @@ function WebDirectPlayer({
         xhrSetup: (xhr) => {
           if (activeSource?.headers) {
             Object.entries(activeSource.headers).forEach(([key, value]) => {
-              xhr.setRequestHeader(key, value);
+              xhr.setRequestHeader(key, String(value));
             });
           }
         },
       });
+
       hls.loadSource(playbackUrl);
       hls.attachMedia(video);
       hlsRef.current = hls;
+
       hls.on(Events.MANIFEST_PARSED, (_event, data) => {
-        const lvls = data.levels.map((l: any, i: number) => ({ height: l.height, bitrate: l.bitrate, index: i }));
-        setHlsLevels(lvls.filter((l: any) => l.height > 0));
+        const levels = data.levels.map((level: any, index: number) => ({
+          height: level.height || 0,
+          bitrate: level.bitrate || 0,
+          index,
+        }));
+        setHlsLevels(levels.filter((lvl) => lvl.height > 0));
       });
+
       hls.on(Events.LEVEL_SWITCHED, (_event, data) => {
         setCurrentLevel(data.level);
       });
 
-      let mediaErrorCount = 0;
       hls.on(Events.ERROR, (_event, data) => {
-        if (data?.fatal) {
-          if (data.type === Events.ErrorTypes.MEDIA_ERROR && mediaErrorCount < 3) {
-            mediaErrorCount += 1;
-            hls?.recoverMediaError();
-          } else if (data.type === Events.ErrorTypes.NETWORK_ERROR && mediaErrorCount < 3) {
-            mediaErrorCount += 1;
-            hls?.startLoad();
-          } else {
-            setPlaybackError(mapPlaybackFailureToUserMessage('fatal_hls_error', activeSource?.inspection));
-            setIsBuffering(false);
-            if (onPlaybackFailure) onPlaybackFailure('fatal_hls_error');
-          }
+        if (!data?.fatal) return;
+
+        if (data.type === ErrorTypes.MEDIA_ERROR && mediaErrorCount < 2) {
+          mediaErrorCount += 1;
+          hls?.recoverMediaError();
+          return;
         }
+
+        if (data.type === ErrorTypes.NETWORK_ERROR && networkErrorCount < 2) {
+          networkErrorCount += 1;
+          hls?.startLoad();
+          return;
+        }
+
+        setPlaybackError(mapPlaybackFailureToUserMessage('fatal_hls_error', activeSource?.inspection));
+        setIsBuffering(false);
+        onPlaybackFailure?.('fatal_hls_error');
       });
     } else {
       video.src = playbackUrl;
@@ -527,40 +540,45 @@ function WebDirectPlayer({
       }
       syncState();
     };
+
     const onCanPlay = () => {
       setIsBuffering(false);
       onPlaybackSuccess?.();
       scheduleControlsHide(2200);
     };
+
     const onTimeUpdate = () => syncState();
+
     const onPlay = () => {
       setIsPlaying(true);
       scheduleControlsHide(2200);
     };
+
     const onPlaying = () => {
       setIsPlaying(true);
       setIsBuffering(false);
       clearStartupTimer();
+      onPlaybackSuccess?.();
       scheduleControlsHide(2200);
     };
+
     const onPause = () => {
       setIsPlaying(false);
       setShowControls(true);
     };
-    const onWaiting = () => {
-      setIsBuffering(true);
-    };
-    const onSeeking = () => {
-      setIsBuffering(true);
-    };
+
+    const onWaiting = () => setIsBuffering(true);
+    const onSeeking = () => setIsBuffering(true);
+
     const onSeeked = () => {
       setIsBuffering(false);
       scheduleControlsHide(2200);
     };
+
     const onError = () => {
       setPlaybackError(mapPlaybackFailureToUserMessage('html5_error', activeSource?.inspection));
       setIsBuffering(false);
-      onPlaybackFailure('html5_error');
+      onPlaybackFailure?.('html5_error');
     };
 
     video.addEventListener('loadedmetadata', onLoadedMetadata);
@@ -590,29 +608,58 @@ function WebDirectPlayer({
       video.removeEventListener('seeking', onSeeking);
       video.removeEventListener('seeked', onSeeked);
       video.removeEventListener('error', onError);
+
       clearStartupTimer();
+
       if (hls) {
         hls.destroy();
       } else {
         video.removeAttribute('src');
         video.load();
       }
+
+      hlsRef.current = null;
     };
-  }, [playbackUrl, playbackSpeed, activeSource?.headers, activeSource?.inspection, onPlaybackFailure, scheduleControlsHide, initialResumeTime, onProgress, onPlaybackSuccess]);
-        scheduleControlsHide(1600);
-      }
-      return next;
-    });
-  }, [isPlaying, scheduleControlsHide]);
+  }, [
+    playbackUrl,
+    playbackSpeed,
+    activeSource?.headers,
+    activeSource?.inspection,
+    initialResumeTime,
+    onPlaybackFailure,
+    onPlaybackSuccess,
+    onProgress,
+    scheduleControlsHide,
+  ]);
+
+  useEffect(() => {
+    if (!showControls) return;
+    scheduleControlsHide();
+    return () => {
+      if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    };
+  }, [showControls, scheduleControlsHide]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const tracks = video.textTracks;
+    for (let index = 0; index < tracks.length; index += 1) {
+      tracks[index].mode = subtitleUrl && captionsEnabled ? 'showing' : 'disabled';
+    }
+  }, [captionsEnabled, subtitleUrl, playbackUrl]);
 
   const togglePlay = useCallback(() => {
     Haptics.selectionAsync();
     const video = videoRef.current;
     if (!video) return;
+
     if (video.paused) {
       void video.play();
       return;
     }
+
     video.pause();
   }, []);
 
@@ -620,18 +667,23 @@ function WebDirectPlayer({
     Haptics.selectionAsync();
     const video = videoRef.current;
     if (!video || !Number.isFinite(video.duration)) return;
+
     video.currentTime = Math.max(0, Math.min(video.currentTime + seconds, video.duration));
   }, []);
 
-  const seekToRatio = useCallback((ratio: number) => {
-    const video = videoRef.current;
-    if (!video || !Number.isFinite(video.duration)) return;
-    const nextTime = Math.max(0, Math.min((video.duration || 0) * ratio, video.duration || 0));
-    video.currentTime = nextTime;
-    setCurrentTime(nextTime);
-    onProgress?.(nextTime, video.duration || 0);
-    showControlsTemporarily(1800);
-  }, [onProgress, showControlsTemporarily]);
+  const seekToRatio = useCallback(
+    (ratio: number) => {
+      const video = videoRef.current;
+      if (!video || !Number.isFinite(video.duration)) return;
+
+      const nextTime = Math.max(0, Math.min((video.duration || 0) * ratio, video.duration || 0));
+      video.currentTime = nextTime;
+      setCurrentTime(nextTime);
+      onProgress?.(nextTime, video.duration || 0);
+      showControlsTemporarily(1800);
+    },
+    [onProgress, showControlsTemporarily]
+  );
 
   const changeSpeed = useCallback((speed: number) => {
     Haptics.selectionAsync();
@@ -652,10 +704,7 @@ function WebDirectPlayer({
   return (
     <View ref={containerRef} style={styles.container}>
       <StatusBar hidden />
-      <Pressable
-        style={styles.videoContainer}
-        onPress={toggleControls}
-      >
+      <Pressable style={styles.videoContainer} onPress={toggleControls}>
         <video
           ref={videoRef}
           style={{ ...(styles.webFrame as any), objectFit: videoFit }}
@@ -666,15 +715,10 @@ function WebDirectPlayer({
           preload="auto"
         >
           {subtitleUrl ? (
-            <track
-              kind="subtitles"
-              src={subtitleUrl}
-              srcLang="ar"
-              label="Subtitles"
-              default
-            />
+            <track kind="subtitles" src={subtitleUrl} srcLang="ar" label="Subtitles" default />
           ) : null}
         </video>
+
         {isBuffering ? (
           <View style={styles.bufferingWrap}>
             <ActivityIndicator size="large" color="#FFF" />
@@ -684,30 +728,76 @@ function WebDirectPlayer({
       </Pressable>
 
       {showControls ? (
-        <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={[styles.controlsOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(200)}
+          style={[styles.controlsOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+        >
           <View style={styles.topBar}>
-            <Pressable style={styles.backButton} onPress={() => { videoRef.current?.pause(); router.back(); }}>
+            <Pressable
+              style={styles.backButton}
+              onPress={() => {
+                videoRef.current?.pause();
+                router.back();
+              }}
+            >
               <MaterialIcons name="arrow-back" size={24} color="#FFF" />
             </Pressable>
+
             <View style={styles.titleWrap}>
-              <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
-              <Text style={styles.sourceStatusText}>{isLiveStream ? 'HLS live stream' : `${getMediaKindLabel(mediaKind)} player`}</Text>
+              <Text style={styles.titleText} numberOfLines={1}>
+                {title || 'Now Playing'}
+              </Text>
+              <Text style={styles.sourceStatusText}>
+                {isLiveStream ? 'HLS live stream' : `${getMediaKindLabel(mediaKind)} player`}
+              </Text>
             </View>
-                        {hlsLevels.length > 0 ? (
-              <Pressable style={[styles.topBarBtn, showQualityMenu && styles.topBarBtnActive]} onPress={() => { Haptics.selectionAsync(); setShowQualityMenu(!showQualityMenu); setShowSettingsMenu(false); setShowSourcesPanel(false); }}>
+
+            {hlsLevels.length > 0 ? (
+              <Pressable
+                style={[styles.topBarBtn, showQualityMenu && styles.topBarBtnActive]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowQualityMenu((prev) => !prev);
+                  setShowSettingsMenu(false);
+                  setShowSourcesPanel(false);
+                }}
+              >
                 <MaterialIcons name="high-quality" size={20} color="#FFF" />
               </Pressable>
             ) : null}
+
             {sources.length > 1 ? (
-              <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => { Haptics.selectionAsync(); setShowSourcesPanel((prev) => !prev); setShowSettingsMenu(false); setShowQualityMenu(false); }}>
+              <Pressable
+                style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowSourcesPanel((prev) => !prev);
+                  setShowSettingsMenu(false);
+                  setShowQualityMenu(false);
+                }}
+              >
                 <MaterialIcons name="dns" size={20} color="#FFF" />
               </Pressable>
             ) : null}
-            <Pressable style={[styles.topBarBtn, showSettingsMenu && styles.topBarBtnActive]} onPress={() => { Haptics.selectionAsync(); setShowSettingsMenu(!showSettingsMenu); setShowQualityMenu(false); setShowSourcesPanel(false); }}>
+
+            <Pressable
+              style={[styles.topBarBtn, showSettingsMenu && styles.topBarBtnActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setShowSettingsMenu((prev) => !prev);
+                setShowQualityMenu(false);
+                setShowSourcesPanel(false);
+              }}
+            >
               <MaterialIcons name="settings" size={20} color="#FFF" />
             </Pressable>
+
             {subtitleUrl ? (
-              <Pressable style={[styles.topBarBtn, captionsEnabled && styles.topBarBtnActive]} onPress={toggleCaptions}>
+              <Pressable
+                style={[styles.topBarBtn, captionsEnabled && styles.topBarBtnActive]}
+                onPress={toggleCaptions}
+              >
                 <Text style={styles.speedText}>CC</Text>
               </Pressable>
             ) : null}
@@ -717,78 +807,176 @@ function WebDirectPlayer({
             <Animated.View entering={FadeIn.duration(150)} style={[styles.settingsMenu, { right: 16 }]}>
               <View style={styles.settingsGroup}>
                 <Text style={styles.settingsTitle}>Playback Speed</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', overflow: 'visible' }}>
-                  {[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((speed) => (
-                    <Pressable key={speed} style={[styles.speedOption, playbackSpeed === speed && styles.speedOptionActive]} onPress={() => changeSpeed(speed)}>
-                      <Text style={[styles.speedOptionText, playbackSpeed === speed && styles.speedOptionTextActive]}>{speed}x</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+                  {[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((speed) => (
+                    <Pressable
+                      key={speed}
+                      style={[styles.speedOption, playbackSpeed === speed && styles.speedOptionActive]}
+                      onPress={() => changeSpeed(speed)}
+                    >
+                      <Text
+                        style={[
+                          styles.speedOptionText,
+                          playbackSpeed === speed && styles.speedOptionTextActive,
+                        ]}
+                      >
+                        {speed}x
+                      </Text>
                     </Pressable>
                   ))}
                 </ScrollView>
               </View>
+
               <View style={styles.settingsDivider} />
+
               <View style={styles.settingsGroup}>
                 <Text style={styles.settingsTitle}>Video Scaling</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Pressable style={[styles.speedOption, videoFit === 'contain' && styles.speedOptionActive]} onPress={() => { setVideoFit('contain'); setShowSettingsMenu(false); }}>
-                    <Text style={[styles.speedOptionText, videoFit === 'contain' && styles.speedOptionTextActive]}>Fit (Default)</Text>
+                  <Pressable
+                    style={[styles.speedOption, videoFit === 'contain' && styles.speedOptionActive]}
+                    onPress={() => {
+                      setVideoFit('contain');
+                      setShowSettingsMenu(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.speedOptionText,
+                        videoFit === 'contain' && styles.speedOptionTextActive,
+                      ]}
+                    >
+                      Fit (Default)
+                    </Text>
                   </Pressable>
-                  <Pressable style={[styles.speedOption, videoFit === 'cover' && styles.speedOptionActive]} onPress={() => { setVideoFit('cover'); setShowSettingsMenu(false); }}>
-                    <Text style={[styles.speedOptionText, videoFit === 'cover' && styles.speedOptionTextActive]}>Fill Screen</Text>
+
+                  <Pressable
+                    style={[styles.speedOption, videoFit === 'cover' && styles.speedOptionActive]}
+                    onPress={() => {
+                      setVideoFit('cover');
+                      setShowSettingsMenu(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.speedOptionText,
+                        videoFit === 'cover' && styles.speedOptionTextActive,
+                      ]}
+                    >
+                      Fill Screen
+                    </Text>
                   </Pressable>
                 </View>
               </View>
+
               <View style={styles.settingsDivider} />
-              <Pressable style={styles.settingsRowBtn} onPress={() => { Linking.openURL(url); setShowSettingsMenu(false); }}>
+
+              <Pressable
+                style={styles.settingsRowBtn}
+                onPress={() => {
+                  Linking.openURL(playbackUrl);
+                  setShowSettingsMenu(false);
+                }}
+              >
                 <MaterialIcons name="open-in-new" size={20} color="#FFF" />
                 <Text style={styles.settingsRowText}>Open Externally (VLC/Browser)</Text>
               </Pressable>
             </Animated.View>
           ) : null}
+
           {showQualityMenu ? (
             <Animated.View entering={FadeIn.duration(150)} style={[styles.speedMenu, { right: 70 }]}>
-              <Pressable style={[styles.speedOption, currentLevel === -1 && styles.speedOptionActive]} onPress={() => changeQuality(-1)}>
-                <Text style={[styles.speedOptionText, currentLevel === -1 && styles.speedOptionTextActive]}>Auto</Text>
+              <Pressable
+                style={[styles.speedOption, currentLevel === -1 && styles.speedOptionActive]}
+                onPress={() => changeQuality(-1)}
+              >
+                <Text
+                  style={[
+                    styles.speedOptionText,
+                    currentLevel === -1 && styles.speedOptionTextActive,
+                  ]}
+                >
+                  Auto
+                </Text>
               </Pressable>
+
               {hlsLevels.map((lvl) => (
-                <Pressable key={lvl.index} style={[styles.speedOption, currentLevel === lvl.index && styles.speedOptionActive]} onPress={() => changeQuality(lvl.index)}>
-                  <Text style={[styles.speedOptionText, currentLevel === lvl.index && styles.speedOptionTextActive]}>{lvl.height}p</Text>
+                <Pressable
+                  key={lvl.index}
+                  style={[styles.speedOption, currentLevel === lvl.index && styles.speedOptionActive]}
+                  onPress={() => changeQuality(lvl.index)}
+                >
+                  <Text
+                    style={[
+                      styles.speedOptionText,
+                      currentLevel === lvl.index && styles.speedOptionTextActive,
+                    ]}
+                  >
+                    {lvl.height}p
+                  </Text>
                 </Pressable>
               ))}
             </Animated.View>
           ) : null}
 
-
           <View style={styles.centerControls}>
-            <Pressable style={[styles.seekBtn, isLiveStream && styles.disabledControl]} onPress={() => seek(-10)} disabled={isLiveStream}>
+            <Pressable
+              style={[styles.seekBtn, isLiveStream && styles.disabledControl]}
+              onPress={() => seek(-10)}
+              disabled={isLiveStream}
+            >
               <MaterialIcons name="replay-10" size={36} color="#FFF" />
             </Pressable>
+
             <Pressable style={styles.playPauseBtn} onPress={togglePlay}>
               <MaterialIcons name={isPlaying ? 'pause' : 'play-arrow'} size={48} color="#FFF" />
             </Pressable>
-            <Pressable style={[styles.seekBtn, isLiveStream && styles.disabledControl]} onPress={() => seek(10)} disabled={isLiveStream}>
+
+            <Pressable
+              style={[styles.seekBtn, isLiveStream && styles.disabledControl]}
+              onPress={() => seek(10)}
+              disabled={isLiveStream}
+            >
               <MaterialIcons name="forward-10" size={36} color="#FFF" />
             </Pressable>
           </View>
 
           <View style={styles.bottomBar}>
             {showSourcesPanel ? (
-              <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
+              <SourceSelector
+                sources={sources}
+                activeIndex={selectedSourceIndex}
+                onSelect={(index) => {
+                  onSelectSource(index);
+                  setShowSourcesPanel(false);
+                }}
+              />
             ) : null}
+
             {playbackError ? <Text style={styles.errorText}>{playbackError}</Text> : null}
+
             {activeSource?.proxyRequired ? (
-              <Text style={styles.helperText}>This source may require proxy or custom headers for browser playback.</Text>
-            ) : null}
-            {subtitleUrl ? (
               <Text style={styles.helperText}>
-                {captionsEnabled ? 'Subtitles are enabled for this source.' : 'Subtitles available. Tap CC to show them.'}
+                This source may require proxy or custom headers for browser playback.
               </Text>
             ) : null}
+
+            {subtitleUrl ? (
+              <Text style={styles.helperText}>
+                {captionsEnabled
+                  ? 'Subtitles are enabled for this source.'
+                  : 'Subtitles available. Tap CC to show them.'}
+              </Text>
+            ) : null}
+
             {activeSource?.inspection ? (
               <Text style={styles.helperText}>
                 {mapInspectionToUserMessage(activeSource.inspection)}
-                {activeSource.inspection.httpStatus ? ` • HTTP ${activeSource.inspection.httpStatus}` : ''}
+                {activeSource.inspection.httpStatus
+                  ? ` • HTTP ${activeSource.inspection.httpStatus}`
+                  : ''}
               </Text>
             ) : null}
+
             {!isLiveStream ? (
               <>
                 <View style={styles.progressContainer}>
@@ -806,12 +994,21 @@ function WebDirectPlayer({
                     <View style={[styles.progressThumb, { left: `${progress}%` }]} />
                   </Pressable>
                 </View>
+
                 <View style={styles.timeRow}>
                   <Text style={styles.timeText}>{formatPlaybackTime(currentTime)}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={styles.timeText}>{formatPlaybackTime(duration)}</Text>
-                    <Pressable onPress={toggleFullscreen} style={{ marginLeft: 16, padding: 4 }} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
-                      <MaterialIcons name={isFullscreen ? 'fullscreen-exit' : 'fullscreen'} size={24} color="#FFF" />
+                    <Pressable
+                      onPress={toggleFullscreen}
+                      style={{ marginLeft: 16, padding: 4 }}
+                      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                    >
+                      <MaterialIcons
+                        name={isFullscreen ? 'fullscreen-exit' : 'fullscreen'}
+                        size={24}
+                        color="#FFF"
+                      />
                     </Pressable>
                   </View>
                 </View>
@@ -852,23 +1049,27 @@ function NativeDirectVideoPlayer({
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
   const [showControls, setShowControls] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [videoFit, setVideoFit] = useState<'contain' | 'cover'>('contain');
   const [showSourcesPanel, setShowSourcesPanel] = useState(false);
+
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoViewRef = useRef<any>(null);
-  const toggleFullscreen = useCallback(() => {
-    Haptics.selectionAsync();
-    videoViewRef.current?.enterFullscreen();
-  }, []);
+
   const scheduleControlsHide = useCallback((delay = 2500) => {
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
     controlsTimer.current = setTimeout(() => setShowControls(false), delay);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    Haptics.selectionAsync();
+    videoViewRef.current?.enterFullscreen?.();
   }, []);
 
   const player = useVideoPlayer(url, (instance) => {
@@ -879,18 +1080,16 @@ function NativeDirectVideoPlayer({
   useEffect(() => {
     const sub = player.addListener('playingChange', (playing) => {
       setIsPlaying(playing.isPlaying);
-      if (playing.isPlaying) {
-        scheduleControlsHide();
-      }
+      if (playing.isPlaying) scheduleControlsHide();
     });
-    return () => {
-      sub.remove();
-    };
+
+    return () => sub.remove();
   }, [player, scheduleControlsHide]);
 
   useEffect(() => {
     if (!showControls) return;
     scheduleControlsHide();
+
     return () => {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);
     };
@@ -902,7 +1101,7 @@ function NativeDirectVideoPlayer({
         setCurrentTime(player.currentTime || 0);
         setDuration(player.duration || 0);
       } catch {
-        // Ignore transient player state access issues while loading.
+        // ignore transient player state issues
       }
     }, 500);
 
@@ -920,20 +1119,26 @@ function NativeDirectVideoPlayer({
       return;
     }
     player.play();
-  }, [player, isPlaying]);
+  }, [isPlaying, player]);
 
-  const seek = useCallback((seconds: number) => {
-    Haptics.selectionAsync();
-    const newTime = Math.max(0, Math.min((player.currentTime || 0) + seconds, player.duration || 0));
-    player.currentTime = newTime;
-  }, [player]);
+  const seek = useCallback(
+    (seconds: number) => {
+      Haptics.selectionAsync();
+      const newTime = Math.max(0, Math.min((player.currentTime || 0) + seconds, player.duration || 0));
+      player.currentTime = newTime;
+    },
+    [player]
+  );
 
-  const changeSpeed = useCallback((speed: number) => {
-    Haptics.selectionAsync();
-    player.playbackRate = speed;
-    setPlaybackSpeed(speed);
-    setShowSettingsMenu(false);
-  }, [player]);
+  const changeSpeed = useCallback(
+    (speed: number) => {
+      Haptics.selectionAsync();
+      player.playbackRate = speed;
+      setPlaybackSpeed(speed);
+      setShowSettingsMenu(false);
+    },
+    [player]
+  );
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -945,23 +1150,53 @@ function NativeDirectVideoPlayer({
       </Pressable>
 
       {showControls ? (
-        <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={[styles.controlsOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(200)}
+          style={[styles.controlsOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+        >
           <View style={styles.topBar}>
-            <Pressable style={styles.backButton} onPress={() => { player.pause(); router.back(); }}>
+            <Pressable
+              style={styles.backButton}
+              onPress={() => {
+                player.pause();
+                router.back();
+              }}
+            >
               <MaterialIcons name="arrow-back" size={24} color="#FFF" />
             </Pressable>
+
             <View style={styles.titleWrap}>
-              <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
+              <Text style={styles.titleText} numberOfLines={1}>
+                {title || 'Now Playing'}
+              </Text>
               <Text style={styles.sourceStatusText}>{getMediaKindLabel(mediaKind)} player</Text>
             </View>
-                        {sources.length > 1 ? (
-              <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => { Haptics.selectionAsync(); setShowSourcesPanel((prev) => !prev); setShowSettingsMenu(false); }}>
+
+            {sources.length > 1 ? (
+              <Pressable
+                style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowSourcesPanel((prev) => !prev);
+                  setShowSettingsMenu(false);
+                }}
+              >
                 <MaterialIcons name="dns" size={20} color="#FFF" />
               </Pressable>
             ) : null}
-            <Pressable style={[styles.topBarBtn, showSettingsMenu && styles.topBarBtnActive]} onPress={() => { Haptics.selectionAsync(); setShowSettingsMenu(!showSettingsMenu); setShowSourcesPanel(false); }}>
+
+            <Pressable
+              style={[styles.topBarBtn, showSettingsMenu && styles.topBarBtnActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setShowSettingsMenu((prev) => !prev);
+                setShowSourcesPanel(false);
+              }}
+            >
               <MaterialIcons name="settings" size={20} color="#FFF" />
             </Pressable>
+
             {subtitleUrl ? (
               <View style={[styles.topBarBtn, styles.topBarBtnActive]}>
                 <Text style={styles.speedText}>CC</Text>
@@ -973,28 +1208,76 @@ function NativeDirectVideoPlayer({
             <Animated.View entering={FadeIn.duration(150)} style={[styles.settingsMenu, { right: 16 }]}>
               <View style={styles.settingsGroup}>
                 <Text style={styles.settingsTitle}>Playback Speed</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', overflow: 'visible' }}>
-                  {[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((speed) => (
-                    <Pressable key={speed} style={[styles.speedOption, playbackSpeed === speed && styles.speedOptionActive]} onPress={() => changeSpeed(speed)}>
-                      <Text style={[styles.speedOptionText, playbackSpeed === speed && styles.speedOptionTextActive]}>{speed}x</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+                  {[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((speed) => (
+                    <Pressable
+                      key={speed}
+                      style={[styles.speedOption, playbackSpeed === speed && styles.speedOptionActive]}
+                      onPress={() => changeSpeed(speed)}
+                    >
+                      <Text
+                        style={[
+                          styles.speedOptionText,
+                          playbackSpeed === speed && styles.speedOptionTextActive,
+                        ]}
+                      >
+                        {speed}x
+                      </Text>
                     </Pressable>
                   ))}
                 </ScrollView>
               </View>
+
               <View style={styles.settingsDivider} />
+
               <View style={styles.settingsGroup}>
                 <Text style={styles.settingsTitle}>Video Scaling</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Pressable style={[styles.speedOption, videoFit === 'contain' && styles.speedOptionActive]} onPress={() => { setVideoFit('contain'); setShowSettingsMenu(false); }}>
-                    <Text style={[styles.speedOptionText, videoFit === 'contain' && styles.speedOptionTextActive]}>Fit (Default)</Text>
+                  <Pressable
+                    style={[styles.speedOption, videoFit === 'contain' && styles.speedOptionActive]}
+                    onPress={() => {
+                      setVideoFit('contain');
+                      setShowSettingsMenu(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.speedOptionText,
+                        videoFit === 'contain' && styles.speedOptionTextActive,
+                      ]}
+                    >
+                      Fit (Default)
+                    </Text>
                   </Pressable>
-                  <Pressable style={[styles.speedOption, videoFit === 'cover' && styles.speedOptionActive]} onPress={() => { setVideoFit('cover'); setShowSettingsMenu(false); }}>
-                    <Text style={[styles.speedOptionText, videoFit === 'cover' && styles.speedOptionTextActive]}>Fill Screen</Text>
+
+                  <Pressable
+                    style={[styles.speedOption, videoFit === 'cover' && styles.speedOptionActive]}
+                    onPress={() => {
+                      setVideoFit('cover');
+                      setShowSettingsMenu(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.speedOptionText,
+                        videoFit === 'cover' && styles.speedOptionTextActive,
+                      ]}
+                    >
+                      Fill Screen
+                    </Text>
                   </Pressable>
                 </View>
               </View>
+
               <View style={styles.settingsDivider} />
-              <Pressable style={styles.settingsRowBtn} onPress={() => { Linking.openURL(url); setShowSettingsMenu(false); }}>
+
+              <Pressable
+                style={styles.settingsRowBtn}
+                onPress={() => {
+                  Linking.openURL(url);
+                  setShowSettingsMenu(false);
+                }}
+              >
                 <MaterialIcons name="open-in-new" size={20} color="#FFF" />
                 <Text style={styles.settingsRowText}>Open Externally (VLC/Browser)</Text>
               </Pressable>
@@ -1005,9 +1288,11 @@ function NativeDirectVideoPlayer({
             <Pressable style={styles.seekBtn} onPress={() => seek(-10)}>
               <MaterialIcons name="replay-10" size={36} color="#FFF" />
             </Pressable>
+
             <Pressable style={styles.playPauseBtn} onPress={togglePlay}>
               <MaterialIcons name={isPlaying ? 'pause' : 'play-arrow'} size={48} color="#FFF" />
             </Pressable>
+
             <Pressable style={styles.seekBtn} onPress={() => seek(10)}>
               <MaterialIcons name="forward-10" size={36} color="#FFF" />
             </Pressable>
@@ -1015,24 +1300,42 @@ function NativeDirectVideoPlayer({
 
           <View style={styles.bottomBar}>
             {showSourcesPanel ? (
-              <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
+              <SourceSelector
+                sources={sources}
+                activeIndex={selectedSourceIndex}
+                onSelect={(index) => {
+                  onSelectSource(index);
+                  setShowSourcesPanel(false);
+                }}
+              />
             ) : null}
-            {subtitleUrl ? <Text style={styles.helperText}>This stream includes subtitles. For advanced caption rendering, web playback works best.</Text> : null}
+
+            {subtitleUrl ? (
+              <Text style={styles.helperText}>
+                This stream includes subtitles. For advanced caption rendering, web playback works best.
+              </Text>
+            ) : null}
+
             <View style={styles.progressContainer}>
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${progress}%` }]} />
                 <View style={[styles.progressThumb, { left: `${progress}%` }]} />
               </View>
             </View>
+
             <View style={styles.timeRow}>
-                  <Text style={styles.timeText}>{formatPlaybackTime(currentTime)}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={styles.timeText}>{formatPlaybackTime(duration)}</Text>
-                    <Pressable onPress={toggleFullscreen} style={{ marginLeft: 16, padding: 4 }} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
-                      <MaterialIcons name="fullscreen" size={24} color="#FFF" />
-                    </Pressable>
-                  </View>
-                </View>
+              <Text style={styles.timeText}>{formatPlaybackTime(currentTime)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.timeText}>{formatPlaybackTime(duration)}</Text>
+                <Pressable
+                  onPress={toggleFullscreen}
+                  style={{ marginLeft: 16, padding: 4 }}
+                  hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                >
+                  <MaterialIcons name="fullscreen" size={24} color="#FFF" />
+                </Pressable>
+              </View>
+            </View>
           </View>
         </Animated.View>
       ) : null}
@@ -1051,10 +1354,7 @@ function DirectVideoPlayer(props: {
   mediaKind: MediaKind;
   subtitleUrl?: string;
 }) {
-  if (Platform.OS === 'web') {
-    return <WebDirectPlayer {...props} />;
-  }
-
+  if (Platform.OS === 'web') return <WebDirectPlayer {...props} />;
   return <NativeDirectVideoPlayer {...props} />;
 }
 
@@ -1103,6 +1403,7 @@ function DashPlayer({
   useEffect(() => {
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
     controlsTimer.current = setTimeout(() => setShowControls(false), 2600);
+
     return () => {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);
     };
@@ -1130,28 +1431,48 @@ function DashPlayer({
           />
         )}
       </Pressable>
+
       {showControls ? (
-      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={[styles.controlsOverlay, styles.embeddedOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.topBar}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <MaterialIcons name="arrow-back" size={24} color="#FFF" />
-          </Pressable>
-          <View style={styles.titleWrap}>
-            <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
-            <Text style={styles.sourceStatusText}>DASH player</Text>
-          </View>
-          {sources.length > 1 ? (
-            <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => setShowSourcesPanel((prev) => !prev)}>
-              <MaterialIcons name="dns" size={20} color="#FFF" />
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(200)}
+          style={[styles.controlsOverlay, styles.embeddedOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+        >
+          <View style={styles.topBar}>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <MaterialIcons name="arrow-back" size={24} color="#FFF" />
             </Pressable>
-          ) : null}
-        </View>
-        {showSourcesPanel ? (
-          <View style={styles.embedBottomSheet}>
-            <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
+
+            <View style={styles.titleWrap}>
+              <Text style={styles.titleText} numberOfLines={1}>
+                {title || 'Now Playing'}
+              </Text>
+              <Text style={styles.sourceStatusText}>DASH player</Text>
+            </View>
+
+            {sources.length > 1 ? (
+              <Pressable
+                style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]}
+                onPress={() => setShowSourcesPanel((prev) => !prev)}
+              >
+                <MaterialIcons name="dns" size={20} color="#FFF" />
+              </Pressable>
+            ) : null}
           </View>
-        ) : null}
-      </Animated.View>
+
+          {showSourcesPanel ? (
+            <View style={styles.embedBottomSheet}>
+              <SourceSelector
+                sources={sources}
+                activeIndex={selectedSourceIndex}
+                onSelect={(index) => {
+                  onSelectSource(index);
+                  setShowSourcesPanel(false);
+                }}
+              />
+            </View>
+          ) : null}
+        </Animated.View>
       ) : null}
     </View>
   );
@@ -1183,6 +1504,7 @@ function EmbeddedPlayer({
   useEffect(() => {
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
     controlsTimer.current = setTimeout(() => setShowControls(false), 2600);
+
     return () => {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);
     };
@@ -1214,59 +1536,95 @@ function EmbeddedPlayer({
       </Pressable>
 
       {showControls ? (
-      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={[styles.controlsOverlay, styles.embeddedOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.topBar}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <MaterialIcons name="arrow-back" size={24} color="#FFF" />
-          </Pressable>
-          <View style={styles.titleWrap}>
-            <Text style={styles.titleText} numberOfLines={1}>{title || 'Now Playing'}</Text>
-            <Text style={styles.sourceStatusText}>{getMediaKindLabel(mediaKind)} source</Text>
-          </View>
-          {sources.length > 1 ? (
-            <Pressable style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]} onPress={() => setShowSourcesPanel((prev) => !prev)}>
-              <MaterialIcons name="dns" size={20} color="#FFF" />
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(200)}
+          style={[styles.controlsOverlay, styles.embeddedOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+        >
+          <View style={styles.topBar}>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <MaterialIcons name="arrow-back" size={24} color="#FFF" />
             </Pressable>
-          ) : null}
-          <Pressable style={styles.topBarBtn} onPress={() => Linking.openURL(originalUrl)}>
-            <MaterialIcons name="open-in-new" size={20} color="#FFF" />
-          </Pressable>
-        </View>
-        {showSourcesPanel ? (
-          <View style={styles.embedBottomSheet}>
-            <SourceSelector sources={sources} activeIndex={selectedSourceIndex} onSelect={(index) => { onSelectSource(index); setShowSourcesPanel(false); }} />
+
+            <View style={styles.titleWrap}>
+              <Text style={styles.titleText} numberOfLines={1}>
+                {title || 'Now Playing'}
+              </Text>
+              <Text style={styles.sourceStatusText}>{getMediaKindLabel(mediaKind)} source</Text>
+            </View>
+
+            {sources.length > 1 ? (
+              <Pressable
+                style={[styles.topBarBtn, showSourcesPanel && styles.topBarBtnActive]}
+                onPress={() => setShowSourcesPanel((prev) => !prev)}
+              >
+                <MaterialIcons name="dns" size={20} color="#FFF" />
+              </Pressable>
+            ) : null}
+
+            <Pressable style={styles.topBarBtn} onPress={() => Linking.openURL(originalUrl)}>
+              <MaterialIcons name="open-in-new" size={20} color="#FFF" />
+            </Pressable>
           </View>
-        ) : null}
-        <View style={styles.embedHintWrap}>
-          <Text style={styles.embedHintText}>
-            Embedded pages may block playback. Switch servers or open externally if needed.
-          </Text>
-        </View>
-      </Animated.View>
+
+          {showSourcesPanel ? (
+            <View style={styles.embedBottomSheet}>
+              <SourceSelector
+                sources={sources}
+                activeIndex={selectedSourceIndex}
+                onSelect={(index) => {
+                  onSelectSource(index);
+                  setShowSourcesPanel(false);
+                }}
+              />
+            </View>
+          ) : null}
+
+          <View style={styles.embedHintWrap}>
+            <Text style={styles.embedHintText}>
+              Embedded pages may block playback. Switch servers or open externally if needed.
+            </Text>
+          </View>
+        </Animated.View>
       ) : null}
     </View>
   );
 }
 
-class ErrorBoundary extends React.Component<any, {hasError: boolean, error: any}> {
-  constructor(props: any) { super(props); this.state = { hasError: false, error: null }; }
-  static getDerivedStateFromError(error: any) { return { hasError: true, error }; }
-  componentDidCatch(error: any, errorInfo: any) { console.error('EB Caught:', error, errorInfo); }
+class ErrorBoundary extends React.Component<any, { hasError: boolean; error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error('EB Caught:', error, errorInfo);
+  }
+
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{flex:1, backgroundColor:'red', padding:40, justifyContent:'center'}}>
-          <Text style={{color:'white', fontSize:20}}>CRASH!</Text>
-          <Text style={{color:'white'}}>{String(this.state.error)}</Text>
+        <View style={{ flex: 1, backgroundColor: 'red', padding: 40, justifyContent: 'center' }}>
+          <Text style={{ color: 'white', fontSize: 20 }}>CRASH!</Text>
+          <Text style={{ color: 'white' }}>{String(this.state.error)}</Text>
         </View>
       );
     }
+
     return this.props.children;
   }
 }
 
 export default function PlayerScreenWrapper() {
-  return <ErrorBoundary><PlayerScreen /></ErrorBoundary>;
+  return (
+    <ErrorBoundary>
+      <PlayerScreen />
+    </ErrorBoundary>
+  );
 }
 
 function PlayerScreen() {
@@ -1279,25 +1637,27 @@ function PlayerScreen() {
     viewerContentId?: string;
     viewerContentType?: api.ViewerContentType;
   }>();
-  
+
   const parsedSources = React.useMemo(() => parseSourcesParam(sources, url), [sources, url]);
   const [availableSources, setAvailableSources] = useState<PlayerSource[]>(sortSources(parsedSources));
   const [selectedSourceIndex, setSelectedSourceIndex] = useState(0);
   const [autoFallbackReason, setAutoFallbackReason] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
-  const [inspectionByKey, setInspectionByKey] = useState<Record<string, PlayerSource['inspection']>>({});
   const [historyByKey, setHistoryByKey] = useState<Record<string, SourceHistoryRecord | undefined>>({});
   const [failedSourceKeys, setFailedSourceKeys] = useState<string[]>([]);
   const [diagnostics, setDiagnostics] = useState<PlaybackSourceDiagnostic[]>([]);
-
-  // Preflight & Proxy States
   const [isPreflighting, setIsPreflighting] = useState(true);
   const [preflightLogs, setPreflightLogs] = useState<string[]>(['Initializing player...']);
   const [proxyUrl, setProxyUrl] = useState('');
+
   const proxyAdapter = React.useMemo(() => createProxyAdapter(proxyUrl), [proxyUrl]);
 
   const activeSource = availableSources[selectedSourceIndex] || availableSources[0];
-  const resolvedUrl = activeSource?.resolvedPlaybackUrl || activeSource?.url || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  const resolvedUrl =
+    activeSource?.resolvedPlaybackUrl ||
+    activeSource?.url ||
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+
   const safeTitle = title || 'Now Playing';
   const preferenceKey = `player-preference:${viewerContentType || 'unknown'}:${viewerContentId || safeTitle}`;
   const sourceHealthMeta = getSourceHealthMeta(activeSource);
@@ -1305,7 +1665,10 @@ function PlayerScreen() {
     .filter(Boolean)
     .join(' • ');
 
-  const effectiveSourceIndicatorLabel = [sourceIndicatorLabel, activeSource?.inspection ? mapInspectionToUserMessage(activeSource.inspection) : null]
+  const effectiveSourceIndicatorLabel = [
+    sourceIndicatorLabel,
+    activeSource?.inspection ? mapInspectionToUserMessage(activeSource.inspection) : null,
+  ]
     .filter(Boolean)
     .join(' • ');
 
@@ -1320,26 +1683,29 @@ function PlayerScreen() {
     });
   }, []);
 
-  const rememberSourcePreference = useCallback(async (source?: PlayerSource | null) => {
-    if (!source) return;
-    try {
-      await AsyncStorage.setItem(
-        preferenceKey,
-        JSON.stringify({
-          addon: source.addon || '',
-          server: source.server || source.label || '',
-          quality: source.quality || '',
-          url: source.url,
-        })
-      );
-    } catch {
-      // Ignore local preference persistence issues.
-    }
-  }, [preferenceKey]);
+  const rememberSourcePreference = useCallback(
+    async (source?: PlayerSource | null) => {
+      if (!source) return;
+      try {
+        await AsyncStorage.setItem(
+          preferenceKey,
+          JSON.stringify({
+            addon: source.addon || '',
+            server: source.server || source.label || '',
+            quality: source.quality || '',
+            url: source.url,
+          })
+        );
+      } catch {
+        // ignore
+      }
+    },
+    [preferenceKey]
+  );
 
   useEffect(() => {
     let cancelled = false;
-    
+
     const runPreflight = async () => {
       const mediaKind = getMediaKind(parsedSources[0]?.url || '');
       if (mediaKind === 'youtube' || mediaKind === 'web' || parsedSources.length === 0) {
@@ -1348,19 +1714,22 @@ function PlayerScreen() {
       }
 
       setPreflightLogs(['Initializing player...', 'Inspecting sources...']);
+
       const historyMap = await readSourceHistory(parsedSources.map((source) => buildSourceKey(source)));
       const inspectionMap = await inspectPlaybackSources(parsedSources, {
         proxyAdapter,
         limit: 3,
         timeoutMs: 3200,
       });
+
       if (cancelled) return;
 
       setHistoryByKey(historyMap);
-      setInspectionByKey(inspectionMap);
+
       Object.entries(inspectionMap).forEach(([sourceKey, result]) => {
         const matchedSource = parsedSources.find((source) => buildSourceKey(source) === sourceKey);
         if (!matchedSource) return;
+
         appendDiagnostic(
           createPlaybackDiagnostic('inspect', {
             sourceKey,
@@ -1374,15 +1743,22 @@ function PlayerScreen() {
         );
       });
 
-      setPreflightLogs(['Initializing player...', 'Inspecting sources...', 'Ranking best source...', 'Optimizing playback...']);
+      setPreflightLogs([
+        'Initializing player...',
+        'Inspecting sources...',
+        'Ranking best source...',
+        'Optimizing playback...',
+      ]);
+
       const newSorted = sortSources(parsedSources, {
         inspectionByKey: inspectionMap,
         historyByKey: historyMap,
         failedSourceKeys: [],
-      });
+      }) as PlayerSource[];
+
       setAvailableSources(newSorted);
       setSelectedSourceIndex(0);
-      
+
       setTimeout(() => {
         if (!cancelled) setIsPreflighting(false);
       }, 600);
@@ -1390,100 +1766,130 @@ function PlayerScreen() {
 
     void runPreflight();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [appendDiagnostic, parsedSources, proxyAdapter]);
 
-  const rememberPlaybackFailure = useCallback((source?: PlayerSource | null, reason?: string) => {
-    if (!source?.sourceKey) return;
-    void writeSourceHistory(source.sourceKey, (previous) => ({
-      successCount: previous?.successCount || 0,
-      failureCount: (previous?.failureCount || 0) + 1,
-      lastSucceededAt: previous?.lastSucceededAt || null,
-      lastFailedAt: new Date().toISOString(),
-      lastFailureReason: reason || 'unknown',
-    }));
-    setHistoryByKey((current) => ({
-      ...current,
-      [source.sourceKey]: {
-        successCount: current[source.sourceKey]?.successCount || 0,
-        failureCount: (current[source.sourceKey]?.failureCount || 0) + 1,
-        lastSucceededAt: current[source.sourceKey]?.lastSucceededAt || null,
+  const rememberPlaybackFailure = useCallback(
+    (source?: PlayerSource | null, reason?: string) => {
+      if (!source?.sourceKey) return;
+
+      void writeSourceHistory(source.sourceKey, (previous) => ({
+        successCount: previous?.successCount || 0,
+        failureCount: (previous?.failureCount || 0) + 1,
+        lastSucceededAt: previous?.lastSucceededAt || null,
         lastFailedAt: new Date().toISOString(),
         lastFailureReason: reason || 'unknown',
-      },
-    }));
-    appendDiagnostic(
-      createPlaybackDiagnostic('playback_failure', {
-        sourceKey: source.sourceKey,
-        sourceHash: source.sourceHash,
-        url: source.url,
-        inspectionState: source.inspection?.state,
-        httpStatus: source.inspection?.httpStatus,
-        latencyMs: source.inspection?.latencyMs,
-        reason,
-      })
-    );
-  }, [appendDiagnostic]);
+      }));
 
-  const rememberPlaybackSuccess = useCallback((source?: PlayerSource | null) => {
-    if (!source?.sourceKey) return;
-    void writeSourceHistory(source.sourceKey, (previous) => ({
-      successCount: (previous?.successCount || 0) + 1,
-      failureCount: previous?.failureCount || 0,
-      lastSucceededAt: new Date().toISOString(),
-      lastFailedAt: previous?.lastFailedAt || null,
-      lastFailureReason: previous?.lastFailureReason || null,
-    }));
-    setHistoryByKey((current) => ({
-      ...current,
-      [source.sourceKey]: {
-        successCount: (current[source.sourceKey]?.successCount || 0) + 1,
-        failureCount: current[source.sourceKey]?.failureCount || 0,
+      setHistoryByKey((current) => ({
+        ...current,
+        [source.sourceKey]: {
+          successCount: current[source.sourceKey]?.successCount || 0,
+          failureCount: (current[source.sourceKey]?.failureCount || 0) + 1,
+          lastSucceededAt: current[source.sourceKey]?.lastSucceededAt || null,
+          lastFailedAt: new Date().toISOString(),
+          lastFailureReason: reason || 'unknown',
+        },
+      }));
+
+      appendDiagnostic(
+        createPlaybackDiagnostic('playback_failure', {
+          sourceKey: source.sourceKey,
+          sourceHash: source.sourceHash,
+          url: source.url,
+          inspectionState: source.inspection?.state,
+          httpStatus: source.inspection?.httpStatus,
+          latencyMs: source.inspection?.latencyMs,
+          reason,
+        })
+      );
+    },
+    [appendDiagnostic]
+  );
+
+  const rememberPlaybackSuccess = useCallback(
+    (source?: PlayerSource | null) => {
+      if (!source?.sourceKey) return;
+
+      void writeSourceHistory(source.sourceKey, (previous) => ({
+        successCount: (previous?.successCount || 0) + 1,
+        failureCount: previous?.failureCount || 0,
         lastSucceededAt: new Date().toISOString(),
-        lastFailedAt: current[source.sourceKey]?.lastFailedAt || null,
-        lastFailureReason: current[source.sourceKey]?.lastFailureReason || null,
-      },
-    }));
-    appendDiagnostic(
-      createPlaybackDiagnostic('playback_success', {
-        sourceKey: source.sourceKey,
-        sourceHash: source.sourceHash,
-        url: source.url,
-        inspectionState: source.inspection?.state,
-        httpStatus: source.inspection?.httpStatus,
-        latencyMs: source.inspection?.latencyMs,
-        reason: 'playback_started',
-      })
-    );
-  }, [appendDiagnostic]);
+        lastFailedAt: previous?.lastFailedAt || null,
+        lastFailureReason: previous?.lastFailureReason || null,
+      }));
 
-  const moveToBestAlternative = useCallback((reason?: string) => {
-    if (availableSources.length <= 1) return false;
+      setHistoryByKey((current) => ({
+        ...current,
+        [source.sourceKey]: {
+          successCount: (current[source.sourceKey]?.successCount || 0) + 1,
+          failureCount: current[source.sourceKey]?.failureCount || 0,
+          lastSucceededAt: new Date().toISOString(),
+          lastFailedAt: current[source.sourceKey]?.lastFailedAt || null,
+          lastFailureReason: current[source.sourceKey]?.lastFailureReason || null,
+        },
+      }));
 
-    const nextFailedKeys = [...new Set([...(failedSourceKeys || []), activeSource?.sourceKey].filter(Boolean) as string[])];
-    const nextIndex = pickFallbackIndex(availableSources, selectedSourceIndex, nextFailedKeys);
-    if (nextIndex === -1) return false;
+      appendDiagnostic(
+        createPlaybackDiagnostic('playback_success', {
+          sourceKey: source.sourceKey,
+          sourceHash: source.sourceHash,
+          url: source.url,
+          inspectionState: source.inspection?.state,
+          httpStatus: source.inspection?.httpStatus,
+          latencyMs: source.inspection?.latencyMs,
+          reason: 'playback_started',
+        })
+      );
+    },
+    [appendDiagnostic]
+  );
 
-    setFailedSourceKeys(nextFailedKeys);
-    rememberPlaybackFailure(activeSource, reason);
-    setAutoFallbackReason(mapFallbackBannerMessage(reason, activeSource?.inspection));
-    setSelectedSourceIndex(nextIndex);
-    setRetryToken((value) => value + 1);
-    void rememberSourcePreference(availableSources[nextIndex]);
-    appendDiagnostic(
-      createPlaybackDiagnostic('fallback', {
-        sourceKey: availableSources[nextIndex].sourceKey,
-        sourceHash: availableSources[nextIndex].sourceHash,
-        url: availableSources[nextIndex].url,
-        inspectionState: availableSources[nextIndex].inspection?.state,
-        httpStatus: availableSources[nextIndex].inspection?.httpStatus,
-        latencyMs: availableSources[nextIndex].inspection?.latencyMs,
-        reason,
-        fallbackUsed: true,
-      })
-    );
-    return true;
-  }, [activeSource, appendDiagnostic, availableSources, failedSourceKeys, rememberPlaybackFailure, rememberSourcePreference, selectedSourceIndex]);
+  const moveToBestAlternative = useCallback(
+    (reason?: string) => {
+      if (availableSources.length <= 1) return false;
+
+      const nextFailedKeys = [
+        ...new Set([...(failedSourceKeys || []), activeSource?.sourceKey].filter(Boolean) as string[]),
+      ];
+
+      const nextIndex = pickFallbackIndex(availableSources, selectedSourceIndex, nextFailedKeys);
+      if (nextIndex === -1) return false;
+
+      setFailedSourceKeys(nextFailedKeys);
+      rememberPlaybackFailure(activeSource, reason);
+      setAutoFallbackReason(mapFallbackBannerMessage(reason, activeSource?.inspection));
+      setSelectedSourceIndex(nextIndex);
+      setRetryToken((value) => value + 1);
+      void rememberSourcePreference(availableSources[nextIndex]);
+
+      appendDiagnostic(
+        createPlaybackDiagnostic('fallback', {
+          sourceKey: availableSources[nextIndex].sourceKey,
+          sourceHash: availableSources[nextIndex].sourceHash,
+          url: availableSources[nextIndex].url,
+          inspectionState: availableSources[nextIndex].inspection?.state,
+          httpStatus: availableSources[nextIndex].inspection?.httpStatus,
+          latencyMs: availableSources[nextIndex].inspection?.latencyMs,
+          reason,
+          fallbackUsed: true,
+        })
+      );
+
+      return true;
+    },
+    [
+      activeSource,
+      appendDiagnostic,
+      availableSources,
+      failedSourceKeys,
+      rememberPlaybackFailure,
+      rememberSourcePreference,
+      selectedSourceIndex,
+    ]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -1497,13 +1903,14 @@ function PlayerScreen() {
         }
 
         const parsed = JSON.parse(raw);
-        const preferredIndex = availableSources.findIndex((source) =>
-          source.url === parsed?.url ||
-          (
-            (source.addon || '') === (parsed?.addon || '') &&
-            (source.server || source.label || '') === (parsed?.server || '') &&
-            (source.quality || '') === (parsed?.quality || '')
-          )
+        const preferredIndex = availableSources.findIndex(
+          (source) =>
+            source.url === parsed?.url ||
+            (
+              (source.addon || '') === (parsed?.addon || '') &&
+              (source.server || source.label || '') === (parsed?.server || '') &&
+              (source.quality || '') === (parsed?.quality || '')
+            )
         );
 
         setSelectedSourceIndex(preferredIndex >= 0 ? preferredIndex : 0);
@@ -1518,7 +1925,7 @@ function PlayerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [availableSources, preferenceKey, isPreflighting]);
+  }, [availableSources, isPreflighting, preferenceKey]);
 
   useEffect(() => {
     if (!activeSource) return;
@@ -1574,7 +1981,9 @@ function PlayerScreen() {
         <Text style={styles.unsupportedTitle}>Starting Stream</Text>
         <View style={{ gap: 4, alignItems: 'center' }}>
           {preflightLogs.map((log, i) => (
-            <Text key={i} style={styles.unsupportedHint}>{log}</Text>
+            <Text key={i} style={styles.unsupportedHint}>
+              {log}
+            </Text>
           ))}
         </View>
       </View>
@@ -1586,9 +1995,7 @@ function PlayerScreen() {
       <View style={styles.unsupportedContainer}>
         <StatusBar hidden />
         <Text style={styles.unsupportedTitle}>{safeTitle}</Text>
-        <Text style={styles.unsupportedText}>
-          Invalid link. Please use a full http or https URL.
-        </Text>
+        <Text style={styles.unsupportedText}>Invalid link. Please use a full http or https URL.</Text>
       </View>
     );
   }
@@ -1622,12 +2029,16 @@ function PlayerScreen() {
           void rememberSourcePreference(availableSources[index]);
         }}
         onPlaybackFailure={(reason) => {
-          if (moveToBestAlternative(reason ? `Source failed (${reason}). Switched automatically.` : 'Source failed. Switched automatically.')) {
+          if (
+            moveToBestAlternative(
+              reason ? `Source failed (${reason}). Switched automatically.` : 'Source failed. Switched automatically.'
+            )
+          ) {
             return;
           }
+
           rememberPlaybackFailure(activeSource, reason);
           setAutoFallbackReason(reason ? `Playback failed: ${reason}` : 'Playback failed for this source.');
-          setRetryToken((value) => value + 1);
         }}
         onPlaybackSuccess={() => rememberPlaybackSuccess(activeSource)}
         mediaKind={mediaKind}
@@ -1669,89 +2080,282 @@ function PlayerScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.streamHealthOverlay, { backgroundColor: sourceHealthMeta.background, borderColor: sourceHealthMeta.tint }]}>
+      <View
+        style={[
+          styles.streamHealthOverlay,
+          { backgroundColor: sourceHealthMeta.background, borderColor: sourceHealthMeta.tint },
+        ]}
+      >
         <View style={[styles.streamHealthDot, { backgroundColor: sourceHealthMeta.tint }]} />
         <View style={styles.streamHealthTextWrap}>
-          <Text style={[styles.streamHealthTitle, { color: sourceHealthMeta.tint }]}>{sourceHealthMeta.label}</Text>
-          <Text style={styles.streamHealthSubtitle} numberOfLines={1}>{effectiveSourceIndicatorLabel || 'Auto-selected source'}</Text>
+          <Text style={[styles.streamHealthTitle, { color: sourceHealthMeta.tint }]}>
+            {sourceHealthMeta.label}
+          </Text>
+          <Text style={styles.streamHealthSubtitle} numberOfLines={1}>
+            {effectiveSourceIndicatorLabel || 'Auto-selected source'}
+          </Text>
         </View>
       </View>
+
       {autoFallbackReason ? (
         <View style={styles.autoFallbackBanner}>
           <MaterialIcons name="bolt" size={16} color="#FFF" />
           <Text style={styles.autoFallbackText}>{autoFallbackReason}</Text>
         </View>
       ) : null}
+
       {playerBody}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  settingsMenu: { position: 'absolute', top: 80, right: 16, backgroundColor: 'rgba(26,26,38,0.98)', borderRadius: 16, padding: 16, zIndex: 100, width: 280, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8 },
+  settingsMenu: {
+    position: 'absolute',
+    top: 80,
+    right: 16,
+    backgroundColor: 'rgba(26,26,38,0.98)',
+    borderRadius: 16,
+    padding: 16,
+    zIndex: 100,
+    width: 280,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+  },
   settingsGroup: { gap: 8 },
-  settingsTitle: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 },
-  settingsDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 12 },
-  settingsRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  settingsRowText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
+  settingsTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.5)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  settingsDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginVertical: 12,
+  },
+  settingsRowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 6,
+  },
+  settingsRowText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFF',
+  },
 
   container: { flex: 1, backgroundColor: '#000' },
   videoContainer: { flex: 1 },
   video: { flex: 1, backgroundColor: '#000' },
   webFrame: { width: '100%', height: '100%', borderWidth: 0, backgroundColor: '#000' },
-  controlsOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.34)', justifyContent: 'space-between' },
+  controlsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.34)',
+    justifyContent: 'space-between',
+  },
   embeddedOverlay: { backgroundColor: 'transparent' },
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, gap: 12 },
-  backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 12,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
   titleWrap: { flex: 1 },
   titleText: { fontSize: 17, fontWeight: '800', color: '#FFF' },
   sourceStatusText: { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
-  topBarBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  topBarBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   topBarBtnActive: { backgroundColor: 'rgba(99,102,241,0.9)' },
   speedText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
-  sourcesSheet: { backgroundColor: 'rgba(9,13,24,0.96)', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, gap: 12 },
+
+  sourcesSheet: {
+    backgroundColor: 'rgba(9,13,24,0.96)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 16,
+    gap: 12,
+  },
   sourcesSheetHeader: { gap: 4 },
-  sourcesSheetEyebrow: { fontSize: 11, fontWeight: '800', color: '#A5B4FC', letterSpacing: 1.2 },
+  sourcesSheetEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#A5B4FC',
+    letterSpacing: 1.2,
+  },
   sourcesSheetTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   sourcesSheetSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.64)' },
   sourcesRow: { gap: 8, paddingRight: 16 },
-  sourceChip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  sourceChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
   sourceChipActive: { backgroundColor: '#FFF', borderColor: '#FFF' },
   sourceChipText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
   sourceChipTextActive: { color: '#000' },
   sourceChipMeta: { fontSize: 10, color: 'rgba(255,255,255,0.68)', marginTop: 2 },
   sourceChipMetaActive: { color: 'rgba(0,0,0,0.6)' },
-  speedMenu: { position: 'absolute', top: 80, right: 16, backgroundColor: 'rgba(26,26,38,0.95)', borderRadius: 12, padding: 8, zIndex: 100 },
+
+  speedMenu: {
+    position: 'absolute',
+    top: 80,
+    right: 16,
+    backgroundColor: 'rgba(26,26,38,0.95)',
+    borderRadius: 12,
+    padding: 8,
+    zIndex: 100,
+  },
   speedOption: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   speedOptionActive: { backgroundColor: theme.primary },
   speedOptionText: { fontSize: 14, fontWeight: '600', color: theme.textSecondary },
   speedOptionTextActive: { color: '#FFF' },
-  centerControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 48 },
-  seekBtn: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+
+  centerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 48,
+  },
+  seekBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
   disabledControl: { opacity: 0.4 },
-  playPauseBtn: { width: 78, height: 78, borderRadius: 39, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  playPauseBtn: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   bottomBar: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
   progressContainer: { marginBottom: 8 },
-  progressTrack: { height: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, overflow: 'visible' },
-  progressFill: { height: 4, backgroundColor: theme.primary, borderRadius: 2 },
-  progressThumb: { position: 'absolute', top: -5, width: 14, height: 14, borderRadius: 7, backgroundColor: theme.primary, marginLeft: -7 },
+  progressTrack: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 2,
+    overflow: 'visible',
+  },
+  progressFill: {
+    height: 4,
+    backgroundColor: theme.primary,
+    borderRadius: 2,
+  },
+  progressThumb: {
+    position: 'absolute',
+    top: -5,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: theme.primary,
+    marginLeft: -7,
+  },
   timeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   timeText: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
   errorText: { fontSize: 13, color: '#FCA5A5', textAlign: 'center', marginBottom: 10 },
   helperText: { fontSize: 12, color: 'rgba(255,255,255,0.76)', textAlign: 'center' },
-  livePill: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.18)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
+
+  livePill: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(239,68,68,0.18)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
   liveDotMini: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.live },
   livePillText: { fontSize: 12, fontWeight: '700', color: '#FFF', letterSpacing: 0.6 },
+
   embedBottomSheet: { paddingHorizontal: 16, marginTop: 'auto', marginBottom: 12 },
   embedHintWrap: { paddingHorizontal: 16, paddingBottom: 12 },
   embedHintText: { fontSize: 12, color: 'rgba(255,255,255,0.65)', textAlign: 'center' },
-  unsupportedContainer: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 16 },
-  unsupportedBack: { position: 'absolute', top: 48, left: 16, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  unsupportedTitle: { fontSize: 22, fontWeight: '700', color: '#FFF', textAlign: 'center' },
-  unsupportedText: { fontSize: 15, color: theme.textSecondary, textAlign: 'center', lineHeight: 24 },
-  unsupportedHint: { fontSize: 12, color: theme.textMuted, textAlign: 'center' },
-  openExternalBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFF', paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12, marginTop: 8 },
+
+  unsupportedContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  unsupportedBack: {
+    position: 'absolute',
+    top: 48,
+    left: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unsupportedTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFF',
+    textAlign: 'center',
+  },
+  unsupportedText: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  unsupportedHint: {
+    fontSize: 12,
+    color: theme.textMuted,
+    textAlign: 'center',
+  },
+  openExternalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFF',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 8,
+  },
   openExternalText: { fontSize: 14, fontWeight: '700', color: '#000' },
+
   streamHealthOverlay: {
     position: 'absolute',
     top: 16,
@@ -1770,6 +2374,7 @@ const styles = StyleSheet.create({
   streamHealthTextWrap: { gap: 2, flexShrink: 1 },
   streamHealthTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
   streamHealthSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.86)' },
+
   autoFallbackBanner: {
     position: 'absolute',
     top: '30%',
@@ -1792,6 +2397,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
     lineHeight: 20,
   },
+
   bufferingWrap: {
     position: 'absolute',
     top: '50%',
