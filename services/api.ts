@@ -402,6 +402,25 @@ export interface ActiveViewerSession {
 
 export type ContentItem = (Movie | Series) & { type: 'movie' | 'series' };
 export type SearchResultItem = ContentItem | (Channel & { type: 'channel' });
+export interface IntelligentSource extends StreamSource {
+  healthScore: number;
+  stability: 'excellent' | 'good' | 'fair' | 'poor';
+  autoSelected?: boolean;
+}
+
+export interface DynamicHomeSection {
+  id: string;
+  title: string;
+  type: 'movie' | 'series' | 'channel' | 'mixed';
+  items: SearchResultItem[];
+}
+
+export interface RuntimeContentInsight {
+  addonNames: string[];
+  sourceCount: number;
+  bestSource: IntelligentSource | null;
+  subtitleCount: number;
+}
 
 function isStreamSource(value: unknown): value is StreamSource {
   return Boolean(
@@ -1641,6 +1660,46 @@ export async function importAddonContent(addonId: string) {
   return stremioApi.importAddonContent(addonId);
 }
 
+function computeSourceHealth(source: StreamSource): IntelligentSource {
+  const qualityRank = (() => {
+    const value = String(source.quality || '').toLowerCase();
+    if (value.includes('4k') || value.includes('2160')) return 30;
+    if (value.includes('1440')) return 25;
+    if (value.includes('1080')) return 20;
+    if (value.includes('720')) return 15;
+    if (value.includes('480')) return 10;
+    return 6;
+  })();
+  const responseRank = Number.isFinite(source.responseTimeMs as number)
+    ? Math.max(0, 30 - Math.min(30, Math.floor((source.responseTimeMs as number) / 120)))
+    : 12;
+  const statusRank = source.status === 'working' || source.isWorking ? 28 : source.status === 'unknown' ? 18 : source.status === 'failing' ? 6 : 2;
+  const proxyPenalty = source.proxyRequired ? -6 : 0;
+  const priorityBonus = Math.max(-2, Math.min(12, (source.priority || 0) * 2));
+  const healthScore = Math.max(1, qualityRank + responseRank + statusRank + proxyPenalty + priorityBonus);
+  const stability: IntelligentSource['stability'] =
+    healthScore >= 72 ? 'excellent'
+      : healthScore >= 54 ? 'good'
+      : healthScore >= 34 ? 'fair'
+      : 'poor';
+  return { ...source, healthScore, stability };
+}
+
+export function rankStreamingSources(sources: StreamSource[]): IntelligentSource[] {
+  return uniqueSources(sources)
+    .map(computeSourceHealth)
+    .sort((a, b) =>
+      (b.healthScore - a.healthScore) ||
+      ((b.priority || 0) - (a.priority || 0)) ||
+      ((a.responseTimeMs || Number.MAX_SAFE_INTEGER) - (b.responseTimeMs || Number.MAX_SAFE_INTEGER))
+    )
+    .map((source, index) => ({ ...source, autoSelected: index === 0 }));
+}
+
+export function pickBestStreamingSource(sources: StreamSource[]): IntelligentSource | null {
+  return rankStreamingSources(sources)[0] || null;
+}
+
 export async function fetchPlaybackSourcesForContent(
   contentType: 'movie' | 'series' | 'episode',
   contentId: string,
@@ -2544,16 +2603,65 @@ export async function searchContent(query: string) {
 
 export async function searchCatalog(query: string): Promise<SearchResultItem[]> {
   const q = `%${query}%`;
-  const [{ data: moviesData }, { data: seriesData }, { data: channelsData }] = await Promise.all([
+  const [{ data: moviesData }, { data: seriesData }, { data: channelsData }, addonRuntime] = await Promise.all([
     supabase.from('movies').select('*').eq('is_published', true).or(`title.ilike.${q},description.ilike.${q}`),
     supabase.from('series').select('*').eq('is_published', true).or(`title.ilike.${q},description.ilike.${q}`),
     supabase.from('channels').select('*').or(`name.ilike.${q},category.ilike.${q},current_program.ilike.${q}`),
+    import('./stremio').then((stremio) => stremio.searchAddonRuntime(query, 18)).catch(() => []),
   ]);
 
   const movies = (moviesData || []).map((m: any) => normalizeMovie(m)) as ContentItem[];
   const series = (seriesData || []).map((s: any) => normalizeSeries(s)) as ContentItem[];
   const channels = (channelsData || []).map((channel: any) => ({ ...normalizeChannel(channel), type: 'channel' as const }));
-  return [...movies, ...series, ...channels];
+  const addonResults: SearchResultItem[] = (addonRuntime || []).map((item: any) =>
+    item.type === 'channel'
+      ? ({
+          id: item.id,
+          type: 'channel',
+          name: item.title,
+          logo: item.poster,
+          stream_url: '',
+          stream_sources: [],
+          category: item.category || 'entertainment',
+          current_program: item.description || item.addonName,
+          is_live: true,
+          is_featured: false,
+          viewers: 0,
+          sort_order: 999,
+          runtime_source: item.addonName,
+        } as any)
+      : ({
+          id: item.id,
+          type: item.type,
+          title: item.title,
+          description: item.description || '',
+          poster: item.poster || '',
+          backdrop: item.backdrop || item.poster || '',
+          trailer_url: '',
+          genre: item.genre || [],
+          rating: 0,
+          year: item.year || new Date().getFullYear(),
+          cast_members: [],
+          is_featured: false,
+          is_trending: false,
+          is_new: true,
+          is_exclusive: false,
+          is_published: true,
+          view_count: 0,
+          live_viewers: 0,
+          category_id: item.category || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          quality: ['Auto'],
+          duration: '',
+          subtitle_url: '',
+          stream_url: '',
+          stream_sources: [],
+          runtime_source: item.addonName,
+        } as any)
+  );
+
+  return [...movies, ...series, ...channels, ...addonResults];
 }
 
 // ===== CHANNELS =====
@@ -2738,6 +2846,67 @@ export async function updateAppSetting(key: string, value: string) {
   const { error } = await supabase.from('app_settings').update({ value, updated_at: new Date().toISOString() }).eq('key', key);
   if (error) throw error;
   if (key === 'tmdb_api_key') tmdbCredentialCache = null;
+}
+
+export async function fetchDynamicHomeSections(userId?: string): Promise<DynamicHomeSection[]> {
+  const [movies, series, channels, history] = await Promise.all([
+    fetchMovies({ limit: 30 }).catch(() => []),
+    fetchSeries({ limit: 30 }).catch(() => []),
+    fetchChannels().catch(() => []),
+    userId ? fetchWatchHistory(userId).catch(() => []) : Promise.resolve([] as WatchHistory[]),
+  ]);
+
+  const combined = [...movies, ...series];
+  const favoriteGenre = (() => {
+    const counts = new Map<string, number>();
+    history.forEach((entry) => {
+      const match = combined.find((item) => item.id === entry.content_id);
+      (match?.genre || []).forEach((genre) => counts.set(genre, (counts.get(genre) || 0) + 1));
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  })();
+
+  const recommended = favoriteGenre
+    ? combined.filter((item) => (item.genre || []).includes(favoriteGenre)).slice(0, 12)
+    : combined.filter((item) => item.is_featured || item.is_trending).slice(0, 12);
+
+  const newFromAddons = combined.filter((item) => item.is_new).slice(0, 12);
+  const liveNow = channels.filter((channel) => channel.is_live).slice(0, 12).map((channel) => ({ ...channel, type: 'channel' as const }));
+
+  const sections: DynamicHomeSection[] = [
+    { id: 'trending', title: 'Trending', type: 'mixed', items: [...movies, ...series].filter((item) => item.is_trending).slice(0, 12) as SearchResultItem[] },
+    { id: 'recommended', title: favoriteGenre ? `Recommended · ${favoriteGenre}` : 'Recommended', type: 'mixed', items: recommended as SearchResultItem[] },
+    { id: 'new-from-addons', title: 'New from Addons', type: 'mixed', items: newFromAddons as SearchResultItem[] },
+    { id: 'live-now', title: 'Live Now', type: 'channel', items: liveNow as SearchResultItem[] },
+  ];
+
+  return sections.filter((section) => section.items.length > 0);
+}
+
+export async function fetchRuntimeContentInsight(
+  contentType: 'movie' | 'series' | 'episode' | 'channel',
+  contentId: string,
+  identity?: PlaybackLookupIdentity
+): Promise<RuntimeContentInsight> {
+  const [sources, refs] = await Promise.all([
+    contentType === 'channel'
+      ? Promise.resolve([] as StreamSource[])
+      : fetchPlaybackSourcesForContent(contentType, contentId, identity).catch(() => []),
+    supabase.from('content_external_refs').select('addon_id').eq('content_type', contentType === 'episode' ? 'series' : contentType).eq('content_id', contentId),
+  ]);
+
+  const addonIds = Array.from(new Set((refs.data || []).map((ref: any) => ref.addon_id).filter(Boolean)));
+  const addonNames = addonIds.length > 0
+    ? await supabase.from('addons').select('id,name').in('id', addonIds).then(({ data }) => (data || []).map((item: any) => item.name))
+    : [];
+  const ranked = rankStreamingSources(sources);
+  const subtitleCount = ranked.filter((source) => source.subtitle).length;
+  return {
+    addonNames,
+    sourceCount: ranked.length,
+    bestSource: ranked[0] || null,
+    subtitleCount,
+  };
 }
 
 export async function upsertAppSetting(key: string, value: string) {
