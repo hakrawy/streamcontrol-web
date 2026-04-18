@@ -42,7 +42,7 @@ function detectReason(status: number | null, contentType: string, sample: string
   if (status && status >= 500) return { state: 'broken' as const, reason: 'server_error', detectedBlockPage: false };
   if (html && hasBlockPage) return { state: geoRestricted ? 'geo_restricted' as const : 'blocked' as const, reason: hasBlockPage ? 'block_page' : 'html_response', detectedBlockPage: true };
   if (html) return { state: 'broken' as const, reason: 'html_instead_of_stream', detectedBlockPage: false };
-  if (!looksLikeM3U(contentType, sample) && contentType.includes('application/') && sample.trimStart()) {
+  if (!looksLikeM3U(contentType, sample) && contentType.includes('mpegurl')) {
     return { state: 'invalid_playlist' as const, reason: 'invalid_playlist', detectedBlockPage: false };
   }
   return { state: 'unknown' as const, reason: 'unknown', detectedBlockPage: false };
