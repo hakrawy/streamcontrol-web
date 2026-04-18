@@ -419,6 +419,34 @@ function WebDirectPlayer({
     video.playbackRate = playbackSpeed;
 
     const clearStartupTimer = () => {
+
+  const scheduleControlsHide = useCallback((delay = 2500) => {
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    controlsTimer.current = setTimeout(() => setShowControls(false), delay);
+  }, []);
+
+  const showControlsTemporarily = useCallback((delay = 2500) => {
+    setShowControls(true);
+    scheduleControlsHide(delay);
+  }, [scheduleControlsHide]);
+
+  useEffect(() => {
+    setCaptionsEnabled(Boolean(subtitleUrl));
+  }, [subtitleUrl]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let hls: Hls | null = null;
+    let startupTimer: ReturnType<typeof setTimeout> | null = null;
+
+    setPlaybackError('');
+    video.pause();
+    video.currentTime = 0;
+    video.playbackRate = playbackSpeed;
+
+    const clearStartupTimer = () => {
       if (startupTimer) {
         clearTimeout(startupTimer);
         startupTimer = null;
@@ -431,19 +459,19 @@ function WebDirectPlayer({
         setIsBuffering(false);
         if (onPlaybackFailure) onPlaybackFailure('startup_timeout');
       }
-    }, 7000);
+    }, 15000);
 
     if (isHlsUrl(url) && Hls.isSupported()) {
       hls = new Hls({
-        lowLatencyMode: true,
+        lowLatencyMode: false,
         enableWorker: true,
-        backBufferLength: 30,
-        maxBufferLength: 20,
-        maxMaxBufferLength: 30,
+        backBufferLength: 90,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
         startFragPrefetch: true,
         capLevelToPlayerSize: true,
-        manifestLoadingTimeOut: 8000,
-        fragLoadingTimeOut: 12000,
+        manifestLoadingTimeOut: 15000,
+        fragLoadingTimeOut: 20000,
         xhrSetup: (xhr) => {
           if (activeSource?.headers) {
             Object.entries(activeSource.headers).forEach(([key, value]) => {
@@ -463,11 +491,20 @@ function WebDirectPlayer({
         setCurrentLevel(data.level);
       });
 
+      let mediaErrorCount = 0;
       hls.on(Events.ERROR, (_event, data) => {
         if (data?.fatal) {
-          setPlaybackError(mapPlaybackFailureToUserMessage('fatal_hls_error', activeSource?.inspection));
-          setIsBuffering(false);
-          onPlaybackFailure('fatal_hls_error');
+          if (data.type === Events.ErrorTypes.MEDIA_ERROR && mediaErrorCount < 3) {
+            mediaErrorCount += 1;
+            hls?.recoverMediaError();
+          } else if (data.type === Events.ErrorTypes.NETWORK_ERROR && mediaErrorCount < 3) {
+            mediaErrorCount += 1;
+            hls?.startLoad();
+          } else {
+            setPlaybackError(mapPlaybackFailureToUserMessage('fatal_hls_error', activeSource?.inspection));
+            setIsBuffering(false);
+            if (onPlaybackFailure) onPlaybackFailure('fatal_hls_error');
+          }
         }
       });
     } else {
@@ -498,6 +535,10 @@ function WebDirectPlayer({
     const onTimeUpdate = () => syncState();
     const onPlay = () => {
       setIsPlaying(true);
+      scheduleControlsHide(2200);
+    };
+    const onPlaying = () => {
+      setIsPlaying(true);
       setIsBuffering(false);
       clearStartupTimer();
       scheduleControlsHide(2200);
@@ -526,6 +567,7 @@ function WebDirectPlayer({
     video.addEventListener('canplay', onCanPlay);
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('play', onPlay);
+    video.addEventListener('playing', onPlaying);
     video.addEventListener('pause', onPause);
     video.addEventListener('waiting', onWaiting);
     video.addEventListener('seeking', onSeeking);
@@ -542,6 +584,7 @@ function WebDirectPlayer({
       video.removeEventListener('canplay', onCanPlay);
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('play', onPlay);
+      video.removeEventListener('playing', onPlaying);
       video.removeEventListener('pause', onPause);
       video.removeEventListener('waiting', onWaiting);
       video.removeEventListener('seeking', onSeeking);
@@ -556,29 +599,6 @@ function WebDirectPlayer({
       }
     };
   }, [playbackUrl, playbackSpeed, activeSource?.headers, activeSource?.inspection, onPlaybackFailure, scheduleControlsHide, initialResumeTime, onProgress, onPlaybackSuccess]);
-
-  useEffect(() => {
-    if (!showControls) return;
-    scheduleControlsHide();
-    return () => {
-      if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    };
-  }, [showControls, scheduleControlsHide]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const tracks = video.textTracks;
-    for (let index = 0; index < tracks.length; index += 1) {
-      tracks[index].mode = subtitleUrl && captionsEnabled ? 'showing' : 'disabled';
-    }
-  }, [captionsEnabled, subtitleUrl, url]);
-
-  const toggleControls = useCallback(() => {
-    setShowControls((prev) => {
-      const next = !prev;
-      if (next && isPlaying) {
         scheduleControlsHide(1600);
       }
       return next;
