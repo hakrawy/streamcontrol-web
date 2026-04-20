@@ -76,6 +76,21 @@ export async function readPersistedSubscriptionSession(): Promise<SubscriptionSe
   }
 }
 
+export function peekPersistedSubscriptionSession(): SubscriptionSession | null {
+  try {
+    const raw = readWebStorageSession();
+    if (!raw) return null;
+    const session = JSON.parse(raw) as SubscriptionSession;
+    if (!session?.sessionId || !session?.subscriptionId || !session?.code || !session?.startedAt || !session?.expiresAt) {
+      return null;
+    }
+    if (isSubscriptionSessionExpired(session)) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
 export async function persistSubscriptionSession(session: SubscriptionSession) {
   const payload = JSON.stringify(session);
   await AsyncStorage.setItem(SESSION_KEY, payload);
@@ -86,4 +101,3 @@ export async function clearPersistedSubscriptionSession() {
   await AsyncStorage.removeItem(SESSION_KEY);
   removeWebStorageSession();
 }
-
