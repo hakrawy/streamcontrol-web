@@ -1,15 +1,13 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useAuth, useAlert } from '@/template';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
 import { useLocale } from '../contexts/LocaleContext';
-import * as subscriptions from '../services/subscriptions';
 
 type AuthMode = 'login' | 'register' | 'otp' | 'subscription';
 
@@ -24,8 +22,13 @@ const getEmailRedirectUrl = () => {
 };
 
 export default function LoginScreen() {
-  const router = useRouter();
-  const { user, initialized, sendOTP, verifyOTPAndLogin, signInWithPassword, operationLoading } = useAuth();
+  const {
+    sendOTP,
+    verifyOTPAndLogin,
+    loginWithPassword,
+    loginWithSubscriptionCode,
+    operationLoading,
+  } = useAuth();
   const { showAlert } = useAlert();
   const { language, isRTL, direction, setLanguage } = useLocale();
   const [mode, setMode] = useState<AuthMode>('login');
@@ -126,13 +129,6 @@ export default function LoginScreen() {
       };
 
   useEffect(() => {
-    if (!initialized) return;
-    // Access routing is handled globally in app/_layout.tsx using the subscription session.
-    // Avoid redirect loops from stale auth state here.
-    return;
-  }, [initialized]);
-
-  useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -142,13 +138,10 @@ export default function LoginScreen() {
       showAlert(copy.error, copy.fillAll);
       return;
     }
-    const { error, user: authUser } = await signInWithPassword(email.trim(), password);
+    const { error } = await loginWithPassword(email.trim(), password);
     if (error) {
       showAlert(copy.loginFailed, error);
       return;
-    }
-    if (authUser) {
-      router.replace('/(tabs)');
     }
   };
 
@@ -181,13 +174,10 @@ export default function LoginScreen() {
       showAlert(copy.error, copy.verificationCode);
       return;
     }
-    const { error, user: authUser } = await verifyOTPAndLogin(email.trim(), otp.trim(), { password });
+    const { error } = await verifyOTPAndLogin(email.trim(), otp.trim(), { password });
     if (error) {
       showAlert(copy.verificationFailed, error);
       return;
-    }
-    if (authUser) {
-      router.replace('/(tabs)');
     }
   };
 
@@ -198,9 +188,12 @@ export default function LoginScreen() {
     }
     setSubscriptionLoading(true);
     try {
-      await subscriptions.validateSubscriptionCode(subscriptionCode.trim());
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      router.replace('/(tabs)');
+      const { error } = await loginWithSubscriptionCode(subscriptionCode.trim());
+      if (error) {
+        showAlert(copy.subscriptionFailed, error);
+        return;
+      }
+      setSubscriptionCode('');
     } catch (error: any) {
       showAlert(copy.subscriptionFailed, error?.message || 'Invalid subscription code.');
     } finally {
