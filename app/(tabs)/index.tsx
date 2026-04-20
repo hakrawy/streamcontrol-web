@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { FlashList } from '@shopify/flash-list';
 import { theme } from '../../constants/theme';
 import { config } from '../../constants/config';
 import { useAppContext } from '../../contexts/AppContext';
@@ -461,12 +462,13 @@ export default function HomeScreen() {
 }
 
 function HorizontalShelf({ children, isRTL }: { children: ReactNode; isRTL: boolean }) {
-  const railRef = useRef<ScrollView>(null);
+  const items = React.Children.toArray(children);
+  const railRef = useRef<FlashList<ReactNode>>(null);
   const currentOffset = useRef(0);
 
   const scrollBy = (direction: 1 | -1) => {
-    railRef.current?.scrollTo({
-      x: Math.max(0, currentOffset.current + direction * 260),
+    railRef.current?.scrollToOffset({
+      offset: Math.max(0, currentOffset.current + direction * 260),
       animated: true,
     });
   };
@@ -476,20 +478,20 @@ function HorizontalShelf({ children, isRTL }: { children: ReactNode; isRTL: bool
       <Pressable style={[styles.railArrow, styles.railArrowLeft]} onPress={() => scrollBy(isRTL ? 1 : -1)}>
         <MaterialIcons name={isRTL ? 'chevron-right' : 'chevron-left'} size={22} color="#FFF" />
       </Pressable>
-      <ScrollView
+      <FlashList
         ref={railRef}
+        data={items}
         horizontal
+        estimatedItemSize={180}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rowContainer}
         decelerationRate="fast"
-        snapToAlignment="start"
         onScroll={(event) => {
           currentOffset.current = event.nativeEvent.contentOffset.x;
         }}
         scrollEventThrottle={16}
-      >
-        {children}
-      </ScrollView>
+        renderItem={({ item }) => <>{item}</>}
+      />
       <Pressable style={[styles.railArrow, styles.railArrowRight]} onPress={() => scrollBy(isRTL ? -1 : 1)}>
         <MaterialIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color="#FFF" />
       </Pressable>
