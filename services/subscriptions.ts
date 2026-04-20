@@ -28,6 +28,7 @@ export interface SubscriptionSession {
 
 const CODES_SETTING_KEY = 'subscription_codes';
 const SESSION_KEY = 'subscription_session';
+const SESSION_MAX_HOURS = 12;
 const supabase = getSupabaseClient();
 
 function id(prefix = 'sub') {
@@ -213,7 +214,9 @@ export async function validateSubscriptionCode(rawCode: string) {
   if (status === 'expired') throw new Error('Subscription code is expired or fully used.');
 
   const startedAt = new Date();
-  const expiresAt = new Date(startedAt.getTime() + match.durationDays * 24 * 60 * 60 * 1000);
+  const codeExpiry = new Date(startedAt.getTime() + match.durationDays * 24 * 60 * 60 * 1000);
+  const hardExpiry = new Date(startedAt.getTime() + SESSION_MAX_HOURS * 60 * 60 * 1000);
+  const expiresAt = new Date(Math.min(codeExpiry.getTime(), hardExpiry.getTime()));
   const session: SubscriptionSession = {
     sessionId: id('session'),
     codeId: match.id,
@@ -262,6 +265,12 @@ export async function getSubscriptionSession() {
   try {
     const session = JSON.parse(raw) as SubscriptionSession;
     if (new Date(session.expiresAt).getTime() < Date.now()) {
+      await AsyncStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    const codes = await fetchSubscriptionCodes();
+    const match = codes.find((code) => normalizeCode(code.code) === normalizeCode(session.code));
+    if (!match || effectiveStatus(match) !== 'active') {
       await AsyncStorage.removeItem(SESSION_KEY);
       return null;
     }
