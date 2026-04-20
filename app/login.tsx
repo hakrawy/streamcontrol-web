@@ -126,10 +126,11 @@ export default function LoginScreen() {
       };
 
   useEffect(() => {
-    if (initialized && user) {
-      router.replace('/(tabs)');
-    }
-  }, [initialized, router, user]);
+    if (!initialized) return;
+    // Access routing is handled globally in app/_layout.tsx using the subscription session.
+    // Avoid redirect loops from stale auth state here.
+    return;
+  }, [initialized]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
