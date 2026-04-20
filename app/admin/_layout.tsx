@@ -1,35 +1,19 @@
-import { ActivityIndicator, View, Pressable, Text } from 'react-native';
+import { ActivityIndicator, View, Pressable, Text, StyleSheet } from 'react-native';
 import { Redirect, Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/template';
 import { useAppContext } from '../../contexts/AppContext';
 import { theme } from '../../constants/theme';
 import { useLocale } from '../../contexts/LocaleContext';
 import { MaterialIcons } from '@expo/vector-icons';
+import { AdminPageShell } from '../../components/AdminPageShell';
 
-// ── Persistent "Back to App" button in every admin page header ────────────────
 function HeaderHomeBtn() {
   const router = useRouter();
   const { language } = useLocale();
   return (
-    <Pressable
-      onPress={() => router.replace('/(tabs)')}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 8,
-        backgroundColor: 'rgba(99,102,241,0.12)',
-        borderWidth: 1,
-        borderColor: 'rgba(99,102,241,0.28)',
-        marginLeft: 8,
-      }}
-    >
+    <Pressable onPress={() => router.replace('/(tabs)')} style={styles.homeBtn}>
       <MaterialIcons name="home" size={18} color={theme.primary} />
-      <Text style={{ fontSize: 12, fontWeight: '700', color: theme.primary, letterSpacing: 0.2 }}>
-        {language === 'Arabic' ? 'الرئيسية' : 'Home'}
-      </Text>
+      <Text style={styles.homeBtnText}>{language === 'Arabic' ? 'الرئيسية' : 'Home'}</Text>
     </Pressable>
   );
 }
@@ -75,9 +59,15 @@ export default function AdminLayout() {
 
   if (authLoading || !initialized || userDataLoading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
+      <AdminPageShell
+        title={language === 'Arabic' ? 'جاري التحميل' : 'Loading'}
+        subtitle={language === 'Arabic' ? 'يتم تجهيز لوحة الإدارة' : 'Preparing the admin console'}
+        icon="admin-panel-settings"
+      >
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="large" color={theme.primary} />
+        </View>
+      </AdminPageShell>
     );
   }
 
@@ -90,12 +80,11 @@ export default function AdminLayout() {
     <Stack
       screenOptions={{
         headerShown: true,
-        headerStyle: { backgroundColor: theme.background },
+        headerStyle: { backgroundColor: 'rgba(9,13,24,0.96)' },
         headerTintColor: '#FFF',
-        headerTitleStyle: { fontWeight: '700', fontSize: 16 },
+        headerTitleStyle: { fontWeight: '800', fontSize: 16 },
         contentStyle: { backgroundColor: theme.background },
         headerShadowVisible: false,
-        // Default home button for all screens
         headerLeft: () => <HeaderHomeBtn />,
       }}
     >
@@ -117,3 +106,30 @@ export default function AdminLayout() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  homeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(56,189,248,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(125,211,252,0.22)',
+    marginLeft: 8,
+  },
+  homeBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: theme.primary,
+    letterSpacing: 0.2,
+  },
+  loaderWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 80,
+  },
+});
