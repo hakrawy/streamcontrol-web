@@ -391,7 +391,13 @@ export default function LoginScreen() {
                   <Text style={styles.switchText}>{copy.goBack}</Text>
                 </Pressable>
               ) : mode === 'subscription' ? (
-                <Pressable onPress={() => setMode('login')} style={styles.switchBtn}>
+                <Pressable
+                  onPress={() => {
+                    setSubscriptionCode('');
+                    setMode('login');
+                  }}
+                  style={styles.switchBtn}
+                >
                   <Text style={styles.switchText}>{copy.goBack}</Text>
                 </Pressable>
               ) : (
