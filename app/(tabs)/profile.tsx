@@ -13,6 +13,7 @@ import { getPreferences } from '../../services/preferences';
 import { useLocale } from '../../contexts/LocaleContext';
 import { localizePreferenceValue } from '../../constants/i18n';
 import { CinematicBackdrop } from '../../components/CinematicUI';
+import * as subscriptions from '../../services/subscriptions';
 
 interface SettingsItem { id: string; icon: string; label: string; subtitle?: string; color?: string; chevron?: boolean; slug?: string }
 
@@ -105,7 +106,9 @@ export default function ProfileScreen() {
     showAlert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: async () => {
-        const { error } = await logout();
+        const { error } = await logout().catch((err: any) => ({ error: err?.message || 'Logout failed' }));
+        await subscriptions.clearSubscriptionSession().catch(() => null);
+        router.replace('/login');
         if (error) showAlert('Error', error);
       }},
     ]);
