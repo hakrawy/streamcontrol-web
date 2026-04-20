@@ -17,8 +17,9 @@ export function AdminPageShell({
 }) {
   return (
     <View style={styles.shell}>
-      <LinearGradient colors={['rgba(99,102,241,0.16)', 'rgba(34,211,238,0.08)', 'rgba(10,10,15,0)']} style={styles.wash} pointerEvents="none" />
+      <LinearGradient colors={['rgba(56,189,248,0.16)', 'rgba(245,158,11,0.08)', 'rgba(5,7,13,0)']} style={styles.wash} pointerEvents="none" />
       <View style={styles.glow} pointerEvents="none" />
+      <View style={styles.glowTwo} pointerEvents="none" />
       <View style={styles.header}>
         <View style={styles.icon}>
           <MaterialIcons name={icon} size={24} color="#FFF" />
@@ -36,9 +37,10 @@ export function AdminPageShell({
 const styles = StyleSheet.create({
   shell: { flex: 1, backgroundColor: theme.background, overflow: 'hidden' },
   wash: { position: 'absolute', top: 0, left: 0, right: 0, height: 240 },
-  glow: { position: 'absolute', top: -130, right: -120, width: 340, height: 340, borderRadius: 170, backgroundColor: 'rgba(34,211,238,0.10)' },
-  header: { marginHorizontal: 16, marginTop: 14, marginBottom: 12, padding: 16, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(26,26,38,0.74)', flexDirection: 'row', gap: 12, alignItems: 'center' },
-  icon: { width: 50, height: 50, borderRadius: 17, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#FFF', fontSize: 23, fontWeight: '900', letterSpacing: -0.4 },
+  glow: { position: 'absolute', top: -130, right: -120, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(56,189,248,0.10)' },
+  glowTwo: { position: 'absolute', bottom: -150, left: -110, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(245,158,11,0.08)' },
+  header: { marginHorizontal: 16, marginTop: 14, marginBottom: 12, padding: 16, borderRadius: 26, borderWidth: 1, borderColor: 'rgba(125,211,252,0.12)', backgroundColor: 'rgba(17,24,39,0.76)', flexDirection: 'row', gap: 12, alignItems: 'center' },
+  icon: { width: 52, height: 52, borderRadius: 18, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOpacity: 0.32, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
+  title: { color: '#F8FAFC', fontSize: 24, fontWeight: '900', letterSpacing: -0.4 },
   subtitle: { color: theme.textSecondary, fontSize: 12, marginTop: 4, lineHeight: 18 },
 });

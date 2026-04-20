@@ -12,15 +12,26 @@ export function CinematicBackdrop({ children, style }: { children?: React.ReactN
     <View style={[styles.backdrop, style]}>
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(34,211,238,0.10)', 'rgba(99,102,241,0.08)', 'rgba(10,10,15,0)']}
+        colors={['rgba(56,189,248,0.12)', 'rgba(245,158,11,0.06)', 'rgba(5,7,13,0)']}
         style={styles.topWash}
       />
       {!perf.lowPowerVisuals ? (
         <>
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(56,189,248,0.10)', 'rgba(56,189,248,0)', 'rgba(5,7,13,0)']}
+            style={styles.rightWash}
+          />
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(245,158,11,0.10)', 'rgba(245,158,11,0)', 'rgba(5,7,13,0)']}
+            style={styles.leftWash}
+          />
           <View pointerEvents="none" style={styles.glowA} />
           <View pointerEvents="none" style={styles.glowB} />
         </>
       ) : null}
+      <View pointerEvents="none" style={styles.noiseGrid} />
       {children}
     </View>
   );
@@ -90,21 +101,46 @@ export function GlassButton({
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: theme.background, overflow: 'hidden' },
-  topWash: { position: 'absolute', top: 0, left: 0, right: 0, height: 260 },
-  glowA: { position: 'absolute', top: -120, right: -70, width: 320, height: 320, borderRadius: 160, backgroundColor: 'rgba(34,211,238,0.13)' },
-  glowB: { position: 'absolute', bottom: 120, left: -120, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(99,102,241,0.11)' },
-  headerCard: { marginHorizontal: 16, marginTop: 8, marginBottom: 12, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(26,26,38,0.72)', padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center' },
-  headerIcon: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.primary },
-  eyebrow: { color: '#A7F3D0', fontSize: 11, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  headerTitle: { color: '#FFF', fontSize: 26, fontWeight: '900', letterSpacing: -0.7 },
-  headerSubtitle: { color: theme.textSecondary, fontSize: 13, marginTop: 4 },
+  topWash: { position: 'absolute', top: 0, left: 0, right: 0, height: 240 },
+  rightWash: { position: 'absolute', top: 0, right: -80, width: 280, height: '100%', opacity: 0.55 },
+  leftWash: { position: 'absolute', bottom: 0, left: -90, width: 260, height: '100%', opacity: 0.45 },
+  glowA: { position: 'absolute', top: -110, right: -70, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(56,189,248,0.12)' },
+  glowB: { position: 'absolute', bottom: 120, left: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(245,158,11,0.08)' },
+  noiseGrid: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.06,
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+  },
+  headerCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 14,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(125,211,252,0.14)',
+    backgroundColor: 'rgba(17,24,39,0.74)',
+    padding: 16,
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  headerIcon: { width: 56, height: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.primary, shadowColor: theme.primary, shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
+  eyebrow: { color: '#A5F3FC', fontSize: 11, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  headerTitle: { color: '#F8FAFC', fontSize: 27, fontWeight: '900', letterSpacing: -0.8 },
+  headerSubtitle: { color: theme.textSecondary, fontSize: 13, marginTop: 4, lineHeight: 18 },
   skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, paddingTop: 10 },
   skeletonCard: { padding: 6 },
-  skeletonPoster: { aspectRatio: 2 / 3, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  skeletonPoster: { aspectRatio: 2 / 3, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(125,211,252,0.08)' },
   skeletonLineWide: { height: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: 10, width: '80%' },
   skeletonLine: { height: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)', marginTop: 7, width: '54%' },
-  glassButton: { minHeight: 38, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  glassButton: { minHeight: 40, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(125,211,252,0.14)', backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   glassButtonActive: { backgroundColor: theme.primary, borderColor: theme.primaryLight },
-  glassButtonText: { color: theme.textSecondary, fontSize: 12, fontWeight: '900' },
+  glassButtonText: { color: theme.textSecondary, fontSize: 12, fontWeight: '900', letterSpacing: 0.2 },
   glassButtonTextActive: { color: '#FFF' },
 });
