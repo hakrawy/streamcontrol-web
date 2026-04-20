@@ -1,21 +1,63 @@
 import React, { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AlertProvider, AuthProvider } from '@/template';
 import { AppProvider } from '../contexts/AppContext';
 import { LocaleProvider, useLocale } from '../contexts/LocaleContext';
 import { PremiumLoader } from '../components/PremiumLoader';
+import * as subscriptions from '../services/subscriptions';
 
 function AppShell() {
   const { direction } = useLocale();
+  const router = useRouter();
+  const pathname = usePathname();
   const [booting, setBooting] = useState(true);
+  const [accessReady, setAccessReady] = useState(false);
+  const [subscriptionSession, setSubscriptionSession] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setBooting(false), 850);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const verifyAccess = async () => {
+      try {
+        const session = await subscriptions.getSubscriptionSession();
+        if (cancelled) return;
+        setSubscriptionSession(session ? session.sessionId : null);
+      } finally {
+        if (!cancelled) setAccessReady(true);
+      }
+    };
+
+    void verifyAccess();
+    const interval = setInterval(() => {
+      void verifyAccess();
+    }, 5 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!accessReady) return;
+    const onLoginRoute = pathname === '/login';
+
+    if (!subscriptionSession && !onLoginRoute) {
+      router.replace('/login');
+      return;
+    }
+
+    if (subscriptionSession && onLoginRoute) {
+      router.replace('/(tabs)');
+    }
+  }, [accessReady, pathname, router, subscriptionSession]);
 
   return (
     <View style={{ flex: 1, direction }}>
@@ -99,7 +141,7 @@ function AppShell() {
         <Stack.Screen name="settings/[slug]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="admin" />
       </Stack>
-      {booting ? <PremiumLoader /> : null}
+      {booting || !accessReady ? <PremiumLoader /> : null}
     </View>
   );
 }
