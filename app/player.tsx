@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -280,7 +280,7 @@ function SourceSelector({
             </Text>
             {source.addon || source.quality ? (
               <Text style={[styles.sourceChipMeta, activeIndex === index && styles.sourceChipMetaActive]}>
-                {[source.addon, source.quality].filter(Boolean).join(' • ')}
+                {[source.addon, source.quality].filter(Boolean).join(' â€¢ ')}
               </Text>
             ) : null}
           </Pressable>
@@ -721,7 +721,7 @@ function WebDirectPlayer({
         {isBuffering ? (
           <View style={styles.bufferingWrap}>
             <ActivityIndicator size="large" color="#FFF" />
-            <Text style={styles.bufferingText}>Optimizing playback…</Text>
+            <Text style={styles.bufferingText}>Optimizing playbackâ€¦</Text>
           </View>
         ) : null}
       </Pressable>
@@ -965,7 +965,7 @@ function WebDirectPlayer({
             {activeSource?.inspection ? (
               <Text style={styles.helperText}>
                 {mapInspectionToUserMessage(activeSource.inspection)}
-                {activeSource.inspection.httpStatus ? ` • HTTP ${activeSource.inspection.httpStatus}` : ''}
+                {activeSource.inspection.httpStatus ? ` â€¢ HTTP ${activeSource.inspection.httpStatus}` : ''}
               </Text>
             ) : null}
 
@@ -1647,14 +1647,14 @@ function PlayerScreen() {
   const sourceHealthMeta = getSourceHealthMeta(activeSource);
   const sourceIndicatorLabel = [activeSource?.addon || activeSource?.server || activeSource?.label, activeSource?.quality || null]
     .filter(Boolean)
-    .join(' • ');
+    .join(' â€¢ ');
 
   const effectiveSourceIndicatorLabel = [
     sourceIndicatorLabel,
     activeSource?.inspection ? mapInspectionToUserMessage(activeSource.inspection) : null,
   ]
     .filter(Boolean)
-    .join(' • ');
+    .join(' â€¢ ');
 
   const appendDiagnostic = useCallback((diagnostic: PlaybackSourceDiagnostic) => {
     setDiagnostics((current) => [...current.slice(-29), diagnostic]);
@@ -1988,7 +1988,7 @@ function PlayerScreen() {
     return (
       <View style={styles.unsupportedContainer}>
         <StatusBar hidden />
-        <ActivityIndicator size="large" color="#6366F1" />
+        <ActivityIndicator size="large" color="#38BDF8" />
         <Text style={styles.unsupportedTitle}>Starting Stream</Text>
         <View style={{ gap: 4, alignItems: 'center' }}>
           {preflightLogs.map((log, i) => (
@@ -2097,31 +2097,31 @@ function PlayerScreen() {
 const styles = StyleSheet.create({
   settingsMenu: {
     position: 'absolute',
-    top: 80,
+    top: 82,
     right: 16,
-    backgroundColor: 'rgba(26,26,38,0.98)',
-    borderRadius: 16,
+    backgroundColor: 'rgba(8,12,20,0.96)',
+    borderRadius: 22,
     padding: 16,
     zIndex: 2000,
     width: 280,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.08)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 24,
   },
   settingsGroup: { gap: 8 },
   settingsTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(173,216,255,0.85)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   settingsDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 12 },
-  settingsRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  settingsRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 12 },
   settingsRowText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
 
   container: { flex: 1, backgroundColor: '#000' },
@@ -2131,49 +2131,51 @@ const styles = StyleSheet.create({
 
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.34)',
+    backgroundColor: 'rgba(4,7,13,0.38)',
     justifyContent: 'space-between',
     zIndex: 1000,
-    elevation: 12,
+    elevation: 16,
   },
   embeddedOverlay: { backgroundColor: 'transparent' },
 
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, gap: 12, zIndex: 1500, elevation: 16 },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, gap: 12, zIndex: 1500, elevation: 16 },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   titleWrap: { flex: 1 },
-  titleText: { fontSize: 17, fontWeight: '800', color: '#FFF' },
-  sourceStatusText: { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
+  titleText: { fontSize: 17, fontWeight: '800', color: '#FFF', letterSpacing: -0.2 },
+  sourceStatusText: { fontSize: 12, color: 'rgba(219,234,254,0.75)', marginTop: 2 },
 
   topBarBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topBarBtnActive: { backgroundColor: 'rgba(99,102,241,0.9)' },
+  topBarBtnActive: { backgroundColor: theme.primary },
   speedText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
 
   sourcesSheet: {
-    backgroundColor: 'rgba(9,13,24,0.96)',
-    borderRadius: 22,
+    backgroundColor: 'rgba(8,12,20,0.96)',
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     padding: 16,
     gap: 12,
   },
   sourcesSheetHeader: { gap: 4 },
-  sourcesSheetEyebrow: { fontSize: 11, fontWeight: '800', color: '#A5B4FC', letterSpacing: 1.2 },
+  sourcesSheetEyebrow: { fontSize: 11, fontWeight: '800', color: '#7DD3FC', letterSpacing: 1.2 },
   sourcesSheetTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   sourcesSheetSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.64)' },
   sourcesRow: { gap: 8, paddingRight: 16 },
@@ -2181,22 +2183,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  sourceChipActive: { backgroundColor: '#FFF', borderColor: '#FFF' },
+  sourceChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   sourceChipText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
-  sourceChipTextActive: { color: '#000' },
+  sourceChipTextActive: { color: '#001018' },
   sourceChipMeta: { fontSize: 10, color: 'rgba(255,255,255,0.68)', marginTop: 2 },
-  sourceChipMetaActive: { color: 'rgba(0,0,0,0.6)' },
+  sourceChipMetaActive: { color: 'rgba(0,0,0,0.65)' },
 
   speedMenu: {
     position: 'absolute',
     top: 80,
     right: 16,
-    backgroundColor: 'rgba(26,26,38,0.95)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(8,12,20,0.96)',
+    borderRadius: 18,
     padding: 8,
     zIndex: 2000,
     elevation: 20,
@@ -2208,21 +2210,21 @@ const styles = StyleSheet.create({
 
   centerControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 48 },
   seekBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   disabledControl: { opacity: 0.4 },
   playPauseBtn: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: theme.primary,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2230,20 +2232,20 @@ const styles = StyleSheet.create({
   bottomBar: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
   progressContainer: { marginBottom: 8 },
   progressTrack: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 2,
+    height: 5,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 999,
     overflow: 'visible',
   },
-  progressFill: { height: 4, backgroundColor: theme.primary, borderRadius: 2 },
+  progressFill: { height: 5, backgroundColor: theme.primary, borderRadius: 999 },
   progressThumb: {
     position: 'absolute',
-    top: -5,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    top: -6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: theme.primary,
-    marginLeft: -7,
+    marginLeft: -8,
   },
   timeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   timeText: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
@@ -2289,7 +2291,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     maxWidth: 260,
   },
@@ -2306,10 +2308,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(5,7,13,0.9)',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.5)',
     maxWidth: '80%',
@@ -2324,11 +2326,12 @@ const styles = StyleSheet.create({
     minWidth: 160,
     paddingHorizontal: 18,
     paddingVertical: 14,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(5,7,13,0.62)',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   bufferingText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
 });
+
