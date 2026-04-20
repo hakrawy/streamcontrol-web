@@ -1,41 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Platform, View } from 'react-native';
-import { Stack, usePathname, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AlertProvider, AuthProvider, useAuth } from '@/template';
+import { AlertProvider, AuthProvider } from '@/template';
 import { AppProvider } from '../contexts/AppContext';
 import { LocaleProvider, useLocale } from '../contexts/LocaleContext';
-
-function RouteGate() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { isAuthenticated, authLoading, initialized } = useAuth();
-  const [bootstrapTimeoutReached, setBootstrapTimeoutReached] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setBootstrapTimeoutReached(true), 1800);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const isLoginRoute = pathname === '/login' || pathname?.startsWith('/login/');
-  const isReady = (initialized && !authLoading) || bootstrapTimeoutReached;
-
-  useEffect(() => {
-    if (!isReady) return;
-
-    if (!isAuthenticated && !isLoginRoute) {
-      router.replace('/login');
-      return;
-    }
-
-    if (isAuthenticated && isLoginRoute) {
-      router.replace('/(tabs)');
-    }
-  }, [isAuthenticated, isLoginRoute, isReady, router]);
-
-  return null;
-}
 
 function AppShell() {
   const { direction } = useLocale();
@@ -43,17 +13,11 @@ function AppShell() {
   return (
     <View style={{ flex: 1, direction }}>
       <StatusBar style="light" />
-      {/* Global web max-width centering wrapper */}
       {Platform.OS === 'web' && (
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&display=swap');
-          :root {
-            --app-max-width: 1280px;
-            color-scheme: dark;
-          }
-          * {
-            box-sizing: border-box;
-          }
+          :root { --app-max-width: 1280px; color-scheme: dark; }
+          * { box-sizing: border-box; }
           html, body {
             overflow-x: hidden;
             background-color: #05070D;
@@ -63,43 +27,25 @@ function AppShell() {
               linear-gradient(180deg, #05070D 0%, #060A12 55%, #05070D 100%);
             font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
           }
-          * {
-            scroll-behavior: smooth;
-          }
+          * { scroll-behavior: smooth; }
           body {
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: geometricPrecision;
             overscroll-behavior: none;
           }
-          ::selection {
-            background: rgba(56,189,248,0.32);
-          }
-          ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
-          }
-          ::-webkit-scrollbar-track {
-            background: rgba(15,23,42,0.35);
-          }
+          ::selection { background: rgba(56,189,248,0.32); }
+          ::-webkit-scrollbar { width: 10px; height: 10px; }
+          ::-webkit-scrollbar-track { background: rgba(15,23,42,0.35); }
           ::-webkit-scrollbar-thumb {
             background: linear-gradient(180deg, rgba(56,189,248,0.85), rgba(245,158,11,0.72));
             border-radius: 999px;
             border: 2px solid rgba(10,10,15,0.8);
           }
-          a {
-            color: inherit;
-            text-decoration: none;
-          }
-          button, [role="button"] {
-            transition: transform 160ms ease, opacity 160ms ease, filter 160ms ease;
-          }
-          button:active, [role="button"]:active {
-            transform: scale(0.985);
-          }
-          input[type=range]:focus {
-            outline: none;
-          }
+          a { color: inherit; text-decoration: none; }
+          button, [role="button"] { transition: transform 160ms ease, opacity 160ms ease, filter 160ms ease; }
+          button:active, [role="button"]:active { transform: scale(0.985); }
+          input[type=range]:focus { outline: none; }
         `}</style>
       )}
       <Stack
@@ -118,7 +64,6 @@ function AppShell() {
         <Stack.Screen name="settings/[slug]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="admin" />
       </Stack>
-      <RouteGate />
     </View>
   );
 }
