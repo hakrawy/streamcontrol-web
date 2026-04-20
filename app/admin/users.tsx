@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
+import { AdminPageShell } from '../../components/AdminPageShell';
 
 export default function AdminUsers() {
   const insets = useSafeAreaInsets();
@@ -28,12 +29,13 @@ export default function AdminUsers() {
     ]);
   };
 
-  if (loading) return <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
+  if (loading) return <AdminPageShell title="Users" subtitle="Loading account controls" icon="people"><View style={[styles.center]}><ActivityIndicator size="large" color={theme.primary} /></View></AdminPageShell>;
 
   const adminUsers = users.filter(u => u.role === 'admin');
   const regularUsers = users.filter(u => u.role !== 'admin');
 
   return (
+    <AdminPageShell title="Users" subtitle="Manage roles, admins, and access safely" icon="people">
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
       <View style={styles.summaryRow}>
         <View style={[styles.summaryCard, { borderLeftColor: theme.accent }]}>
@@ -71,11 +73,13 @@ export default function AdminUsers() {
         </Animated.View>
       ))}
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   summaryCard: { flex: 1, backgroundColor: theme.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: theme.border, borderLeftWidth: 3, gap: 4 },
   summaryValue: { fontSize: 22, fontWeight: '800', color: '#FFF' },
