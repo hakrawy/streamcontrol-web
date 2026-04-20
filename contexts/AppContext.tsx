@@ -39,7 +39,7 @@ const HOME_CACHE_KEY = 'cinematic-home-cache-v2';
 const HOME_CACHE_MAX_AGE_MS = 10 * 60 * 1000;
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { currentUser, authMethod } = useAuth();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [trendingMovies, setTrendingMovies] = useState<ContentItem[]>([]);
   const [featuredMovies, setFeaturedMovies] = useState<ContentItem[]>([]);
@@ -112,7 +112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setBanners(bannersData);
       applyViewerCounts(movies, series, channelsData, viewerCounts);
       setActiveRooms(rooms);
-      const nextDynamicSections = await api.fetchDynamicHomeSections(user?.id).catch(() => []);
+      const nextDynamicSections = await api.fetchDynamicHomeSections(currentUser?.id).catch(() => []);
       setDynamicSections(nextDynamicSections);
       await AsyncStorage.setItem(HOME_CACHE_KEY, JSON.stringify({
         storedAt: Date.now(),
@@ -128,10 +128,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [applyViewerCounts, user?.id]);
+  }, [applyViewerCounts, currentUser?.id]);
 
   const loadUserData = useCallback(async () => {
-    if (!user?.id) {
+    if (!currentUser?.id || authMethod === 'subscription') {
       setFavorites([]);
       setWatchHistory([]);
       setUserRole('user');
@@ -142,8 +142,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       setUserDataLoading(true);
       const [favData, historyData] = await Promise.all([
-        api.fetchFavorites(user.id),
-        api.fetchWatchHistory(user.id),
+        api.fetchFavorites(currentUser.id),
+        api.fetchWatchHistory(currentUser.id),
       ]);
       setFavorites(favData.map(f => f.content_id));
       setWatchHistory(historyData);
@@ -151,14 +151,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Check user role
       const { getSupabaseClient } = await import('@/template');
       const supabase = getSupabaseClient();
-      const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single();
+      const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', currentUser.id).single();
       if (profile?.role) setUserRole(profile.role);
     } catch (err) {
       console.error('Failed to load user data:', err);
     } finally {
       setUserDataLoading(false);
     }
-  }, [user?.id]);
+  }, [authMethod, currentUser?.id]);
 
   const refreshViewerCounts = useCallback(async () => {
     try {
@@ -191,35 +191,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [allMovies.length, allSeries.length, channels.length, refreshViewerCounts]);
 
   const addToFavorites = useCallback(async (contentId: string, contentType: 'movie' | 'series') => {
-    if (!user?.id) return;
+    if (!currentUser?.id || authMethod === 'subscription') return;
     setFavorites(prev => [...prev, contentId]);
     try {
-      await api.addFavorite(user.id, contentId, contentType);
+      await api.addFavorite(currentUser.id, contentId, contentType);
     } catch {
       setFavorites(prev => prev.filter(id => id !== contentId));
     }
-  }, [user?.id]);
+  }, [authMethod, currentUser?.id]);
 
   const removeFromFavorites = useCallback(async (contentId: string) => {
-    if (!user?.id) return;
+    if (!currentUser?.id || authMethod === 'subscription') return;
     setFavorites(prev => prev.filter(id => id !== contentId));
     try {
-      await api.removeFavorite(user.id, contentId);
+      await api.removeFavorite(currentUser.id, contentId);
     } catch {
       setFavorites(prev => [...prev, contentId]);
     }
-  }, [user?.id]);
+  }, [authMethod, currentUser?.id]);
 
   const isFavorite = useCallback((contentId: string) => favorites.includes(contentId), [favorites]);
 
   const updateWatchProgress = useCallback(async (contentId: string, contentType: 'movie' | 'episode', progress: number, duration: number) => {
-    if (!user?.id) return;
+    if (!currentUser?.id || authMethod === 'subscription') return;
     try {
-      await api.upsertWatchHistory(user.id, contentId, contentType, progress, duration);
+      await api.upsertWatchHistory(currentUser.id, contentId, contentType, progress, duration);
     } catch (err) {
       console.error('Failed to update watch progress:', err);
     }
-  }, [user?.id]);
+  }, [authMethod, currentUser?.id]);
 
   return (
     <AppContext.Provider value={{
