@@ -1,25 +1,25 @@
 import { Platform } from 'react-native';
 
 export const theme = {
-  // Core Colors - Dark Premium Cinema
-  primary: '#6366F1',
-  primaryLight: '#818CF8',
-  primaryDark: '#4F46E5',
+  // Core Colors - Midnight Cinema / Neon Glass
+  primary: '#38BDF8',
+  primaryLight: '#7DD3FC',
+  primaryDark: '#0284C7',
   accent: '#F59E0B',
   accentLight: '#FBBF24',
 
   // Backgrounds
-  background: '#0A0A0F',
-  backgroundSecondary: '#12121A',
-  surface: '#1A1A26',
-  surfaceLight: '#22222E',
-  surfaceHighlight: '#2A2A38',
+  background: '#05070D',
+  backgroundSecondary: '#0C1220',
+  surface: '#111827',
+  surfaceLight: '#172033',
+  surfaceHighlight: '#1E2A44',
 
   // Text
-  textPrimary: '#FFFFFF',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
-  textAccent: '#818CF8',
+  textPrimary: '#F8FAFC',
+  textSecondary: '#B6C2D1',
+  textMuted: '#748197',
+  textAccent: '#7DD3FC',
 
   // Status
   success: '#10B981',
@@ -29,40 +29,40 @@ export const theme = {
   live: '#EF4444',
 
   // Borders
-  border: '#2A2A38',
-  borderLight: '#374151',
+  border: '#243045',
+  borderLight: '#334155',
 
   // Gradients
-  gradientPrimary: ['#6366F1', '#4F46E5'] as const,
+  gradientPrimary: ['#38BDF8', '#0EA5E9'] as const,
   gradientAccent: ['#F59E0B', '#D97706'] as const,
-  gradientDark: ['rgba(10,10,15,0)', 'rgba(10,10,15,0.8)', '#0A0A0F'] as const,
-  gradientHero: ['transparent', 'rgba(10,10,15,0.6)', '#0A0A0F'] as const,
-  gradientCard: ['rgba(26,26,38,0.8)', 'rgba(26,26,38,0.95)'] as const,
+  gradientDark: ['rgba(5,7,13,0)', 'rgba(5,7,13,0.78)', '#05070D'] as const,
+  gradientHero: ['transparent', 'rgba(5,7,13,0.56)', '#05070D'] as const,
+  gradientCard: ['rgba(17,24,39,0.82)', 'rgba(17,24,39,0.96)'] as const,
 
   // Typography
   typography: {
-    heroTitle: { fontSize: 28, fontWeight: '700' as const, color: '#FFFFFF', letterSpacing: -0.5 },
-    heroSubtitle: { fontSize: 14, fontWeight: '500' as const, color: '#9CA3AF' },
-    sectionTitle: { fontSize: 18, fontWeight: '700' as const, color: '#FFFFFF', letterSpacing: -0.3 },
-    cardTitle: { fontSize: 14, fontWeight: '600' as const, color: '#FFFFFF' },
-    cardSubtitle: { fontSize: 12, fontWeight: '400' as const, color: '#9CA3AF' },
-    body: { fontSize: 15, fontWeight: '400' as const, color: '#FFFFFF' },
-    bodySecondary: { fontSize: 14, fontWeight: '400' as const, color: '#9CA3AF' },
-    caption: { fontSize: 12, fontWeight: '400' as const, color: '#6B7280' },
+    heroTitle: { fontSize: 30, fontWeight: '800' as const, color: '#F8FAFC', letterSpacing: -0.7 },
+    heroSubtitle: { fontSize: 14, fontWeight: '500' as const, color: '#B6C2D1' },
+    sectionTitle: { fontSize: 18, fontWeight: '800' as const, color: '#F8FAFC', letterSpacing: -0.35 },
+    cardTitle: { fontSize: 14, fontWeight: '700' as const, color: '#F8FAFC' },
+    cardSubtitle: { fontSize: 12, fontWeight: '400' as const, color: '#B6C2D1' },
+    body: { fontSize: 15, fontWeight: '400' as const, color: '#F8FAFC' },
+    bodySecondary: { fontSize: 14, fontWeight: '400' as const, color: '#B6C2D1' },
+    caption: { fontSize: 12, fontWeight: '400' as const, color: '#748197' },
     badge: { fontSize: 11, fontWeight: '600' as const, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
     rating: { fontSize: 13, fontWeight: '700' as const, color: '#F59E0B' },
     tabLabel: { fontSize: 11, fontWeight: '600' as const },
-    buttonPrimary: { fontSize: 16, fontWeight: '700' as const, color: '#FFFFFF' },
-    buttonSecondary: { fontSize: 14, fontWeight: '600' as const, color: '#FFFFFF' },
+    buttonPrimary: { fontSize: 16, fontWeight: '800' as const, color: '#FFFFFF' },
+    buttonSecondary: { fontSize: 14, fontWeight: '700' as const, color: '#FFFFFF' },
     detail: {
-      title: { fontSize: 24, fontWeight: '700' as const, color: '#FFFFFF', letterSpacing: -0.5 },
-      meta: { fontSize: 13, fontWeight: '500' as const, color: '#9CA3AF' },
-      description: { fontSize: 15, fontWeight: '400' as const, color: '#D1D5DB', lineHeight: 24 },
-      sectionLabel: { fontSize: 11, fontWeight: '600' as const, color: '#6B7280', textTransform: 'uppercase' as const, letterSpacing: 1 },
+      title: { fontSize: 25, fontWeight: '800' as const, color: '#F8FAFC', letterSpacing: -0.6 },
+      meta: { fontSize: 13, fontWeight: '500' as const, color: '#B6C2D1' },
+      description: { fontSize: 15, fontWeight: '400' as const, color: '#D7E2F0', lineHeight: 24 },
+      sectionLabel: { fontSize: 11, fontWeight: '700' as const, color: '#748197', textTransform: 'uppercase' as const, letterSpacing: 1 },
     },
     player: {
-      timer: { fontSize: 13, fontWeight: '600' as const, color: '#FFFFFF' },
-      title: { fontSize: 16, fontWeight: '600' as const, color: '#FFFFFF' },
+      timer: { fontSize: 13, fontWeight: '700' as const, color: '#F8FAFC' },
+      title: { fontSize: 16, fontWeight: '700' as const, color: '#F8FAFC' },
     },
   },
 
