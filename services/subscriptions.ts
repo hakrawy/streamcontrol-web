@@ -1,7 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSupabaseClient } from '@/template';
 import * as api from './api';
 import { validateSubscriptionCode as validateSubscriptionCodeEdge } from '../src/lib/edgeFunctions';
+import {
+  clearPersistedSubscriptionSession,
+  persistSubscriptionSession,
+  readPersistedSubscriptionSession,
+  type SubscriptionSession,
+} from './authSession';
 
 export type SubscriptionCodeStatus = 'active' | 'disabled' | 'expired';
 
@@ -19,17 +24,7 @@ export interface SubscriptionCode {
   usedBy: Array<{ sessionId: string; usedAt: string; expiresAt: string }>;
 }
 
-export interface SubscriptionSession {
-  sessionId: string;
-  subscriptionId: string;
-  codeId: string;
-  code: string;
-  startedAt: string;
-  expiresAt: string;
-}
-
 const CODES_SETTING_KEY = 'subscription_codes';
-const SESSION_KEY = 'subscription_session';
 const SESSION_MAX_HOURS = 12;
 const supabase = getSupabaseClient();
 
@@ -64,31 +59,6 @@ function effectiveStatus(code: SubscriptionCode): SubscriptionCodeStatus {
   if (code.expiresAt && new Date(code.expiresAt).getTime() < Date.now()) return 'expired';
   if (code.maxUses > 0 && code.usedCount >= code.maxUses) return 'expired';
   return 'active';
-}
-
-function readWebStorageSession() {
-  if (typeof window === 'undefined' || !window.localStorage) return null;
-  return window.localStorage.getItem(SESSION_KEY);
-}
-
-async function readStoredSessionRaw() {
-  const asyncStorageValue = await AsyncStorage.getItem(SESSION_KEY);
-  return asyncStorageValue || readWebStorageSession();
-}
-
-async function persistSession(session: SubscriptionSession) {
-  const payload = JSON.stringify(session);
-  await AsyncStorage.setItem(SESSION_KEY, payload);
-  if (typeof window !== 'undefined' && window.localStorage) {
-    window.localStorage.setItem(SESSION_KEY, payload);
-  }
-}
-
-async function removePersistedSession() {
-  await AsyncStorage.removeItem(SESSION_KEY);
-  if (typeof window !== 'undefined' && window.localStorage) {
-    window.localStorage.removeItem(SESSION_KEY);
-  }
 }
 
 function fromDbCode(row: any): SubscriptionCode {
@@ -250,7 +220,7 @@ export async function validateSubscriptionCode(rawCode: string) {
       startedAt,
       expiresAt,
     };
-    await persistSession(session);
+    await persistSubscriptionSession(session);
     return session;
   } catch {
     // Fallback below keeps the app usable if Edge Functions are temporarily unavailable.
@@ -291,7 +261,7 @@ export async function validateSubscriptionCode(rawCode: string) {
       used_at: startedAt.toISOString(),
       expires_at: expiresAt,
     });
-    await persistSession(session);
+    await persistSubscriptionSession(session);
     return session;
   } catch {
     // Fallback below.
@@ -306,32 +276,14 @@ export async function validateSubscriptionCode(rawCode: string) {
     : code
   );
   await saveCodes(nextCodes).catch(() => null);
-  await persistSession(session);
+  await persistSubscriptionSession(session);
   return session;
 }
 
 export async function getSubscriptionSession() {
-  const raw = await readStoredSessionRaw();
-  if (!raw) return null;
-  try {
-    const session = JSON.parse(raw) as SubscriptionSession;
-    if (new Date(session.expiresAt).getTime() < Date.now()) {
-      await removePersistedSession();
-      return null;
-    }
-    const codes = await fetchSubscriptionCodes();
-    const match = codes.find((code) => normalizeCode(code.code) === normalizeCode(session.code));
-    if (!match || effectiveStatus(match) !== 'active') {
-      await removePersistedSession();
-      return null;
-    }
-    return session;
-  } catch {
-    await removePersistedSession();
-    return null;
-  }
+  return readPersistedSubscriptionSession();
 }
 
 export async function clearSubscriptionSession() {
-  await removePersistedSession();
+  await clearPersistedSubscriptionSession();
 }
