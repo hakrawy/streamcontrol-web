@@ -13,6 +13,8 @@ import { useAppContext } from '../../contexts/AppContext';
 import * as api from '../../services/api';
 import type { ContentItem, Movie, Series, Season, StreamSource } from '../../services/api';
 import PlaybackSourceSheet from '../../components/PlaybackSourceSheet';
+import { PremiumLoader } from '../../components/PremiumLoader';
+import { useAdaptivePerformance } from '../../hooks/useAdaptivePerformance';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BACKDROP_HEIGHT = 380;
@@ -76,6 +78,7 @@ export default function ContentDetailScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
   const { addToFavorites, removeFromFavorites, isFavorite } = useAppContext();
+  const perf = useAdaptivePerformance();
   const previewContent = parsePreviewContent(typeof preview === 'string' ? preview : undefined);
   const [content, setContent] = useState<ContentItem | null>(previewContent);
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -206,7 +209,7 @@ export default function ContentDetailScreen() {
   }, [normalizedSeasons.length, selectedSeason]);
 
   if (loading) {
-    return <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
+    return <View style={styles.container}><PremiumLoader hint="Building an immersive detail page" /></View>;
   }
 
   if (!content) {
@@ -532,7 +535,7 @@ export default function ContentDetailScreen() {
     <View style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
         <View style={{ height: BACKDROP_HEIGHT }}>
-          <Image source={{ uri: safeBackdrop }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
+          <Image source={{ uri: safeBackdrop }} style={StyleSheet.absoluteFill} contentFit="cover" transition={perf.imageTransition} />
           <LinearGradient colors={['rgba(10,10,15,0.2)', 'rgba(10,10,15,0.6)', theme.background]} style={StyleSheet.absoluteFill} locations={[0, 0.5, 1]} />
         </View>
 
@@ -696,7 +699,7 @@ export default function ContentDetailScreen() {
                     <Animated.View key={ep.id} entering={FadeInDown.delay(index * 40).duration(300)} style={styles.episodeCardWrap}>
                       <Pressable style={styles.episodeCard} onPress={() => handlePlayEpisode(ep.stream_url, ep.title, ep.stream_sources || [], ep.subtitle_url)}>
                         <View style={styles.episodeThumbnailWrap}>
-                          <Image source={{ uri: ep.thumbnail || safePoster }} style={styles.episodeThumbnail} contentFit="cover" transition={200} />
+                          <Image source={{ uri: ep.thumbnail || safePoster }} style={styles.episodeThumbnail} contentFit="cover" transition={perf.imageTransition} />
                           <View style={styles.episodePlayOverlay}><MaterialIcons name="play-circle-filled" size={32} color="rgba(255,255,255,0.9)" /></View>
                           <View style={styles.episodeDuration}><Text style={styles.episodeDurationText}>{ep.duration || '—'}</Text></View>
                         </View>
@@ -725,7 +728,7 @@ export default function ContentDetailScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                 {relatedContent.map(item => (
                   <Pressable key={item.id} onPress={() => { Haptics.selectionAsync(); router.push(buildContentRoute(item)); }} style={{ width: 120 }}>
-                    <Image source={{ uri: item.poster || item.backdrop || safePoster }} style={styles.relatedPoster} contentFit="cover" transition={200} />
+                    <Image source={{ uri: item.poster || item.backdrop || safePoster }} style={styles.relatedPoster} contentFit="cover" transition={perf.imageTransition} />
                     <Text style={styles.relatedTitle} numberOfLines={1}>{item.title}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                       <MaterialIcons name="star" size={11} color={theme.accent} /><Text style={styles.relatedRating}>{item.rating}</Text>
