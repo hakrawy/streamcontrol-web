@@ -23,8 +23,10 @@ function AppShell() {
       {/* Global web max-width centering wrapper */}
       {Platform.OS === 'web' && (
         <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&display=swap');
           :root {
             --app-max-width: 1280px;
+            color-scheme: dark;
           }
           * {
             box-sizing: border-box;
@@ -32,7 +34,12 @@ function AppShell() {
           /* Prevent horizontal overflow on mobile */
           html, body {
             overflow-x: hidden;
-            background-color: #0A0A0F;
+            background-color: #05070D;
+            background-image:
+              radial-gradient(circle at top left, rgba(56,189,248,0.14), transparent 32%),
+              radial-gradient(circle at top right, rgba(245,158,11,0.10), transparent 30%),
+              linear-gradient(180deg, #05070D 0%, #060A12 55%, #05070D 100%);
+            font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
           }
           /* Smooth scrolling */
           * {
@@ -46,7 +53,7 @@ function AppShell() {
             overscroll-behavior: none;
           }
           ::selection {
-            background: rgba(99,102,241,0.38);
+            background: rgba(56,189,248,0.32);
           }
           ::-webkit-scrollbar {
             width: 10px;
@@ -56,9 +63,13 @@ function AppShell() {
             background: rgba(15,23,42,0.35);
           }
           ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, rgba(99,102,241,0.8), rgba(34,211,238,0.65));
+            background: linear-gradient(180deg, rgba(56,189,248,0.85), rgba(245,158,11,0.72));
             border-radius: 999px;
             border: 2px solid rgba(10,10,15,0.8);
+          }
+          a {
+            color: inherit;
+            text-decoration: none;
           }
           button, [role="button"] {
             transition: transform 160ms ease, opacity 160ms ease, filter 160ms ease;
