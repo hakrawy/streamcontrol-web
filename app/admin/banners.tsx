@@ -9,6 +9,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import type { Banner } from '../../services/api';
+import { AdminPageShell } from '../../components/AdminPageShell';
 
 const emptyForm = {
   title: '', subtitle: '', backdrop: '', badge: '', content_id: '', content_type: 'movie' as string,
@@ -64,7 +65,7 @@ export default function AdminBanners() {
     ]);
   };
 
-  if (loading) return <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
+  if (loading) return <AdminPageShell title="Banners" subtitle="Loading cinematic hero rails" icon="image"><View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View></AdminPageShell>;
 
   const textFields = [
     { key: 'title', label: 'TITLE' },
@@ -79,6 +80,7 @@ export default function AdminBanners() {
   ];
 
   return (
+    <AdminPageShell title="Banners" subtitle="Curate the first cinematic impression users see" icon="image">
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
       <Pressable style={styles.addBtn} onPress={() => { resetForm(); setShowForm(true); }}>
         <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>Add Banner</Text>
@@ -161,11 +163,13 @@ export default function AdminBanners() {
         </Animated.View>
       ))}
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.primary, height: 48, borderRadius: 12, marginBottom: 16 },
   addBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
   formCard: { backgroundColor: theme.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: theme.border },
