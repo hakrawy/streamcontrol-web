@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { theme } from '../../constants/theme';
@@ -19,11 +18,11 @@ const GRID_GAP = 12;
 export default function SeriesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
   const { language, direction } = useLocale();
   const { allSeries, loading } = useAppContext();
   const perf = useAdaptivePerformance();
   const [activeCategory, setActiveCategory] = useState('all');
-  const { width: screenWidth } = (require('react-native') as any).useWindowDimensions();
   const gridColumns = screenWidth > 1200 ? 5 : screenWidth > 900 ? 4 : screenWidth > 680 ? 3 : 2;
 
   const filteredSeries = useMemo(() => {
@@ -45,68 +44,74 @@ export default function SeriesScreen() {
 
   return (
     <CinematicBackdrop>
-    <SafeAreaView edges={['top']} style={[styles.container, { direction }]}>
-      <CinematicHeader eyebrow="Binge universe" title={copy.title} subtitle={copy.subtitle} icon="auto-awesome-motion" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-        <Pressable onPress={() => setActiveCategory('all')} style={[styles.categoryChip, activeCategory === 'all' && styles.categoryChipActive]}>
-          <Text style={[styles.categoryText, activeCategory === 'all' && styles.categoryTextActive]}>{copy.all}</Text>
-        </Pressable>
-        {config.categories.map((category) => (
-          <Pressable
-            key={category.id}
-            onPress={() => setActiveCategory(category.id)}
-            style={[styles.categoryChip, activeCategory === category.id && styles.categoryChipActive]}
-          >
-            <Text style={[styles.categoryText, activeCategory === category.id && styles.categoryTextActive]}>{category.name}</Text>
+      <SafeAreaView edges={['top']} style={[styles.container, { direction }]}>
+        <CinematicHeader eyebrow="Binge universe" title={copy.title} subtitle={copy.subtitle} icon="auto-awesome-motion" />
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryRail} contentContainerStyle={styles.categoryRow}>
+          <Pressable onPress={() => setActiveCategory('all')} style={[styles.categoryChip, activeCategory === 'all' && styles.categoryChipActive]}>
+            <Text style={[styles.categoryText, activeCategory === 'all' && styles.categoryTextActive]}>{copy.all}</Text>
           </Pressable>
-        ))}
-      </ScrollView>
-      {loading ? <SkeletonGrid count={10} columns={gridColumns} /> : <FlashList
-        data={sortedSeries}
-        numColumns={gridColumns}
-        estimatedItemSize={280}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 20, paddingTop: 8 }}
-        renderItem={({ item, index }) => (
-          <View style={{ flex: 1, paddingRight: (index % gridColumns !== gridColumns - 1) ? GRID_GAP : 0, marginBottom: GRID_GAP }}>
+          {config.categories.map((category) => (
             <Pressable
-              onPress={() => {
-                Haptics.selectionAsync();
-                router.push(buildContentRoute(item));
-              }}
-              style={styles.card}
+              key={category.id}
+              onPress={() => setActiveCategory(category.id)}
+              style={[styles.categoryChip, activeCategory === category.id && styles.categoryChipActive]}
             >
-              <Image source={{ uri: item.poster || item.backdrop }} style={styles.poster} contentFit="cover" transition={perf.imageTransition} />
-              <View style={styles.badges}>
-                {item.is_new ? <View style={styles.newBadge}><Text style={styles.badgeText}>NEW</Text></View> : null}
-              </View>
-              <View style={styles.info}>
-                <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-                <View style={styles.metaRow}>
-                  <MaterialIcons name="star" size={12} color={theme.accent} />
-                  <Text style={styles.rating}>{item.rating}</Text>
-                  <Text style={styles.dot}>•</Text>
-                  <Text style={styles.meta}>{item.year}</Text>
-                  <Text style={styles.dot}>•</Text>
-                  <Text style={styles.meta}>{item.genre?.[0] || copy.series}</Text>
-                </View>
-              </View>
+              <Text style={[styles.categoryText, activeCategory === category.id && styles.categoryTextActive]}>{category.name}</Text>
             </Pressable>
-          </View>
+          ))}
+        </ScrollView>
+
+        {loading ? <SkeletonGrid count={10} columns={gridColumns} /> : (
+          <ScrollView style={styles.gridScroll} contentContainerStyle={[styles.gridContent, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.grid}>
+              {sortedSeries.map((item) => (
+                <View key={item.id} style={[styles.gridItem, { width: `${100 / gridColumns}%` }]}>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      router.push(buildContentRoute(item));
+                    }}
+                    style={styles.card}
+                  >
+                    <Image source={{ uri: item.poster || item.backdrop }} style={styles.poster} contentFit="cover" transition={perf.imageTransition} />
+                    <View style={styles.badges}>
+                      {item.is_new ? <View style={styles.newBadge}><Text style={styles.badgeText}>NEW</Text></View> : null}
+                    </View>
+                    <View style={styles.info}>
+                      <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+                      <View style={styles.metaRow}>
+                        <MaterialIcons name="star" size={12} color={theme.accent} />
+                        <Text style={styles.rating}>{item.rating}</Text>
+                        <Text style={styles.dot}>•</Text>
+                        <Text style={styles.meta}>{item.year}</Text>
+                        <Text style={styles.dot}>•</Text>
+                        <Text style={styles.meta}>{item.genre?.[0] || copy.series}</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
         )}
-        keyExtractor={(item) => item.id}
-      />}
-    </SafeAreaView>
+      </SafeAreaView>
     </CinematicBackdrop>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
-  categoryRow: { paddingHorizontal: 16, gap: 8, paddingBottom: 12 },
-  categoryChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  categoryRail: { flexGrow: 0, maxHeight: 58 },
+  categoryRow: { paddingHorizontal: 16, gap: 8, paddingBottom: 12, alignItems: 'center' },
+  categoryChip: { height: 36, paddingHorizontal: 16, borderRadius: 999, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
   categoryChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   categoryText: { fontSize: 12, fontWeight: '600', color: theme.textSecondary },
   categoryTextActive: { color: '#FFF' },
+  gridScroll: { flex: 1 },
+  gridContent: { paddingHorizontal: 16, paddingTop: 8 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -(GRID_GAP / 2) },
+  gridItem: { paddingHorizontal: GRID_GAP / 2, marginBottom: GRID_GAP },
   card: { backgroundColor: 'rgba(26,26,38,0.82)', borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   poster: { width: '100%', aspectRatio: 2 / 3, backgroundColor: theme.surfaceLight },
   badges: { position: 'absolute', top: 8, left: 8 },
