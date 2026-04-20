@@ -10,7 +10,6 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { FlashList } from '@shopify/flash-list';
 import { theme } from '../../constants/theme';
 import { config } from '../../constants/config';
 import { useAppContext } from '../../contexts/AppContext';
@@ -463,12 +462,12 @@ export default function HomeScreen() {
 
 function HorizontalShelf({ children, isRTL }: { children: ReactNode; isRTL: boolean }) {
   const items = React.Children.toArray(children);
-  const railRef = useRef<FlashList<ReactNode>>(null);
+  const railRef = useRef<ScrollView>(null);
   const currentOffset = useRef(0);
 
   const scrollBy = (direction: 1 | -1) => {
-    railRef.current?.scrollToOffset({
-      offset: Math.max(0, currentOffset.current + direction * 260),
+    railRef.current?.scrollTo({
+      x: Math.max(0, currentOffset.current + direction * 260),
       animated: true,
     });
   };
@@ -478,11 +477,9 @@ function HorizontalShelf({ children, isRTL }: { children: ReactNode; isRTL: bool
       <Pressable style={[styles.railArrow, styles.railArrowLeft]} onPress={() => scrollBy(isRTL ? 1 : -1)}>
         <MaterialIcons name={isRTL ? 'chevron-right' : 'chevron-left'} size={22} color="#FFF" />
       </Pressable>
-      <FlashList
+      <ScrollView
         ref={railRef}
-        data={items}
         horizontal
-        estimatedItemSize={180}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rowContainer}
         decelerationRate="fast"
@@ -490,8 +487,15 @@ function HorizontalShelf({ children, isRTL }: { children: ReactNode; isRTL: bool
           currentOffset.current = event.nativeEvent.contentOffset.x;
         }}
         scrollEventThrottle={16}
-        renderItem={({ item }) => <>{item}</>}
-      />
+      >
+        <View style={[styles.rowInner, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {items.map((item, index) => (
+            <View key={(item as any)?.key || index} style={styles.rowItem}>
+              {item}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
       <Pressable style={[styles.railArrow, styles.railArrowRight]} onPress={() => scrollBy(isRTL ? -1 : 1)}>
         <MaterialIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color="#FFF" />
       </Pressable>
@@ -562,6 +566,8 @@ const styles = StyleSheet.create({
   railArrowLeft: { left: 10 },
   railArrowRight: { right: 10 },
   rowContainer: { paddingHorizontal: 16, paddingRight: 56, gap: 12 },
+  rowInner: { alignItems: 'flex-start', gap: 12 },
+  rowItem: { flexShrink: 0 },
   contentCard: { width: 140 },
   posterWrap: { width: 140, height: 210, borderRadius: 14, overflow: 'hidden', marginBottom: 8, backgroundColor: theme.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   poster: { width: '100%', height: '100%' },
