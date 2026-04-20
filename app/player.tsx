@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, Platform, ScrollView, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -1633,6 +1633,10 @@ function PlayerScreen() {
   const [isPreflighting, setIsPreflighting] = useState(true);
   const [preflightLogs, setPreflightLogs] = useState<string[]>(['Initializing player...']);
   const [proxyUrl, setProxyUrl] = useState('');
+
+  if (!user) {
+    return <Redirect href="/login" />;
+  }
 
   const proxyAdapter = useMemo(() => createProxyAdapter(proxyUrl), [proxyUrl]);
 

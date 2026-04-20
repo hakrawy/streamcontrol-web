@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAuth, useAlert } from '@/template';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
@@ -23,12 +24,15 @@ const getEmailRedirectUrl = () => {
 
 export default function LoginScreen() {
   const {
+    isAuthenticated,
+    authLoading,
     sendOTP,
     verifyOTPAndLogin,
     loginWithPassword,
     loginWithSubscriptionCode,
     operationLoading,
   } = useAuth();
+  const router = useRouter();
   const { showAlert } = useAlert();
   const { language, isRTL, direction, setLanguage } = useLocale();
   const [mode, setMode] = useState<AuthMode>('login');
@@ -132,6 +136,12 @@ export default function LoginScreen() {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/(tabs)');
+    }
+  }, [authLoading, isAuthenticated, router]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
