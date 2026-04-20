@@ -39,47 +39,47 @@ export default function LoginScreen() {
   const [now, setNow] = useState(() => new Date());
   const copy = language === 'Arabic'
     ? {
-        fantasy: 'تجربة سينمائية خيالية',
-        rights: 'جميع الحقوق محفوظة إلى علي دهل',
-        signingIn: 'جارٍ تسجيل دخولك...',
-        riyadhTime: 'توقيت الرياض',
-        liveChannels: 'قنوات مباشرة',
-        epicLibrary: 'مكتبة ضخمة',
-        watchRooms: 'غرف مشاهدة',
-        welcomeBack: 'مرحبًا بعودتك',
-        createAccount: 'إنشاء حساب',
-        enterCode: 'أدخل الرمز',
-        signInDesc: 'سجّل الدخول للمتابعة',
-        registerDesc: 'ابدأ رحلتك في عالم المشاهدة',
-        sentCode: 'أرسلنا رمزًا إلى {email}',
-        email: 'البريد الإلكتروني',
-        password: 'كلمة المرور',
-        confirmPassword: 'تأكيد كلمة المرور',
-        verificationCode: 'رمز التحقق',
-        subscriptionLogin: 'الدخول بمفتاح الاشتراك',
-        subscriptionDesc: 'أدخل كود الاشتراك للدخول مباشرة بدون بريد أو كلمة مرور',
-        subscriptionCode: 'كود الاشتراك',
-        subscriptionSignIn: 'دخول بالكود',
-        subscriptionFailed: 'فشل كود الاشتراك',
-        pleaseWait: 'يرجى الانتظار...',
-        signIn: 'تسجيل الدخول',
-        create: 'إنشاء حساب',
-        verify: 'تأكيد وتسجيل الدخول',
-        goBack: 'رجوع',
-        noAccount: 'ليس لديك حساب؟ ',
-        alreadyAccount: 'لديك حساب بالفعل؟ ',
-        signUp: 'سجل الآن',
-        chooseLanguage: 'اختر اللغة',
+        fantasy: 'طھط¬ط±ط¨ط© ط³ظٹظ†ظ…ط§ط¦ظٹط© ط®ظٹط§ظ„ظٹط©',
+        rights: 'ط¬ظ…ظٹط¹ ط§ظ„ط­ظ‚ظˆظ‚ ظ…ط­ظپظˆط¸ط© ط¥ظ„ظ‰ ط¹ظ„ظٹ ط¯ظ‡ظ„',
+        signingIn: 'ط¬ط§ط±ظچ طھط³ط¬ظٹظ„ ط¯ط®ظˆظ„ظƒ...',
+        riyadhTime: 'طھظˆظ‚ظٹطھ ط§ظ„ط±ظٹط§ط¶',
+        liveChannels: 'ظ‚ظ†ظˆط§طھ ظ…ط¨ط§ط´ط±ط©',
+        epicLibrary: 'ظ…ظƒطھط¨ط© ط¶ط®ظ…ط©',
+        watchRooms: 'ط؛ط±ظپ ظ…ط´ط§ظ‡ط¯ط©',
+        welcomeBack: 'ظ…ط±ط­ط¨ظ‹ط§ ط¨ط¹ظˆط¯طھظƒ',
+        createAccount: 'ط¥ظ†ط´ط§ط، ط­ط³ط§ط¨',
+        enterCode: 'ط£ط¯ط®ظ„ ط§ظ„ط±ظ…ط²',
+        signInDesc: 'ط³ط¬ظ‘ظ„ ط§ظ„ط¯ط®ظˆظ„ ظ„ظ„ظ…طھط§ط¨ط¹ط©',
+        registerDesc: 'ط§ط¨ط¯ط£ ط±ط­ظ„طھظƒ ظپظٹ ط¹ط§ظ„ظ… ط§ظ„ظ…ط´ط§ظ‡ط¯ط©',
+        sentCode: 'ط£ط±ط³ظ„ظ†ط§ ط±ظ…ط²ظ‹ط§ ط¥ظ„ظ‰ {email}',
+        email: 'ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ',
+        password: 'ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±',
+        confirmPassword: 'طھط£ظƒظٹط¯ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±',
+        verificationCode: 'ط±ظ…ط² ط§ظ„طھط­ظ‚ظ‚',
+        subscriptionLogin: 'ط§ظ„ط¯ط®ظˆظ„ ط¨ظ…ظپطھط§ط­ ط§ظ„ط§ط´طھط±ط§ظƒ',
+        subscriptionDesc: 'ط£ط¯ط®ظ„ ظƒظˆط¯ ط§ظ„ط§ط´طھط±ط§ظƒ ظ„ظ„ط¯ط®ظˆظ„ ظ…ط¨ط§ط´ط±ط© ط¨ط¯ظˆظ† ط¨ط±ظٹط¯ ط£ظˆ ظƒظ„ظ…ط© ظ…ط±ظˆط±',
+        subscriptionCode: 'ظƒظˆط¯ ط§ظ„ط§ط´طھط±ط§ظƒ',
+        subscriptionSignIn: 'ط¯ط®ظˆظ„ ط¨ط§ظ„ظƒظˆط¯',
+        subscriptionFailed: 'ظپط´ظ„ ظƒظˆط¯ ط§ظ„ط§ط´طھط±ط§ظƒ',
+        pleaseWait: 'ظٹط±ط¬ظ‰ ط§ظ„ط§ظ†طھط¸ط§ط±...',
+        signIn: 'طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„',
+        create: 'ط¥ظ†ط´ط§ط، ط­ط³ط§ط¨',
+        verify: 'طھط£ظƒظٹط¯ ظˆطھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„',
+        goBack: 'ط±ط¬ظˆط¹',
+        noAccount: 'ظ„ظٹط³ ظ„ط¯ظٹظƒ ط­ط³ط§ط¨طں ',
+        alreadyAccount: 'ظ„ط¯ظٹظƒ ط­ط³ط§ط¨ ط¨ط§ظ„ظپط¹ظ„طں ',
+        signUp: 'ط³ط¬ظ„ ط§ظ„ط¢ظ†',
+        chooseLanguage: 'ط§ط®طھط± ط§ظ„ظ„ط؛ط©',
         english: 'English',
-        arabic: 'العربية',
-        fillAll: 'يرجى تعبئة جميع الحقول',
-        passwordsMismatch: 'كلمتا المرور غير متطابقتين',
-        passwordShort: 'يجب أن تكون كلمة المرور 6 أحرف على الأقل',
-        codeSent: 'تم إرسال الرمز',
-        codeSentDesc: 'تحقق من بريدك الإلكتروني للحصول على رمز التفعيل',
-        loginFailed: 'فشل تسجيل الدخول',
-        verificationFailed: 'فشل التحقق',
-        error: 'خطأ',
+        arabic: 'ط§ظ„ط¹ط±ط¨ظٹط©',
+        fillAll: 'ظٹط±ط¬ظ‰ طھط¹ط¨ط¦ط© ط¬ظ…ظٹط¹ ط§ظ„ط­ظ‚ظˆظ„',
+        passwordsMismatch: 'ظƒظ„ظ…طھط§ ط§ظ„ظ…ط±ظˆط± ط؛ظٹط± ظ…طھط·ط§ط¨ظ‚طھظٹظ†',
+        passwordShort: 'ظٹط¬ط¨ ط£ظ† طھظƒظˆظ† ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± 6 ط£ط­ط±ظپ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„',
+        codeSent: 'طھظ… ط¥ط±ط³ط§ظ„ ط§ظ„ط±ظ…ط²',
+        codeSentDesc: 'طھط­ظ‚ظ‚ ظ…ظ† ط¨ط±ظٹط¯ظƒ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ظ„ظ„ط­طµظˆظ„ ط¹ظ„ظ‰ ط±ظ…ط² ط§ظ„طھظپط¹ظٹظ„',
+        loginFailed: 'ظپط´ظ„ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„',
+        verificationFailed: 'ظپط´ظ„ ط§ظ„طھط­ظ‚ظ‚',
+        error: 'ط®ط·ط£',
       }
     : {
         fantasy: 'Cinematic Fantasy Experience',
@@ -114,7 +114,7 @@ export default function LoginScreen() {
         signUp: 'Sign Up',
         chooseLanguage: 'Choose language',
         english: 'English',
-        arabic: 'العربية',
+        arabic: 'ط§ظ„ط¹ط±ط¨ظٹط©',
         fillAll: 'Please fill in all fields',
         passwordsMismatch: 'Passwords do not match',
         passwordShort: 'Password must be at least 6 characters',
@@ -198,6 +198,7 @@ export default function LoginScreen() {
     setSubscriptionLoading(true);
     try {
       await subscriptions.validateSubscriptionCode(subscriptionCode.trim());
+      await new Promise((resolve) => setTimeout(resolve, 150));
       router.replace('/(tabs)');
     } catch (error: any) {
       showAlert(copy.subscriptionFailed, error?.message || 'Invalid subscription code.');
@@ -222,7 +223,7 @@ export default function LoginScreen() {
       />
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(16,185,129,0.24)', 'transparent']}
+        colors={['rgba(34,197,94,0.24)', 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.topGlow}
@@ -616,7 +617,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(167,243,208,0.22)',
-    backgroundColor: 'rgba(16,185,129,0.12)',
+    backgroundColor: 'rgba(34,197,94,0.12)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -624,3 +625,4 @@ const styles = StyleSheet.create({
   },
   subscriptionBtnText: { color: '#D1FAE5', fontSize: 13, fontWeight: '800' },
 });
+
