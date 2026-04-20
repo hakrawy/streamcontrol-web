@@ -19,7 +19,7 @@ function HeaderHomeBtn() {
 }
 
 export default function AdminLayout() {
-  const { user, loading: authLoading, initialized } = useAuth();
+  const { currentUser, isAuthenticated, authLoading, initialized } = useAuth();
   const { isAdmin, userDataLoading } = useAppContext();
   const { language } = useLocale();
 
@@ -71,7 +71,7 @@ export default function AdminLayout() {
     );
   }
 
-  if (!user) return <Redirect href="/login" />;
+  if (!isAuthenticated || !currentUser) return <Redirect href="/login" />;
   if (!isAdmin) return <Redirect href="/(tabs)/profile" />;
 
   const homeBtn = { headerLeft: () => <HeaderHomeBtn /> };
