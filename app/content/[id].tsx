@@ -4,10 +4,10 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn, FadeInUp } from 'react-native-reanimated';
-import { useAlert, useAuth } from '@/template';
+import { useAlert } from '@/template';
 import { theme } from '../../constants/theme';
 import { useAppContext } from '../../contexts/AppContext';
 import * as api from '../../services/api';
@@ -77,7 +77,6 @@ export default function ContentDetailScreen() {
   const { id, preview } = useLocalSearchParams<{ id: string; preview?: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { currentUser } = useAuth();
   const { showAlert } = useAlert();
   const { addToFavorites, removeFromFavorites, isFavorite } = useAppContext();
   const perf = useAdaptivePerformance();
@@ -106,10 +105,6 @@ export default function ContentDetailScreen() {
         })),
     [seasons]
   );
-
-  if (!currentUser) {
-    return <Redirect href="/login" />;
-  }
 
   useEffect(() => {
     if (!id) return;
