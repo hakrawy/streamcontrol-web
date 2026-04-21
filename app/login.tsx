@@ -7,10 +7,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, useAlert } from '@/template';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { validateSubscriptionCode } from '../src/lib/edgeFunctions';
 import { theme } from '../constants/theme';
 import { useLocale } from '../contexts/LocaleContext';
-import { saveSubscriptionSession } from '../services/subscriptions';
+import { validateSubscriptionCode } from '../services/subscriptions';
 
 type AuthMode = 'login' | 'register' | 'otp' | 'subscription';
 
@@ -198,19 +197,7 @@ export default function LoginScreen() {
     }
     setSubscriptionLoading(true);
     try {
-      const result = await validateSubscriptionCode({ code: subscriptionCode.trim() });
-      if (result.valid === false) {
-        throw new Error(result.message || 'Invalid subscription code.');
-      }
-
-      await saveSubscriptionSession({
-        sessionId: result.sessionId || `sub_${Date.now().toString(36)}`,
-        subscriptionId: result.subscriptionId || result.codeId || result.sessionId || subscriptionCode.trim().toUpperCase(),
-        codeId: result.codeId || result.subscriptionId || result.sessionId || subscriptionCode.trim().toUpperCase(),
-        code: result.code || subscriptionCode.trim().toUpperCase(),
-        startedAt: result.startedAt || new Date().toISOString(),
-        expiresAt: result.expiresAt || null,
-      });
+      await validateSubscriptionCode(subscriptionCode.trim());
 
       showAlert('Success', 'Subscription validated successfully.');
       setTimeout(() => {

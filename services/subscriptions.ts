@@ -234,23 +234,55 @@ export async function deleteSubscriptionCode(idValue: string) {
 }
 
 export async function validateSubscriptionCode(rawCode: string) {
-  const response = await validateSubscriptionCodeEdge({ code: rawCode });
-  if (response.valid === false) {
-    throw new Error(response.message || 'Invalid subscription code.');
+  const normalizedCode = normalizeCode(rawCode);
+
+  try {
+    const response = await validateSubscriptionCodeEdge({ code: rawCode });
+    if (response.valid === false) {
+      throw new Error(response.message || 'Invalid subscription code.');
+    }
+
+    const startedAt = response.startedAt || new Date().toISOString();
+    const session: SubscriptionSession = {
+      sessionId: response.sessionId || id('session'),
+      subscriptionId: response.subscriptionId || response.codeId || response.sessionId || normalizedCode,
+      codeId: response.codeId || response.subscriptionId || response.sessionId || normalizedCode,
+      code: response.code || normalizedCode,
+      startedAt,
+      expiresAt: response.expiresAt || null,
+    };
+
+    await saveSubscriptionSession(session);
+    return session;
+  } catch (error: any) {
+    const fallbackCodes = await fetchSubscriptionCodes().catch(() => []);
+    const matchedCode = fallbackCodes.find((code) => normalizeCode(code.code) === normalizedCode);
+
+    if (!matchedCode) {
+      throw new Error(error?.message || 'Invalid subscription code.');
+    }
+
+    const status = effectiveStatus(matchedCode);
+    if (status !== 'active') {
+      throw new Error(status === 'expired' ? 'This subscription code has expired.' : 'This subscription code is disabled.');
+    }
+
+    const startedAt = new Date().toISOString();
+    const expiresAt = matchedCode.expiresAt
+      || new Date(Date.now() + Math.max(1, matchedCode.durationDays || 30) * 24 * 60 * 60 * 1000).toISOString();
+
+    const session: SubscriptionSession = {
+      sessionId: id('session'),
+      subscriptionId: matchedCode.id,
+      codeId: matchedCode.id,
+      code: matchedCode.code,
+      startedAt,
+      expiresAt,
+    };
+
+    await saveSubscriptionSession(session);
+    return session;
   }
-
-  const startedAt = response.startedAt || new Date().toISOString();
-  const session: SubscriptionSession = {
-    sessionId: response.sessionId || id('session'),
-    subscriptionId: response.subscriptionId || response.codeId || response.sessionId || normalizeCode(rawCode),
-    codeId: response.codeId || response.subscriptionId || response.sessionId || normalizeCode(rawCode),
-    code: response.code || normalizeCode(rawCode),
-    startedAt,
-    expiresAt: response.expiresAt || null,
-  };
-
-  await saveSubscriptionSession(session);
-  return session;
 }
 
 export async function getSubscriptionSession() {

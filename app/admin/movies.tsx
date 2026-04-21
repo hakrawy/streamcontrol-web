@@ -9,6 +9,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import type { Movie } from '../../services/api';
+import { resolveDownloadUrl } from '../../services/downloadLinks';
 import { useLocale } from '../../contexts/LocaleContext';
 
 const emptyForm = {
@@ -167,6 +168,22 @@ export default function AdminMovies() {
     }
   };
 
+  const handleAutoFillDownloadUrl = () => {
+    const suggestedUrl = resolveDownloadUrl({
+      downloadUrl: form.download_url,
+      streamUrl: form.stream_url,
+      streamSources: api.parseStreamSourcesInput(form.stream_url),
+    }, 'generate');
+
+    if (!suggestedUrl) {
+      showAlert('No direct download found', 'Add a direct file URL or a signed storage link first.');
+      return;
+    }
+
+    setForm((prev) => ({ ...prev, download_url: suggestedUrl }));
+    showAlert('Download URL ready', 'A direct download link was detected and filled automatically.');
+  };
+
   const filteredMovies = searchQuery.trim()
     ? movies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()))
     : movies;
@@ -265,9 +282,14 @@ export default function AdminMovies() {
                 placeholder={field.placeholder}
                 placeholderTextColor={theme.textMuted}
                 multiline={field.multiline}
-              />
+                />
             </View>
           ))}
+
+          <Pressable style={styles.autoFillBtn} onPress={handleAutoFillDownloadUrl}>
+            <MaterialIcons name="auto-fix-high" size={18} color="#FFF" />
+            <Text style={styles.autoFillText}>Auto-generate download link</Text>
+          </Pressable>
 
           <Text style={[styles.fieldLabel, { marginTop: 8, marginBottom: 12 }]}>FLAGS</Text>
           {toggleFields.map(t => (
@@ -348,11 +370,13 @@ const styles = StyleSheet.create({
   formTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
   previewRow: { alignItems: 'center', marginBottom: 16 },
   previewImage: { width: 80, height: 120, borderRadius: 10, marginBottom: 6 },
-  previewLabel: { fontSize: 11, color: theme.textMuted },
-  fieldWrap: { marginBottom: 12 },
-  fieldLabel: { fontSize: 11, fontWeight: '600', color: theme.textMuted, letterSpacing: 0.5, marginBottom: 6 },
-  fieldInput: { height: 44, backgroundColor: theme.surfaceLight, borderRadius: 10, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.border },
+    previewLabel: { fontSize: 11, color: theme.textMuted },
+    fieldWrap: { marginBottom: 12 },
+    fieldLabel: { fontSize: 11, fontWeight: '600', color: theme.textMuted, letterSpacing: 0.5, marginBottom: 6 },
+    fieldInput: { height: 44, backgroundColor: theme.surfaceLight, borderRadius: 10, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
+    autoFillBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, backgroundColor: theme.surfaceLight, borderRadius: 12, borderWidth: 1, borderColor: theme.border, paddingVertical: 12 },
+    autoFillText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
+    toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.border },
   toggleDot: { width: 8, height: 8, borderRadius: 4 },
   toggleLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: '#FFF' },
   formActions: { flexDirection: 'row', gap: 12, marginTop: 16 },

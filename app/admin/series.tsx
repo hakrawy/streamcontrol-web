@@ -9,6 +9,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import type { Series, Season, Episode } from '../../services/api';
+import { resolveDownloadUrl } from '../../services/downloadLinks';
 import { useLocale } from '../../contexts/LocaleContext';
 
 type ViewMode = 'list' | 'form' | 'seasons';
@@ -249,6 +250,22 @@ export default function AdminSeries() {
     } catch (err: any) { showAlert('Error', err.message); }
   };
 
+  const handleAutoFillEpisodeDownloadUrl = () => {
+    const suggestedUrl = resolveDownloadUrl({
+      downloadUrl: episodeForm.download_url,
+      streamUrl: episodeForm.stream_url,
+      streamSources: api.parseStreamSourcesInput(episodeForm.stream_url),
+    }, 'generate');
+
+    if (!suggestedUrl) {
+      showAlert('No direct download found', 'Add a direct file URL or a signed storage link first.');
+      return;
+    }
+
+    setEpisodeForm((prev) => ({ ...prev, download_url: suggestedUrl }));
+    showAlert('Download URL ready', 'A direct download link was detected and filled automatically.');
+  };
+
   const handleDeleteEpisode = (id: string, title: string) => {
     showAlert('Delete Episode', `Delete "${title}"?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -326,11 +343,11 @@ export default function AdminSeries() {
         {showEpisodeForm ? (
           <Animated.View entering={FadeInDown.duration(200)} style={styles.formCard}>
             <Text style={styles.formTitle}>{editingEpisodeId ? 'Edit Episode' : 'Add Episode'}</Text>
-            {[
-              { key: 'number', label: 'EPISODE NUMBER', keyboardType: 'number-pad' as const },
-              { key: 'title', label: 'TITLE' },
-              { key: 'description', label: 'DESCRIPTION', multiline: true },
-              { key: 'thumbnail', label: 'THUMBNAIL URL' },
+              {[ 
+                { key: 'number', label: 'EPISODE NUMBER', keyboardType: 'number-pad' as const },
+                { key: 'title', label: 'TITLE' },
+                { key: 'description', label: 'DESCRIPTION', multiline: true },
+                { key: 'thumbnail', label: 'THUMBNAIL URL' },
               { key: 'stream_url', label: 'STREAM SOURCES', placeholder: 'Server 1 | https://...\nServer 2 | https://...', multiline: true },
               { key: 'subtitle_url', label: 'SUBTITLE URL' },
               { key: 'download_url', label: 'DOWNLOAD URL', placeholder: 'https://...' },
@@ -346,13 +363,17 @@ export default function AdminSeries() {
                   placeholderTextColor={theme.textMuted}
                   multiline={f.multiline}
                   keyboardType={f.keyboardType}
-                />
+                  />
+                </View>
+              ))}
+              <Pressable style={styles.autoFillBtn} onPress={handleAutoFillEpisodeDownloadUrl}>
+                <MaterialIcons name="auto-fix-high" size={18} color="#FFF" />
+                <Text style={styles.autoFillText}>Auto-generate download link</Text>
+              </Pressable>
+              <View style={styles.formActions}>
+                <Pressable style={styles.cancelBtn} onPress={() => { setShowEpisodeForm(false); setEditingEpisodeId(null); }}><Text style={styles.cancelText}>Cancel</Text></Pressable>
+                <Pressable style={styles.saveBtn} onPress={handleSaveEpisode}><Text style={styles.saveText}>Save</Text></Pressable>
               </View>
-            ))}
-            <View style={styles.formActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => { setShowEpisodeForm(false); setEditingEpisodeId(null); }}><Text style={styles.cancelText}>Cancel</Text></Pressable>
-              <Pressable style={styles.saveBtn} onPress={handleSaveEpisode}><Text style={styles.saveText}>Save</Text></Pressable>
-            </View>
           </Animated.View>
         ) : null}
 
@@ -587,10 +608,12 @@ const styles = StyleSheet.create({
   formTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
   previewRow: { alignItems: 'center', marginBottom: 16 },
   previewImage: { width: 80, height: 120, borderRadius: 10 },
-  fieldWrap: { marginBottom: 12 },
-  fieldLabel: { fontSize: 11, fontWeight: '600', color: theme.textMuted, letterSpacing: 0.5, marginBottom: 6 },
-  fieldInput: { height: 44, backgroundColor: theme.surfaceLight, borderRadius: 10, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.border },
+    fieldWrap: { marginBottom: 12 },
+    fieldLabel: { fontSize: 11, fontWeight: '600', color: theme.textMuted, letterSpacing: 0.5, marginBottom: 6 },
+    fieldInput: { height: 44, backgroundColor: theme.surfaceLight, borderRadius: 10, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
+    autoFillBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, marginBottom: 12, backgroundColor: theme.surfaceLight, borderRadius: 12, borderWidth: 1, borderColor: theme.border, paddingVertical: 12 },
+    autoFillText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
+    toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.border },
   toggleDot: { width: 8, height: 8, borderRadius: 4 },
   toggleLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: '#FFF' },
   formActions: { flexDirection: 'row', gap: 12, marginTop: 16 },

@@ -15,6 +15,7 @@ import type { ContentItem, Movie, Series, Season, StreamSource } from '../../ser
 import PlaybackSourceSheet from '../../components/PlaybackSourceSheet';
 import { PremiumLoader } from '../../components/PremiumLoader';
 import { useAdaptivePerformance } from '../../hooks/useAdaptivePerformance';
+import { getDownloadSourceLabel, resolveDownloadUrl } from '../../services/downloadLinks';
 
 const BACKDROP_HEIGHT = 380;
 
@@ -228,6 +229,46 @@ export default function ContentDetailScreen() {
     if (!Number.isFinite(ratio) || ratio >= 0.95) return 0;
     return Math.max(0, Math.min(resumeHistory.progress, Math.max(resumeHistory.duration - 3, 0)));
   }, [resumeHistory]);
+
+  const activeDownloadUrl = useMemo(() => {
+    if (!content) return '';
+
+    if (content.type === 'movie') {
+      const movie = content as Movie;
+      return resolveDownloadUrl({
+        downloadUrl: movie.download_url,
+        streamUrl: movie.stream_url,
+        streamSources: movie.stream_sources || [],
+      });
+    }
+
+    if (!selectedEpisode) return '';
+    return resolveDownloadUrl({
+      downloadUrl: selectedEpisode.download_url,
+      streamUrl: selectedEpisode.stream_url,
+      streamSources: selectedEpisode.stream_sources || [],
+    });
+  }, [content, selectedEpisode]);
+
+  const activeDownloadLabel = useMemo(() => {
+    if (!content) return 'No download source found';
+
+    if (content.type === 'movie') {
+      const movie = content as Movie;
+      return getDownloadSourceLabel({
+        downloadUrl: movie.download_url,
+        streamUrl: movie.stream_url,
+        streamSources: movie.stream_sources || [],
+      });
+    }
+
+    if (!selectedEpisode) return 'No download source found';
+    return getDownloadSourceLabel({
+      downloadUrl: selectedEpisode.download_url,
+      streamUrl: selectedEpisode.stream_url,
+      streamSources: selectedEpisode.stream_sources || [],
+    });
+  }, [content, selectedEpisode]);
 
   if (loading) {
     return <View style={styles.container}><PremiumLoader hint="Building an immersive detail page" /></View>;
@@ -562,21 +603,21 @@ export default function ContentDetailScreen() {
               <MaterialIcons name="movie" size={20} color="#FFF" />
               <Text style={styles.trailerBtnText}>Trailer</Text>
             </Pressable>
-            {/* Download button — always shown, disabled when no URL */}
             <Pressable
               style={[
                 styles.secondaryActionBtn,
-                !(isMovie ? movieData.download_url : undefined) && styles.secondaryActionBtnDisabled,
+                !activeDownloadUrl && styles.secondaryActionBtnDisabled,
               ]}
-              onPress={() => void handleDownload(isMovie ? movieData.download_url : undefined)}
+              onPress={() => void handleDownload(activeDownloadUrl)}
             >
               <MaterialIcons
                 name="download"
                 size={20}
-                color={isMovie && movieData.download_url ? '#FFF' : 'rgba(255,255,255,0.3)'}
+                color={activeDownloadUrl ? '#FFF' : 'rgba(255,255,255,0.3)'}
               />
             </Pressable>
           </View>
+          <Text style={styles.downloadHint}>{activeDownloadUrl ? activeDownloadLabel : 'No download source available yet'}</Text>
 
           <View style={styles.quickActions}>
             <Pressable style={styles.quickAction} onPress={handleToggleFavorite}>
@@ -699,8 +740,19 @@ export default function ContentDetailScreen() {
                           <Text style={styles.episodeNumber}>Episode {ep.number}</Text>
                           <Text style={styles.episodeTitle} numberOfLines={2}>{ep.title}</Text>
                           <Text style={styles.episodeDesc} numberOfLines={3}>{ep.description || 'No episode synopsis yet.'}</Text>
-                          {ep.download_url ? (
-                            <Pressable style={styles.episodeDownloadBtn} onPress={() => void handleDownload(ep.download_url)}>
+                          {resolveDownloadUrl({
+                            downloadUrl: ep.download_url,
+                            streamUrl: ep.stream_url,
+                            streamSources: ep.stream_sources || [],
+                          }) ? (
+                            <Pressable
+                              style={styles.episodeDownloadBtn}
+                              onPress={() => void handleDownload(resolveDownloadUrl({
+                                downloadUrl: ep.download_url,
+                                streamUrl: ep.stream_url,
+                                streamSources: ep.stream_sources || [],
+                              }))}
+                            >
                               <MaterialIcons name="download" size={16} color="#FFF" />
                               <Text style={styles.episodeDownloadText}>Download</Text>
                             </Pressable>
@@ -819,9 +871,10 @@ const styles = StyleSheet.create({
   playBtnText: { fontSize: 17, fontWeight: '700', color: '#000' },
   trailerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.surfaceLight, height: 52, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1, borderColor: theme.border },
   trailerBtnText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
-  secondaryActionBtn: { width: 52, height: 52, borderRadius: 12, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
-  secondaryActionBtnDisabled: { opacity: 0.4 },
-  emptyEpisodesWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 12, width: '100%' },
+    secondaryActionBtn: { width: 52, height: 52, borderRadius: 12, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
+    secondaryActionBtnDisabled: { opacity: 0.4 },
+    downloadHint: { fontSize: 12, color: theme.textMuted, marginBottom: 18 },
+    emptyEpisodesWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 12, width: '100%' },
   emptyEpisodesText: { fontSize: 14, color: theme.textMuted, textAlign: 'center' },
   quickActions: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 },
   quickAction: { alignItems: 'center', gap: 6 },
