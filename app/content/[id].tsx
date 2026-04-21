@@ -15,6 +15,7 @@ import type { ContentItem, Movie, Series, Season, StreamSource } from '../../ser
 import PlaybackSourceSheet from '../../components/PlaybackSourceSheet';
 import { PremiumLoader } from '../../components/PremiumLoader';
 import { CinematicBackdrop } from '../../components/CinematicUI';
+import { EmptyStateView } from '../../components/AppFeedback';
 import { useAdaptivePerformance } from '../../hooks/useAdaptivePerformance';
 
 const BACKDROP_HEIGHT = 380;
@@ -214,9 +215,13 @@ export default function ContentDetailScreen() {
 
   if (!content) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: '#FFF', fontSize: 16 }}>Content not found</Text>
-        <Pressable onPress={() => router.back()} style={{ marginTop: 16 }}><Text style={{ color: theme.primary, fontSize: 16, fontWeight: '600' }}>Go Back</Text></Pressable>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }]}>
+        <EmptyStateView
+          icon="movie"
+          title="Content not found"
+          description="We couldn't load this title right now."
+          action={{ label: 'Go back', onPress: () => router.back() }}
+        />
       </View>
     );
   }
