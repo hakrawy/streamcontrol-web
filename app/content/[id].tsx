@@ -1,5 +1,5 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Share, ActivityIndicator, Linking, Platform } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Share, ActivityIndicator, Linking, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +17,6 @@ import { PremiumLoader } from '../../components/PremiumLoader';
 import { CinematicBackdrop } from '../../components/CinematicUI';
 import { useAdaptivePerformance } from '../../hooks/useAdaptivePerformance';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BACKDROP_HEIGHT = 380;
 
 function parsePreviewContent(rawValue?: string): ContentItem | null {
@@ -307,46 +306,6 @@ export default function ContentDetailScreen() {
         .map((source) => source.subtitle || 'None')
     )
   );
-
-  const openSourcePicker = (sources: StreamSource[]) => {
-    if (sources.length === 0) {
-      showAlert('No sources available', 'No playable sources were found for this title yet.');
-      return;
-    }
-
-    if (sources.length === 1) {
-      const only = sources[0];
-      router.push({
-        pathname: '/player',
-        params: getPlayerParams(sources, only.url, content.title, isMovie ? movieData.subtitle_url : undefined, isMovie
-          ? { viewerContentId: content.id, viewerContentType: 'movie' }
-          : { viewerContentId: content.id, viewerContentType: 'series' }),
-      });
-      return;
-    }
-
-    const defaultAddon = sources[0].addon || 'Direct';
-    const defaultServer = sources.find((source) => (source.addon || 'Direct') === defaultAddon)?.server || sources[0].label;
-    const defaultQuality = sources.find((source) => (source.addon || 'Direct') === defaultAddon && (source.server || source.label) === defaultServer)?.quality || 'Auto';
-    const defaultLanguage = sources.find((source) =>
-      (source.addon || 'Direct') === defaultAddon &&
-      (source.server || source.label) === defaultServer &&
-      (source.quality || 'Auto') === defaultQuality
-    )?.language || 'Unknown';
-    const defaultSubtitle = sources.find((source) =>
-      (source.addon || 'Direct') === defaultAddon &&
-      (source.server || source.label) === defaultServer &&
-      (source.quality || 'Auto') === defaultQuality &&
-      (source.language || 'Unknown') === defaultLanguage
-    )?.subtitle || 'None';
-    setPlaybackSources(sources);
-    setSelectedAddon(defaultAddon);
-    setSelectedServer(defaultServer);
-    setSelectedQuality(defaultQuality);
-    setSelectedLanguage(defaultLanguage);
-    setSelectedSubtitle(defaultSubtitle);
-    setSourcePickerOpen(true);
-  };
 
   const playSelectedSource = () => {
     const filteredSources = playbackSources.filter((source) =>
