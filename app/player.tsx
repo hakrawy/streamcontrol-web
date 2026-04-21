@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, Platform, ScrollView, ActivityIndicator } from 'react-native';
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -1611,7 +1611,7 @@ export default function PlayerScreenWrapper() {
 }
 
 function PlayerScreen() {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const { url, title, sources, subtitleUrl, viewerContentId, viewerContentType } = useLocalSearchParams<{
     url?: string;
     title?: string;
@@ -1633,10 +1633,6 @@ function PlayerScreen() {
   const [isPreflighting, setIsPreflighting] = useState(true);
   const [preflightLogs, setPreflightLogs] = useState<string[]>(['Initializing player...']);
   const [proxyUrl, setProxyUrl] = useState('');
-
-  if (!user) {
-    return <Redirect href="/login" />;
-  }
 
   const proxyAdapter = useMemo(() => createProxyAdapter(proxyUrl), [proxyUrl]);
 
@@ -1930,7 +1926,7 @@ function PlayerScreen() {
           sessionId,
           contentId: viewerContentId,
           contentType: viewerContentType,
-          userId: user?.id,
+          userId: currentUser?.id,
         });
       } catch {}
 
@@ -1951,7 +1947,7 @@ function PlayerScreen() {
       clearInterval(interval);
       void api.endViewerSession(sessionId).catch(() => {});
     };
-  }, [viewerContentId, viewerContentType, user?.id]);
+  }, [viewerContentId, viewerContentType, currentUser?.id]);
 
   useEffect(() => {
     if (!autoFallbackReason) return;
