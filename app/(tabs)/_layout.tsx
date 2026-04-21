@@ -1,8 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { Redirect, Tabs } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, useWindowDimensions } from 'react-native';
-import { useAuth } from '@/template';
 import { theme } from '../../constants/theme';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -10,11 +9,6 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { t, direction } = useLocale();
   const { width } = useWindowDimensions();
-  const { currentUser } = useAuth();
-
-  if (!currentUser) {
-    return <Redirect href="/login" />;
-  }
 
   const isWide = width >= 768;
 
