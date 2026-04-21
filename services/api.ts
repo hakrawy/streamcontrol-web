@@ -1,5 +1,4 @@
 import { getSupabaseClient } from '@/template';
-import { importM3U } from '../src/lib/edgeFunctions';
 
 const supabase = getSupabaseClient();
 
@@ -196,17 +195,6 @@ export interface ImportValidationSummary {
   validated: number;
   skipped: number;
   failedSamples: string[];
-}
-
-function mapEdgePlaylistItem(item: any): M3UEntry {
-  return {
-    title: String(item?.title || item?.name || item?.label || 'Imported Stream'),
-    url: String(item?.url || ''),
-    logo: String(item?.logo || item?.poster || item?.image || ''),
-    groupTitle: String(item?.groupTitle || item?.group || item?.category || ''),
-    tvgId: String(item?.tvgId || item?.externalId || item?.id || ''),
-    rawAttributes: item?.rawAttributes || item?.raw || {},
-  };
 }
 
 function isHttpUrl(rawUrl: string): boolean {
@@ -1170,14 +1158,17 @@ function parseSeasonEpisodeFromText(value: string) {
 }
 
 export async function importChannelsFromM3UUrl(playlistUrl: string) {
-  const preview = await importM3U({ m3uUrl: playlistUrl });
-  const entries = (preview.items || []).map(mapEdgePlaylistItem).filter((entry) => inferM3UContentKind(entry) === 'channel');
-  const validated = preview.validated ?? entries.length;
-  const skipped = preview.skipped ?? Math.max(0, (preview.total || entries.length) - validated);
-  const failedSamples = preview.failedSamples || preview.warnings?.slice(0, 3) || [];
+  const response = await fetch(playlistUrl);
+  if (!response.ok) {
+    throw new Error('Failed to fetch the M3U playlist URL.');
+  }
+
+  const content = await response.text();
+  const entries = parseM3UPlaylist(content).filter((entry) => inferM3UContentKind(entry) === 'channel');
+  const { validEntries, validated, skipped, failedSamples } = await validatePlaylistEntries(entries);
   let imported = 0;
 
-  for (const [index, entry] of entries.entries()) {
+  for (const [index, entry] of validEntries.entries()) {
     await upsertChannel({
       name: entry.title,
       logo: sanitizePosterUrl(entry.logo, ''),
@@ -1193,18 +1184,21 @@ export async function importChannelsFromM3UUrl(playlistUrl: string) {
     imported += 1;
   }
 
-  return { imported, total: preview.total || entries.length, validated, skipped, failedSamples } as ImportValidationSummary;
+  return { imported, total: entries.length, validated, skipped, failedSamples } as ImportValidationSummary;
 }
 
 export async function importMoviesFromM3UUrl(playlistUrl: string) {
-  const preview = await importM3U({ m3uUrl: playlistUrl });
-  const entries = (preview.items || []).map(mapEdgePlaylistItem).filter((entry) => inferM3UContentKind(entry) === 'movie');
-  const validated = preview.validated ?? entries.length;
-  const skipped = preview.skipped ?? Math.max(0, (preview.total || entries.length) - validated);
-  const failedSamples = preview.failedSamples || preview.warnings?.slice(0, 3) || [];
+  const response = await fetch(playlistUrl);
+  if (!response.ok) {
+    throw new Error('Failed to fetch the M3U playlist URL.');
+  }
+
+  const content = await response.text();
+  const entries = parseM3UPlaylist(content).filter((entry) => inferM3UContentKind(entry) === 'movie');
+  const { validEntries, validated, skipped, failedSamples } = await validatePlaylistEntries(entries);
   let imported = 0;
 
-  for (const entry of entries) {
+  for (const entry of validEntries) {
     await upsertMovie({
       title: entry.title,
       description: `Imported from M3U playlist${entry.groupTitle ? ` - ${entry.groupTitle}` : ''}.`,
@@ -1228,21 +1222,24 @@ export async function importMoviesFromM3UUrl(playlistUrl: string) {
     imported += 1;
   }
 
-  return { imported, total: preview.total || entries.length, validated, skipped, failedSamples } as ImportValidationSummary;
+  return { imported, total: entries.length, validated, skipped, failedSamples } as ImportValidationSummary;
 }
 
 export async function importSeriesFromM3UUrl(playlistUrl: string) {
-  const preview = await importM3U({ m3uUrl: playlistUrl });
-  const entries = (preview.items || []).map(mapEdgePlaylistItem).filter((entry) => inferM3UContentKind(entry) === 'series');
-  const validated = preview.validated ?? entries.length;
-  const skipped = preview.skipped ?? Math.max(0, (preview.total || entries.length) - validated);
-  const failedSamples = preview.failedSamples || preview.warnings?.slice(0, 3) || [];
+  const response = await fetch(playlistUrl);
+  if (!response.ok) {
+    throw new Error('Failed to fetch the M3U playlist URL.');
+  }
+
+  const content = await response.text();
+  const entries = parseM3UPlaylist(content).filter((entry) => inferM3UContentKind(entry) === 'series');
+  const { validEntries, validated, skipped, failedSamples } = await validatePlaylistEntries(entries);
   const seriesMap = new Map<string, { id: string; title: string }>();
   const seasonMap = new Map<string, string>();
   let importedSeries = 0;
   let importedEpisodes = 0;
 
-  for (const entry of entries) {
+  for (const entry of validEntries) {
     const tokens = parseSeriesTokens(entry.title);
     let seriesId = seriesMap.get(tokens.seriesTitle)?.id;
 
@@ -1304,7 +1301,7 @@ export async function importSeriesFromM3UUrl(playlistUrl: string) {
     await updateSeriesCounts(id);
   }
 
-  return { imported: importedEpisodes, total: preview.total || entries.length, validated, skipped, failedSamples, importedSeries, importedEpisodes };
+  return { imported: importedEpisodes, total: entries.length, validated, skipped, failedSamples, importedSeries, importedEpisodes };
 }
 
 async function findExistingContentRef(key: string | null, contentType: 'movie' | 'series' | 'episode') {
@@ -3246,14 +3243,28 @@ export async function moveAddonImportedItem(refId: string, targetType: 'movie' |
     return { moved: false, targetType, title: sourceRef.title || 'Untitled' };
   }
 
-  const { data: addon } = await supabase.from('addons').select('id,name,description,catalogs').eq('id', sourceRef.addon_id).maybeSingle();
+  const { data: addon } = await supabase
+    .from('addons')
+    .select('id,name,description,catalogs')
+    .eq('id', sourceRef.addon_id)
+    .maybeSingle();
+
   const stremio = await import('./stremio').catch(() => null);
-  const snapshot = await fetchContentSnapshotForMove(sourceRef.content_type as 'movie' | 'series' | 'channel', sourceRef.content_id).catch(() => null) as any;
+  const snapshot = await fetchContentSnapshotForMove(
+    sourceRef.content_type as 'movie' | 'series' | 'channel',
+    sourceRef.content_id
+  ).catch(() => null) as any;
+
   const identity = buildMoveIdentity(sourceRef, snapshot);
   const addonSources =
     sourceRef.content_type === 'channel'
       ? getSnapshotSources(snapshot)
-      : await fetchPlaybackSourcesForContent(sourceRef.content_type as 'movie' | 'series', sourceRef.content_id, identity).catch(() => []);
+      : await fetchPlaybackSourcesForContent(
+          sourceRef.content_type as 'movie' | 'series',
+          sourceRef.content_id,
+          identity
+        ).catch(() => []);
+
   const fallbackSources = getSnapshotSources(snapshot);
   const streamSources = rankStreamingSources(uniqueSources([...fallbackSources, ...addonSources]));
   const title = getSnapshotTitle(snapshot, sourceRef.title);
@@ -3274,76 +3285,222 @@ export async function moveAddonImportedItem(refId: string, targetType: 'movie' |
           streams: streamSources,
         })
       : 'entertainment';
-    const created = await upsertChannel({
+
+    const existingChannel = await findExistingChannelByIdentity({
       name: title,
-      logo: poster,
-      stream_url: bestSource?.url || snapshot?.stream_url || '',
-      stream_sources: streamSources,
-      current_program: description || 'Now Streaming',
-      category,
-      is_live: true,
-      is_featured: false,
-    } as any);
-    targetId = created.id;
+      streamUrl: bestSource?.url || snapshot?.stream_url || '',
+      category: snapshot?.category || sourceRef.meta_json?.groupTitle || category || 'general',
+    }).catch(() => null);
+
+    if (existingChannel?.id) {
+      targetId = existingChannel.id;
+      await upsertChannel({
+        id: existingChannel.id,
+        name: title,
+        logo: poster,
+        stream_url: bestSource?.url || snapshot?.stream_url || '',
+        stream_sources: streamSources,
+        category: snapshot?.category || sourceRef.meta_json?.groupTitle || category || 'general',
+        current_program: snapshot?.current_program || 'Now Streaming',
+        is_live: true,
+        is_featured: Boolean(snapshot?.is_featured),
+        viewers: Number(snapshot?.viewers || 0),
+        sort_order: Number(snapshot?.sort_order || 0),
+      } as any);
+    } else {
+      const created = await upsertChannel({
+        name: title,
+        logo: poster,
+        stream_url: bestSource?.url || snapshot?.stream_url || '',
+        stream_sources: streamSources,
+        category: snapshot?.category || sourceRef.meta_json?.groupTitle || category || 'general',
+        current_program: snapshot?.current_program || 'Now Streaming',
+        is_live: true,
+        is_featured: Boolean(snapshot?.is_featured),
+        viewers: Number(snapshot?.viewers || 0),
+        sort_order: Number(snapshot?.sort_order || 0),
+      } as any);
+      targetId = created.id;
+    }
   } else if (targetType === 'movie') {
-    const created = await upsertMovie({
+    const existingMovie = await findExistingContentByIdentity('movie', {
+      imdb_id: sourceRef.imdb_id || sourceRef.meta_json?.imdb_id || null,
+      tmdb_id: sourceRef.meta_json?.tmdb_id || null,
       title,
-      description,
-      poster,
-      backdrop,
-      trailer_url: snapshot?.trailer_url || '',
-      stream_url: bestSource?.url || snapshot?.stream_url || '',
-      stream_sources: streamSources,
-      genre: genres,
-      rating: Number(snapshot?.rating || sourceRef.meta_json?.imdbRating || 0) || 0,
       year: snapshot?.year || sourceRef.year || toReleaseYear(sourceRef.meta_json?.releaseInfo) || new Date().getFullYear(),
-      duration: snapshot?.duration || sourceRef.meta_json?.runtime || '',
-      cast_members: snapshot?.cast_members || [],
-      quality: qualities.length > 0 ? qualities : ['Auto'],
-      subtitle_url: bestSource?.subtitle || snapshot?.subtitle_url || '',
-      is_featured: false,
-      is_trending: false,
-      is_new: Boolean(snapshot?.is_new),
-      is_exclusive: Boolean(snapshot?.is_exclusive),
-      is_published: true,
-      category_id: snapshot?.category_id || null,
-    } as any);
-    targetId = created.id;
+    }).catch(() => null);
+
+    if (existingMovie?.id) {
+      targetId = existingMovie.id;
+      await upsertMovie({
+        id: existingMovie.id,
+        title,
+        description,
+        poster,
+        backdrop,
+        trailer_url: snapshot?.trailer_url || '',
+        stream_url: bestSource?.url || snapshot?.stream_url || '',
+        stream_sources: streamSources,
+        genre: genres,
+        rating: Number(snapshot?.rating || sourceRef.meta_json?.imdbRating || 0) || 0,
+        year: snapshot?.year || sourceRef.year || toReleaseYear(sourceRef.meta_json?.releaseInfo) || new Date().getFullYear(),
+        duration: snapshot?.duration || '',
+        cast_members: snapshot?.cast_members || [],
+        quality: qualities.length > 0 ? qualities : ['Auto'],
+        subtitle_url: bestSource?.subtitle || snapshot?.subtitle_url || '',
+        is_featured: false,
+        is_trending: false,
+        is_new: Boolean(snapshot?.is_new),
+        is_exclusive: Boolean(snapshot?.is_exclusive),
+        is_published: true,
+        category_id: snapshot?.category_id || null,
+      } as any);
+    } else {
+      const created = await upsertMovie({
+        title,
+        description,
+        poster,
+        backdrop,
+        trailer_url: snapshot?.trailer_url || '',
+        stream_url: bestSource?.url || snapshot?.stream_url || '',
+        stream_sources: streamSources,
+        genre: genres,
+        rating: Number(snapshot?.rating || sourceRef.meta_json?.imdbRating || 0) || 0,
+        year: snapshot?.year || sourceRef.year || toReleaseYear(sourceRef.meta_json?.releaseInfo) || new Date().getFullYear(),
+        duration: snapshot?.duration || '',
+        cast_members: snapshot?.cast_members || [],
+        quality: qualities.length > 0 ? qualities : ['Auto'],
+        subtitle_url: bestSource?.subtitle || snapshot?.subtitle_url || '',
+        is_featured: false,
+        is_trending: false,
+        is_new: Boolean(snapshot?.is_new),
+        is_exclusive: Boolean(snapshot?.is_exclusive),
+        is_published: true,
+        category_id: snapshot?.category_id || null,
+      } as any);
+      targetId = created.id;
+    }
   } else {
-    const created = await upsertSeries({
+    const existingSeries = await findExistingContentByIdentity('series', {
+      imdb_id: sourceRef.imdb_id || sourceRef.meta_json?.imdb_id || null,
+      tmdb_id: sourceRef.meta_json?.tmdb_id || null,
       title,
-      description,
-      poster,
-      backdrop,
-      trailer_url: snapshot?.trailer_url || '',
-      genre: genres,
-      rating: Number(snapshot?.rating || sourceRef.meta_json?.imdbRating || 0) || 0,
       year: snapshot?.year || sourceRef.year || toReleaseYear(sourceRef.meta_json?.releaseInfo) || new Date().getFullYear(),
-      cast_members: snapshot?.cast_members || [],
-      total_seasons: snapshot?.total_seasons || 1,
-      total_episodes: snapshot?.total_episodes || 0,
-      status: snapshot?.status || 'Returning Series',
-      is_featured: false,
-      is_trending: false,
-      is_new: Boolean(snapshot?.is_new),
-      is_exclusive: Boolean(snapshot?.is_exclusive),
-      is_published: true,
-      category_id: snapshot?.category_id || null,
-    } as any);
-    targetId = created.id;
+    }).catch(() => null);
+
+    if (existingSeries?.id) {
+      targetId = existingSeries.id;
+      await upsertSeries({
+        id: existingSeries.id,
+        title,
+        description,
+        poster,
+        backdrop,
+        trailer_url: snapshot?.trailer_url || '',
+        genre: genres,
+        rating: Number(snapshot?.rating || sourceRef.meta_json?.imdbRating || 0) || 0,
+        year: snapshot?.year || sourceRef.year || toReleaseYear(sourceRef.meta_json?.releaseInfo) || new Date().getFullYear(),
+        cast_members: snapshot?.cast_members || [],
+        total_seasons: snapshot?.total_seasons || 1,
+        total_episodes: snapshot?.total_episodes || 0,
+        status: snapshot?.status || 'Returning Series',
+        is_featured: false,
+        is_trending: false,
+        is_new: Boolean(snapshot?.is_new),
+        is_exclusive: Boolean(snapshot?.is_exclusive),
+        is_published: true,
+        category_id: snapshot?.category_id || null,
+      } as any);
+    } else {
+      const created = await upsertSeries({
+        title,
+        description,
+        poster,
+        backdrop,
+        trailer_url: snapshot?.trailer_url || '',
+        genre: genres,
+        rating: Number(snapshot?.rating || sourceRef.meta_json?.imdbRating || 0) || 0,
+        year: snapshot?.year || sourceRef.year || toReleaseYear(sourceRef.meta_json?.releaseInfo) || new Date().getFullYear(),
+        cast_members: snapshot?.cast_members || [],
+        total_seasons: snapshot?.total_seasons || 1,
+        total_episodes: snapshot?.total_episodes || 0,
+        status: snapshot?.status || 'Returning Series',
+        is_featured: false,
+        is_trending: false,
+        is_new: Boolean(snapshot?.is_new),
+        is_exclusive: Boolean(snapshot?.is_exclusive),
+        is_published: true,
+        category_id: snapshot?.category_id || null,
+      } as any);
+      targetId = created.id;
+    }
+
+    if (
+      sourceRef.content_type === 'series' &&
+      Array.isArray(sourceRef.meta_json?.videos) &&
+      sourceRef.meta_json.videos.length > 0
+    ) {
+      for (const [videoIndex, video] of sourceRef.meta_json.videos.entries()) {
+        await ensureSeriesEpisode(
+          (addon as AddonRecord) || ({ id: sourceRef.addon_id } as AddonRecord),
+          targetId,
+          sourceRef.external_type,
+          video,
+          videoIndex
+        );
+      }
+      await updateSeriesCounts(targetId).catch(() => {});
+    }
   }
 
-  const { error: updateError } = await supabase
+  const { data: duplicateRef, error: duplicateError } = await supabase
     .from('content_external_refs')
-    .update({
-      content_type: targetType,
-      content_id: targetId,
-      title,
-      year: snapshot?.year || sourceRef.year || null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', refId);
-  if (updateError) throw updateError;
+    .select('id, content_id')
+    .eq('addon_id', sourceRef.addon_id)
+    .eq('content_type', targetType)
+    .eq('external_id', sourceRef.external_id)
+    .neq('id', refId)
+    .maybeSingle();
+
+  if (duplicateError) throw duplicateError;
+
+  if (duplicateRef?.id) {
+    const { error: existingUpdateError } = await supabase
+      .from('content_external_refs')
+      .update({
+        content_id: targetId,
+        title,
+        year: snapshot?.year || sourceRef.year || null,
+        imdb_id: sourceRef.imdb_id || sourceRef.meta_json?.imdb_id || null,
+        meta_json: sourceRef.meta_json || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', duplicateRef.id);
+
+    if (existingUpdateError) throw existingUpdateError;
+
+    const { error: deleteError } = await supabase
+      .from('content_external_refs')
+      .delete()
+      .eq('id', refId);
+
+    if (deleteError) throw deleteError;
+  } else {
+    const { error: updateError } = await supabase
+      .from('content_external_refs')
+      .update({
+        content_type: targetType,
+        content_id: targetId,
+        title,
+        year: snapshot?.year || sourceRef.year || null,
+        imdb_id: sourceRef.imdb_id || sourceRef.meta_json?.imdb_id || null,
+        meta_json: sourceRef.meta_json || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', refId);
+
+    if (updateError) throw updateError;
+  }
 
   await cleanupMovedSourceContent(sourceRef);
   return { moved: true, targetType, targetId, title };

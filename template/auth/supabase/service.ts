@@ -135,7 +135,6 @@ export class AuthService {
                sessionUser.user_metadata?.name || 
                sessionUser.email?.split('@')[0] || 
                `user_${sessionUser.id.slice(0, 8)}`,
-      authMethod: 'email',
       created_at: sessionUser.created_at,
       updated_at: sessionUser.updated_at || sessionUser.created_at,
     };

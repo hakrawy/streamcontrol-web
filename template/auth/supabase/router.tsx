@@ -21,45 +21,47 @@ export function AuthRouter({
   children,
   loginRoute = '/login',
   loadingComponent: LoadingComponent = DefaultLoadingScreen,
-  excludeRoutes = [],
+  excludeRoutes = []
 }: AuthRouterProps) {
-  const { isAuthenticated, authLoading, initialized } = useAuth();
+  const { user, loading, initialized } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
-  const isReady = initialized && !authLoading;
-  const isLoginRoute = pathname === loginRoute || pathname?.startsWith(`${loginRoute}/`);
-  const isExcludedRoute = excludeRoutes.some((route) => pathname?.startsWith(route));
-  const shouldRedirectToLogin = isReady && !isAuthenticated && !isLoginRoute && !isExcludedRoute;
-  const shouldRedirectToHome = isReady && isAuthenticated && isLoginRoute;
-
   useEffect(() => {
-    if (shouldRedirectToLogin) {
-      router.replace(loginRoute);
+    if (!initialized || loading) {
       return;
     }
 
-    if (shouldRedirectToHome) {
-      router.replace('/(tabs)');
+    const isLoginRoute = pathname === loginRoute;
+    const isExcludedRoute = excludeRoutes.some(route => 
+      pathname.startsWith(route)
+    );
+
+    const action = !user && !isLoginRoute && !isExcludedRoute ? 'redirect_to_login' :
+                   user && isLoginRoute ? 'redirect_to_home' : 'no_action';
+
+    if (action === 'redirect_to_login') {
+      router.push(loginRoute);
+    } else if (action === 'redirect_to_home') {
+      router.replace('/');
     }
-  }, [loginRoute, router, shouldRedirectToHome, shouldRedirectToLogin]);
+  }, [user?.id, loading, initialized, pathname, loginRoute, excludeRoutes, router]);
 
-  if (!isReady) {
+  if (loading || !initialized) {
     return <LoadingComponent />;
   }
 
-  if (shouldRedirectToLogin || shouldRedirectToHome) {
-    return <LoadingComponent />;
+  const isLoginRoute = pathname === loginRoute;
+  const isExcludedRoute = excludeRoutes.some(route => 
+    pathname.startsWith(route)
+  );
+  
+  if (isLoginRoute || isExcludedRoute || user) {
+    return <>{children}</>;
   }
 
-  if (!isAuthenticated && !isLoginRoute && !isExcludedRoute) {
-    return <LoadingComponent />;
-  }
-
-  return <>{children}</>;
+  return <LoadingComponent />;
 }
-
-export const AuthGuard = AuthRouter;
 
 const styles = StyleSheet.create({
   defaultContainer: {

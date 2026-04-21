@@ -1,63 +1,37 @@
-import React, { useEffect } from 'react';
-import { Platform, View, Text, ActivityIndicator } from 'react-native';
-import { Stack, usePathname, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Platform, View } from 'react-native';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AlertProvider, AuthProvider, useAuth } from '@/template';
+import { AlertProvider, AuthProvider } from '@/template';
 import { AppProvider } from '../contexts/AppContext';
 import { LocaleProvider, useLocale } from '../contexts/LocaleContext';
-import { GlobalSystemBanners } from '../components/AppFeedback';
-import { theme } from '../constants/theme';
-
-function SimpleLoader() {
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
-      <ActivityIndicator size="large" color={theme.primary} />
-      <Text style={{ marginTop: 12, color: theme.textSecondary, fontWeight: '700' }}>Loading...</Text>
-    </View>
-  );
-}
-
-function AuthGate({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { authLoading, initialized, isAuthenticated } = useAuth();
-
-  const isLoginRoute = pathname === '/login' || pathname?.startsWith('/login/');
-  const authReady = initialized && !authLoading;
-
-  useEffect(() => {
-    if (!authReady) return;
-
-    if (!isAuthenticated && !isLoginRoute) {
-      router.replace('/login');
-      return;
-    }
-
-    if (isAuthenticated && isLoginRoute) {
-      router.replace('/(tabs)');
-    }
-  }, [authReady, isAuthenticated, isLoginRoute, router]);
-
-  if (!authReady) {
-    return <SimpleLoader />;
-  }
-
-  return <>{children}</>;
-}
+import { PremiumLoader } from '../components/PremiumLoader';
 
 function AppShell() {
   const { direction } = useLocale();
+  const [booting, setBooting] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setBooting(false), 850);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <View style={{ flex: 1, direction }}>
       <StatusBar style="light" />
-      <GlobalSystemBanners />
+      {/* Global web max-width centering wrapper */}
       {Platform.OS === 'web' && (
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&display=swap');
-          :root { --app-max-width: 1280px; color-scheme: dark; }
-          * { box-sizing: border-box; }
+          :root {
+            --app-max-width: 1280px;
+            color-scheme: dark;
+          }
+          * {
+            box-sizing: border-box;
+          }
+          /* Prevent horizontal overflow on mobile */
           html, body {
             overflow-x: hidden;
             background-color: #05070D;
@@ -67,25 +41,46 @@ function AppShell() {
               linear-gradient(180deg, #05070D 0%, #060A12 55%, #05070D 100%);
             font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
           }
-          * { scroll-behavior: smooth; }
+          /* Smooth scrolling */
+          * {
+            scroll-behavior: smooth;
+          }
+          /* Better font rendering */
           body {
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: geometricPrecision;
             overscroll-behavior: none;
           }
-          ::selection { background: rgba(56,189,248,0.32); }
-          ::-webkit-scrollbar { width: 10px; height: 10px; }
-          ::-webkit-scrollbar-track { background: rgba(15,23,42,0.35); }
+          ::selection {
+            background: rgba(56,189,248,0.32);
+          }
+          ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+          }
+          ::-webkit-scrollbar-track {
+            background: rgba(15,23,42,0.35);
+          }
           ::-webkit-scrollbar-thumb {
             background: linear-gradient(180deg, rgba(56,189,248,0.85), rgba(245,158,11,0.72));
             border-radius: 999px;
             border: 2px solid rgba(10,10,15,0.8);
           }
-          a { color: inherit; text-decoration: none; }
-          button, [role="button"] { transition: transform 160ms ease, opacity 160ms ease, filter 160ms ease; }
-          button:active, [role="button"]:active { transform: scale(0.985); }
-          input[type=range]:focus { outline: none; }
+          a {
+            color: inherit;
+            text-decoration: none;
+          }
+          button, [role="button"] {
+            transition: transform 160ms ease, opacity 160ms ease, filter 160ms ease;
+          }
+          button:active, [role="button"]:active {
+            transform: scale(0.985);
+          }
+          /* Input range styles (used in video player) */
+          input[type=range]:focus {
+            outline: none;
+          }
         `}</style>
       )}
       <Stack
@@ -104,6 +99,7 @@ function AppShell() {
         <Stack.Screen name="settings/[slug]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="admin" />
       </Stack>
+      {booting ? <PremiumLoader /> : null}
     </View>
   );
 }
@@ -114,11 +110,9 @@ export default function RootLayout() {
       <AuthProvider>
         <SafeAreaProvider>
           <LocaleProvider>
-            <AuthGate>
-              <AppProvider>
-                <AppShell />
-              </AppProvider>
-            </AuthGate>
+            <AppProvider>
+              <AppShell />
+            </AppProvider>
           </LocaleProvider>
         </SafeAreaProvider>
       </AuthProvider>

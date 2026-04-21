@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Switch, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -341,9 +341,8 @@ const styles = StyleSheet.create({
   metricValue: { fontSize: 24, fontWeight: '800', color: '#FFF' },
   metricLabel: { fontSize: 13, color: theme.textSecondary, marginTop: 4 },
   optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.border },
-  optionRowActive: { backgroundColor: 'rgba(56,189,248,0.08)' },
+  optionRowActive: { backgroundColor: 'rgba(99,102,241,0.08)' },
   optionText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
   optionTextActive: { color: theme.primaryLight },
   articleText: { fontSize: 14, color: '#D1D5DB', lineHeight: 24, marginBottom: 12 },
 });
-

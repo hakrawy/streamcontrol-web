@@ -1,12 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSupabaseClient } from '@/template';
 import * as api from './api';
-import { validateSubscriptionCode as validateSubscriptionCodeEdge } from '../src/lib/edgeFunctions';
-import {
-  clearPersistedSubscriptionSession,
-  persistSubscriptionSession,
-  readPersistedSubscriptionSession,
-  type SubscriptionSession,
-} from './authSession';
 
 export type SubscriptionCodeStatus = 'active' | 'disabled' | 'expired';
 
@@ -24,8 +18,16 @@ export interface SubscriptionCode {
   usedBy: Array<{ sessionId: string; usedAt: string; expiresAt: string }>;
 }
 
+export interface SubscriptionSession {
+  sessionId: string;
+  codeId: string;
+  code: string;
+  startedAt: string;
+  expiresAt: string;
+}
+
 const CODES_SETTING_KEY = 'subscription_codes';
-const SESSION_MAX_HOURS = 12;
+const SESSION_KEY = 'subscription_session';
 const supabase = getSupabaseClient();
 
 function id(prefix = 'sub') {
@@ -202,31 +204,8 @@ export async function deleteSubscriptionCode(idValue: string) {
 }
 
 export async function validateSubscriptionCode(rawCode: string) {
-  const normalized = normalizeCode(rawCode);
-  try {
-    const remote = await validateSubscriptionCodeEdge({ code: normalized });
-    if (!remote.valid) {
-      throw new Error(remote.message || 'Subscription code was not found.');
-    }
-    const startedAt = remote.startedAt || new Date().toISOString();
-    const codeExpiry = remote.expiresAt ? new Date(remote.expiresAt) : new Date(Date.now() + (remote.durationDays || 30) * 24 * 60 * 60 * 1000);
-    const hardExpiry = new Date(new Date(startedAt).getTime() + SESSION_MAX_HOURS * 60 * 60 * 1000);
-    const expiresAt = new Date(Math.min(codeExpiry.getTime(), hardExpiry.getTime())).toISOString();
-    const session: SubscriptionSession = {
-      sessionId: remote.sessionId || id('session'),
-      subscriptionId: remote.subscriptionId || remote.codeId || normalized,
-      codeId: remote.codeId || remote.subscriptionId || normalized,
-      code: remote.code || normalized,
-      startedAt,
-      expiresAt,
-    };
-    await persistSubscriptionSession(session);
-    return session;
-  } catch {
-    // Fallback below keeps the app usable if Edge Functions are temporarily unavailable.
-  }
-
   const current = await fetchSubscriptionCodes();
+  const normalized = normalizeCode(rawCode);
   const match = current.find((code) => normalizeCode(code.code) === normalized);
   if (!match) throw new Error('Subscription code was not found.');
   const status = effectiveStatus(match);
@@ -234,16 +213,13 @@ export async function validateSubscriptionCode(rawCode: string) {
   if (status === 'expired') throw new Error('Subscription code is expired or fully used.');
 
   const startedAt = new Date();
-  const codeExpiry = new Date(startedAt.getTime() + match.durationDays * 24 * 60 * 60 * 1000);
-  const hardExpiry = new Date(startedAt.getTime() + SESSION_MAX_HOURS * 60 * 60 * 1000);
-  const expiresAt = new Date(Math.min(codeExpiry.getTime(), hardExpiry.getTime())).toISOString();
+  const expiresAt = new Date(startedAt.getTime() + match.durationDays * 24 * 60 * 60 * 1000);
   const session: SubscriptionSession = {
     sessionId: id('session'),
-    subscriptionId: match.id,
     codeId: match.id,
     code: match.code,
     startedAt: startedAt.toISOString(),
-    expiresAt,
+    expiresAt: expiresAt.toISOString(),
   };
   try {
     const { error: updateError } = await supabase
@@ -259,9 +235,9 @@ export async function validateSubscriptionCode(rawCode: string) {
       code_id: match.id,
       session_id: session.sessionId,
       used_at: startedAt.toISOString(),
-      expires_at: expiresAt,
+      expires_at: expiresAt.toISOString(),
     });
-    await persistSubscriptionSession(session);
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
     return session;
   } catch {
     // Fallback below.
@@ -271,19 +247,31 @@ export async function validateSubscriptionCode(rawCode: string) {
         ...code,
         usedCount: code.usedCount + 1,
         lastUsedAt: startedAt.toISOString(),
-        usedBy: [{ sessionId: session.sessionId, usedAt: startedAt.toISOString(), expiresAt }, ...(code.usedBy || [])].slice(0, 100),
+        usedBy: [{ sessionId: session.sessionId, usedAt: startedAt.toISOString(), expiresAt: expiresAt.toISOString() }, ...(code.usedBy || [])].slice(0, 100),
       }
     : code
   );
   await saveCodes(nextCodes).catch(() => null);
-  await persistSubscriptionSession(session);
+  await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
   return session;
 }
 
 export async function getSubscriptionSession() {
-  return readPersistedSubscriptionSession();
+  const raw = await AsyncStorage.getItem(SESSION_KEY);
+  if (!raw) return null;
+  try {
+    const session = JSON.parse(raw) as SubscriptionSession;
+    if (new Date(session.expiresAt).getTime() < Date.now()) {
+      await AsyncStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return session;
+  } catch {
+    await AsyncStorage.removeItem(SESSION_KEY);
+    return null;
+  }
 }
 
 export async function clearSubscriptionSession() {
-  await clearPersistedSubscriptionSession();
+  await AsyncStorage.removeItem(SESSION_KEY);
 }

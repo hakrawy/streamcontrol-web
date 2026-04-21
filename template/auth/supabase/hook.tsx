@@ -1,49 +1,169 @@
 // @ts-nocheck
+
 import { AuthContextType, SendOTPResult, AuthResult, LogoutResult, SignUpResult, GoogleSignInResult } from '../types';
+import { authService } from './service';
 import { configManager } from '../../core/config';
 import { useAuthContext } from './context';
 
-function createDisabledAuthStub(): AuthContextType {
-  const disabledError = 'Auth function not enabled, please check configuration';
-
-  return {
-    currentUser: null,
-    user: null,
-    authLoading: false,
-    loading: false,
-    operationLoading: false,
-    initialized: true,
-    isAuthenticated: false,
-    authMethod: null,
-    setOperationLoading: () => {},
-    sendOTP: async (): Promise<SendOTPResult> => ({ error: disabledError }),
-    verifyOTPAndLogin: async (): Promise<AuthResult> => ({ error: disabledError, user: null }),
-    signUpWithPassword: async (): Promise<SignUpResult> => ({ error: disabledError, user: null }),
-    signInWithPassword: async (): Promise<AuthResult> => ({ error: disabledError, user: null }),
-    loginWithPassword: async (): Promise<AuthResult> => ({ error: disabledError, user: null }),
-    loginWithSubscriptionCode: async (): Promise<AuthResult> => ({ error: disabledError, user: null }),
-    signInWithGoogle: async (): Promise<GoogleSignInResult> => ({ error: disabledError }),
-    logout: async (): Promise<LogoutResult> => ({ error: disabledError }),
-    refreshSession: async () => {},
-    restoreSessionOnRefresh: async () => {},
-  };
-}
-
 export function useAuth(): AuthContextType {
   const context = useAuthContext();
+  
   const isAuthEnabled = configManager.isModuleEnabled('auth');
-
   if (!isAuthEnabled) {
-    return createDisabledAuthStub();
+    return {
+      user: null,
+      loading: false,
+      operationLoading: false,
+      initialized: true,
+      setOperationLoading: () => {},
+      sendOTP: async (): Promise<SendOTPResult> => ({ 
+        error: 'Auth function not enabled, please check configuration' 
+      }),
+      verifyOTPAndLogin: async (): Promise<AuthResult> => ({ 
+        error: 'Auth function not enabled, please check configuration', 
+        user: null 
+      }),
+      signUpWithPassword: async (): Promise<SignUpResult> => ({ 
+        error: 'Auth function not enabled, please check configuration', 
+        user: null 
+      }),
+      signInWithPassword: async (): Promise<AuthResult> => ({ 
+        error: 'Auth function not enabled, please check configuration', 
+        user: null 
+      }),
+      signInWithGoogle: async (): Promise<GoogleSignInResult> => ({ 
+        error: 'Auth function not enabled, please check configuration'
+      }),
+      logout: async (): Promise<LogoutResult> => {
+        console.warn('Auth function not enabled');
+        return { 
+          error: 'Auth function not enabled, please check configuration' 
+        };
+      },
+      refreshSession: async () => {
+        console.warn('Auth function not enabled');
+      },
+    };
   }
 
+  const sendOTP = async (email: string, options?: { shouldCreateUser?: boolean; emailRedirectTo?: string }): Promise<SendOTPResult> => {
+    context.setOperationLoading(true);
+    try {
+      const result = await authService.sendOTP(email, options);
+      return result;
+    } catch (error) {
+      console.warn('[Template:useAuth] sendOTP exception:', error);
+      return { 
+        error: 'Failed to send verification code' 
+      };
+    } finally {
+      context.setOperationLoading(false);
+    }
+  };
+
+    const verifyOTPAndLogin = async (email: string, otp: string, options?: { password?: string }): Promise<AuthResult> => {
+    context.setOperationLoading(true);
+    try {
+      const result = await authService.verifyOTPAndLogin(email, otp, options);
+      return result;
+    } catch (error) {
+      console.warn('[Template:useAuth] verifyOTPAndLogin exception:', error);
+      return { 
+        error: 'Login failed',
+        user: null 
+      };
+    } finally {
+      context.setOperationLoading(false);
+    }
+  };
+
+  const signUpWithPassword = async (email: string, password: string, metadata?: Record<string, any>): Promise<SignUpResult> => {
+    context.setOperationLoading(true);
+    try {
+      const result = await authService.signUpWithPassword(email, password, metadata);
+      return result;
+    } catch (error) {
+      console.warn('[Template:useAuth] signUpWithPassword exception:', error);
+      return { 
+        error: 'Registration failed',
+        user: null 
+      };
+    } finally {
+      context.setOperationLoading(false);
+    }
+  };
+
+  const signInWithPassword = async (email: string, password: string): Promise<AuthResult> => {
+    context.setOperationLoading(true);
+    try {
+      const result = await authService.signInWithPassword(email, password);
+      return result;
+    } catch (error) {
+      console.warn('[Template:useAuth] signInWithPassword exception:', error);
+      return { 
+        error: 'Login failed',
+        user: null 
+      };
+    } finally {
+      context.setOperationLoading(false);
+    }
+  };
+
+  const logout = async (): Promise<LogoutResult> => {
+    context.setOperationLoading(true);
+    try {
+      const result = await authService.logout();
+      
+      if (!result) {
+        console.warn('[Template:useAuth] Invalid logout result format:', result);
+        return { error: 'Invalid logout response' };
+      }
+      
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown logout error';
+      console.warn('[Template:useAuth] Logout hook exception:', errorMessage);
+      return { error: errorMessage };
+    } finally {
+      context.setOperationLoading(false);
+    }
+  };
+
+  const refreshSession = async () => {
+    try {
+      await authService.refreshSession();
+    } catch (error) {
+      console.warn('[Template:useAuth] Refresh session error:', error);
+    }
+  };
+
+  const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
+    context.setOperationLoading(true);
+    try {
+      const result = await authService.signInWithGoogle();
+      return result;
+    } catch (error) {
+      console.warn('[Template:useAuth] signInWithGoogle exception:', error);
+      return { 
+        error: 'Google login failed'
+      };
+    } finally {
+      context.setOperationLoading(false);
+    }
+  };
+
   return {
-    ...context,
-    user: context.currentUser ?? context.user,
-    currentUser: context.currentUser ?? context.user,
-    loading: context.authLoading,
-    authLoading: context.authLoading,
-    signInWithPassword: context.loginWithPassword,
-    loginWithPassword: context.loginWithPassword,
+    user: context.user,
+    loading: context.loading,
+    operationLoading: context.operationLoading,
+    initialized: context.initialized,
+    setOperationLoading: context.setOperationLoading,
+    sendOTP,
+    verifyOTPAndLogin,
+    signUpWithPassword,
+    signInWithPassword,
+    signInWithGoogle,
+    logout,
+    refreshSession,
   };
 }

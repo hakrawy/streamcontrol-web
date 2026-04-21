@@ -8,7 +8,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { WebView } from 'react-native-webview';
-import HlsJs, { Events, ErrorTypes } from 'hls.js';
+import Hls, { Events, ErrorTypes } from 'hls.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../constants/theme';
 import { useAuth } from '@/template';
@@ -28,8 +28,6 @@ import type { PlaybackSource, PlaybackSourceDiagnostic, SourceHistoryRecord } fr
 
 type MediaKind = 'direct' | 'youtube' | 'web' | 'dash';
 type PlayerSource = PlaybackSource;
-
-const hlsIsSupported = Reflect.get(HlsJs, 'isSupported') as (() => boolean) | undefined;
 
 function getYouTubeVideoId(rawUrl: string): string | null {
   try {
@@ -282,7 +280,7 @@ function SourceSelector({
             </Text>
             {source.addon || source.quality ? (
               <Text style={[styles.sourceChipMeta, activeIndex === index && styles.sourceChipMetaActive]}>
-                {[source.addon, source.quality].filter(Boolean).join(' â€¢ ')}
+                {[source.addon, source.quality].filter(Boolean).join(' • ')}
               </Text>
             ) : null}
           </Pressable>
@@ -343,7 +341,7 @@ function WebDirectPlayer({
   const [playbackError, setPlaybackError] = useState('');
   const [captionsEnabled, setCaptionsEnabled] = useState(Boolean(subtitleUrl));
   const [progressTrackWidth, setProgressTrackWidth] = useState(0);
-  const [hlsLevels, setHlsLevels] = useState<{ height: number; bitrate: number; index: number }[]>([]);
+  const [hlsLevels, setHlsLevels] = useState<Array<{ height: number; bitrate: number; index: number }>>([]);
   const [currentLevel, setCurrentLevel] = useState(-1);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -352,7 +350,7 @@ function WebDirectPlayer({
   const startupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<any>(null);
-  const hlsRef = useRef<HlsJs | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const didApplyResumeRef = useRef(false);
   const didReportSuccessRef = useRef(false);
 
@@ -430,7 +428,7 @@ function WebDirectPlayer({
     const video = videoRef.current;
     if (!video) return;
 
-    let hls: HlsJs | null = null;
+    let hls: Hls | null = null;
     let mediaErrorCount = 0;
     let networkErrorCount = 0;
 
@@ -465,8 +463,8 @@ function WebDirectPlayer({
       }
     }, 15000);
 
-    if (isHlsUrl(playbackUrl) && hlsIsSupported?.()) {
-      hls = new HlsJs({
+    if (isHlsUrl(playbackUrl) && Hls.isSupported()) {
+      hls = new Hls({
         lowLatencyMode: false,
         enableWorker: true,
         backBufferLength: 90,
@@ -723,7 +721,7 @@ function WebDirectPlayer({
         {isBuffering ? (
           <View style={styles.bufferingWrap}>
             <ActivityIndicator size="large" color="#FFF" />
-            <Text style={styles.bufferingText}>Optimizing playbackâ€¦</Text>
+            <Text style={styles.bufferingText}>Optimizing playback…</Text>
           </View>
         ) : null}
       </Pressable>
@@ -967,7 +965,7 @@ function WebDirectPlayer({
             {activeSource?.inspection ? (
               <Text style={styles.helperText}>
                 {mapInspectionToUserMessage(activeSource.inspection)}
-                {activeSource.inspection.httpStatus ? ` â€¢ HTTP ${activeSource.inspection.httpStatus}` : ''}
+                {activeSource.inspection.httpStatus ? ` • HTTP ${activeSource.inspection.httpStatus}` : ''}
               </Text>
             ) : null}
 
@@ -1613,7 +1611,7 @@ export default function PlayerScreenWrapper() {
 }
 
 function PlayerScreen() {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const { url, title, sources, subtitleUrl, viewerContentId, viewerContentType } = useLocalSearchParams<{
     url?: string;
     title?: string;
@@ -1629,9 +1627,9 @@ function PlayerScreen() {
   const [selectedSourceIndex, setSelectedSourceIndex] = useState(0);
   const [autoFallbackReason, setAutoFallbackReason] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
-  const [, setHistoryByKey] = useState<Record<string, SourceHistoryRecord | undefined>>({});
+  const [historyByKey, setHistoryByKey] = useState<Record<string, SourceHistoryRecord | undefined>>({});
   const [failedSourceKeys, setFailedSourceKeys] = useState<string[]>([]);
-  const [, setDiagnostics] = useState<PlaybackSourceDiagnostic[]>([]);
+  const [diagnostics, setDiagnostics] = useState<PlaybackSourceDiagnostic[]>([]);
   const [isPreflighting, setIsPreflighting] = useState(true);
   const [preflightLogs, setPreflightLogs] = useState<string[]>(['Initializing player...']);
   const [proxyUrl, setProxyUrl] = useState('');
@@ -1649,14 +1647,14 @@ function PlayerScreen() {
   const sourceHealthMeta = getSourceHealthMeta(activeSource);
   const sourceIndicatorLabel = [activeSource?.addon || activeSource?.server || activeSource?.label, activeSource?.quality || null]
     .filter(Boolean)
-    .join(' â€¢ ');
+    .join(' • ');
 
   const effectiveSourceIndicatorLabel = [
     sourceIndicatorLabel,
     activeSource?.inspection ? mapInspectionToUserMessage(activeSource.inspection) : null,
   ]
     .filter(Boolean)
-    .join(' â€¢ ');
+    .join(' • ');
 
   const appendDiagnostic = useCallback((diagnostic: PlaybackSourceDiagnostic) => {
     setDiagnostics((current) => [...current.slice(-29), diagnostic]);
@@ -1928,7 +1926,7 @@ function PlayerScreen() {
           sessionId,
           contentId: viewerContentId,
           contentType: viewerContentType,
-          userId: currentUser?.id,
+          userId: user?.id,
         });
       } catch {}
 
@@ -1949,7 +1947,7 @@ function PlayerScreen() {
       clearInterval(interval);
       void api.endViewerSession(sessionId).catch(() => {});
     };
-  }, [viewerContentId, viewerContentType, currentUser?.id]);
+  }, [viewerContentId, viewerContentType, user?.id]);
 
   useEffect(() => {
     if (!autoFallbackReason) return;
@@ -1990,7 +1988,7 @@ function PlayerScreen() {
     return (
       <View style={styles.unsupportedContainer}>
         <StatusBar hidden />
-        <ActivityIndicator size="large" color="#38BDF8" />
+        <ActivityIndicator size="large" color="#6366F1" />
         <Text style={styles.unsupportedTitle}>Starting Stream</Text>
         <View style={{ gap: 4, alignItems: 'center' }}>
           {preflightLogs.map((log, i) => (
@@ -2099,31 +2097,31 @@ function PlayerScreen() {
 const styles = StyleSheet.create({
   settingsMenu: {
     position: 'absolute',
-    top: 82,
+    top: 80,
     right: 16,
-    backgroundColor: 'rgba(8,12,20,0.96)',
-    borderRadius: 22,
+    backgroundColor: 'rgba(26,26,38,0.98)',
+    borderRadius: 16,
     padding: 16,
     zIndex: 2000,
     width: 280,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.06)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
-    elevation: 24,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 20,
   },
   settingsGroup: { gap: 8 },
   settingsTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: 'rgba(173,216,255,0.85)',
+    color: 'rgba(255,255,255,0.5)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   settingsDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 12 },
-  settingsRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 12 },
+  settingsRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   settingsRowText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
 
   container: { flex: 1, backgroundColor: '#000' },
@@ -2133,51 +2131,49 @@ const styles = StyleSheet.create({
 
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4,7,13,0.38)',
+    backgroundColor: 'rgba(0,0,0,0.34)',
     justifyContent: 'space-between',
     zIndex: 1000,
-    elevation: 16,
+    elevation: 12,
   },
   embeddedOverlay: { backgroundColor: 'transparent' },
 
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, gap: 12, zIndex: 1500, elevation: 16 },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, gap: 12, zIndex: 1500, elevation: 16 },
   backButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
   titleWrap: { flex: 1 },
-  titleText: { fontSize: 17, fontWeight: '800', color: '#FFF', letterSpacing: -0.2 },
-  sourceStatusText: { fontSize: 12, color: 'rgba(219,234,254,0.75)', marginTop: 2 },
+  titleText: { fontSize: 17, fontWeight: '800', color: '#FFF' },
+  sourceStatusText: { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
 
   topBarBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topBarBtnActive: { backgroundColor: theme.primary },
+  topBarBtnActive: { backgroundColor: 'rgba(99,102,241,0.9)' },
   speedText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
 
   sourcesSheet: {
-    backgroundColor: 'rgba(8,12,20,0.96)',
-    borderRadius: 26,
+    backgroundColor: 'rgba(9,13,24,0.96)',
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     padding: 16,
     gap: 12,
   },
   sourcesSheetHeader: { gap: 4 },
-  sourcesSheetEyebrow: { fontSize: 11, fontWeight: '800', color: '#7DD3FC', letterSpacing: 1.2 },
+  sourcesSheetEyebrow: { fontSize: 11, fontWeight: '800', color: '#A5B4FC', letterSpacing: 1.2 },
   sourcesSheetTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   sourcesSheetSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.64)' },
   sourcesRow: { gap: 8, paddingRight: 16 },
@@ -2185,22 +2181,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  sourceChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  sourceChipActive: { backgroundColor: '#FFF', borderColor: '#FFF' },
   sourceChipText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
-  sourceChipTextActive: { color: '#001018' },
+  sourceChipTextActive: { color: '#000' },
   sourceChipMeta: { fontSize: 10, color: 'rgba(255,255,255,0.68)', marginTop: 2 },
-  sourceChipMetaActive: { color: 'rgba(0,0,0,0.65)' },
+  sourceChipMetaActive: { color: 'rgba(0,0,0,0.6)' },
 
   speedMenu: {
     position: 'absolute',
     top: 80,
     right: 16,
-    backgroundColor: 'rgba(8,12,20,0.96)',
-    borderRadius: 18,
+    backgroundColor: 'rgba(26,26,38,0.95)',
+    borderRadius: 12,
     padding: 8,
     zIndex: 2000,
     elevation: 20,
@@ -2212,21 +2208,21 @@ const styles = StyleSheet.create({
 
   centerControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 48 },
   seekBtn: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   disabledControl: { opacity: 0.4 },
   playPauseBtn: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: theme.primary,
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2234,20 +2230,20 @@ const styles = StyleSheet.create({
   bottomBar: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
   progressContainer: { marginBottom: 8 },
   progressTrack: {
-    height: 5,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderRadius: 999,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 2,
     overflow: 'visible',
   },
-  progressFill: { height: 5, backgroundColor: theme.primary, borderRadius: 999 },
+  progressFill: { height: 4, backgroundColor: theme.primary, borderRadius: 2 },
   progressThumb: {
     position: 'absolute',
-    top: -6,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -5,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: theme.primary,
-    marginLeft: -8,
+    marginLeft: -7,
   },
   timeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   timeText: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
@@ -2293,7 +2289,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     maxWidth: 260,
   },
@@ -2310,10 +2306,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: 'rgba(5,7,13,0.9)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.5)',
     maxWidth: '80%',
@@ -2328,12 +2324,11 @@ const styles = StyleSheet.create({
     minWidth: 160,
     paddingHorizontal: 18,
     paddingVertical: 14,
-    borderRadius: 20,
-    backgroundColor: 'rgba(5,7,13,0.62)',
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   bufferingText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
 });
-

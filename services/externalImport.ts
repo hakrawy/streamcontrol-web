@@ -1,6 +1,5 @@
 import * as api from './api';
 import type { Channel, Movie, Series, StreamSource } from './api';
-import { importM3U } from '../src/lib/edgeFunctions';
 
 export type ExternalImportProvider = 'fgcode' | 'ostora' | 'custom' | 'playlist';
 export type ExternalSourceKind = 'api' | 'json' | 'm3u' | 'm3u8' | 'txt' | 'xml' | 'html' | 'direct' | 'unknown';
@@ -113,13 +112,6 @@ export function normalizeExternalImportUrl(provider: ExternalImportProvider, raw
   if (provider !== 'fgcode') return value;
   const code = extractFgCode(value);
   return code ? `https://fgcode.store/link/api.php/get?code=${encodeURIComponent(code)}` : value;
-}
-
-function shouldUseServerPlaylistImport(provider: ExternalImportProvider, url: string) {
-  return provider === 'playlist'
-    || provider === 'fgcode'
-    || provider === 'ostora'
-    || /(?:\/get\.php|\/api\.php\/get|\.m3u8?)(?:\?|$)/i.test(url);
 }
 
 function detectSourceKind(url: string, contentType: string, body: string): ExternalSourceKind {
@@ -509,20 +501,6 @@ export async function readExternalImportSource(url: string, provider: ExternalIm
   const resolvedUrl = normalizeExternalImportUrl(provider, url);
   if (!isHttpUrl(resolvedUrl)) {
     throw new Error('Please enter a valid http/https URL.');
-  }
-
-  if (shouldUseServerPlaylistImport(provider, resolvedUrl)) {
-    const edgePreview = await importM3U({ m3uUrl: resolvedUrl });
-    return {
-      provider,
-      requestedUrl: url,
-      resolvedUrl: edgePreview.resolvedUrl || resolvedUrl,
-      sourceKind: edgePreview.sourceKind || 'm3u',
-      contentType: edgePreview.contentType || 'application/vnd.apple.mpegurl',
-      total: edgePreview.total || edgePreview.items.length,
-      items: edgePreview.items,
-      warnings: edgePreview.warnings || [],
-    } as ExternalImportPreview;
   }
 
   const { text, contentType } = await fetchExternalText(resolvedUrl, options?.headers);

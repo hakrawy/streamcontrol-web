@@ -1,19 +1,12 @@
 // @ts-nocheck
 import { User } from '@supabase/supabase-js';
 
-export type AuthMethod = 'email' | 'subscription' | null;
-
 export interface AuthUser {
   id: string;
   email: string;
   username?: string;
   created_at?: string;
   updated_at?: string;
-  authMethod?: AuthMethod;
-  subscriptionId?: string;
-  sessionId?: string;
-  subscriptionCode?: string;
-  expiresAt?: string | null;
 }
 
 // Unified base result format - only use error
@@ -50,25 +43,18 @@ export interface GoogleSignInResult {
 }
 
 export interface AuthContextType {
-  currentUser: AuthUser | null;
   user: AuthUser | null;
-  authLoading: boolean;
   loading: boolean;
   operationLoading: boolean;
   initialized: boolean;
-  isAuthenticated: boolean;
-  authMethod: AuthMethod;
   setOperationLoading: (loading: boolean) => void;
   sendOTP: (email: string, options?: SendOTPOptions) => Promise<SendOTPResult>;
   verifyOTPAndLogin: (email: string, otp: string, options?: VerifyOTPOptions) => Promise<AuthResult>;
   signUpWithPassword: (email: string, password: string, metadata?: Record<string, any>) => Promise<SignUpResult>;
   signInWithPassword: (email: string, password: string) => Promise<AuthResult>;
-  loginWithPassword: (email: string, password: string) => Promise<AuthResult>;
-  loginWithSubscriptionCode: (code: string) => Promise<AuthResult>;
   signInWithGoogle: () => Promise<GoogleSignInResult>;
   logout: () => Promise<LogoutResult>;
   refreshSession: () => Promise<void>;
-  restoreSessionOnRefresh: () => Promise<void>;
 }
 
 export interface AuthConfig {

@@ -13,8 +13,6 @@ import * as api from '../services/api';
 import type { WatchRoom, RoomMessage, StreamSource } from '../services/api';
 import { useAppContext } from '../contexts/AppContext';
 import { useLocale } from '../contexts/LocaleContext';
-import { CinematicBackdrop } from '../components/CinematicUI';
-import { EmptyStateView } from '../components/AppFeedback';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -45,47 +43,46 @@ export default function WatchRoomScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [roomName, setRoomName] = useState('');
   const chatScrollRef = useRef<ScrollView>(null);
-  const mountedRef = useRef(true);
   const roomId = selectedRoom?.id;
 
   const copy = language === 'Arabic'
     ? {
-        error: 'ط®ط·ط£',
-        joinFailed: 'طھط¹ط°ط± ط§ظ„ط§ظ†ط¶ظ…ط§ظ… ط¥ظ„ظ‰ ط§ظ„ط؛ط±ظپط©',
-        deleteRoom: 'ط­ط°ظپ ط§ظ„ط؛ط±ظپط©',
-        deleteRoomConfirm: 'ظ‡ظ„ طھط±ظٹط¯ ط­ط°ظپ ط§ظ„ط؛ط±ظپط© "{name}" ظ„ط¬ظ…ظٹط¹ ط§ظ„ظ…ط´ط§ط±ظƒظٹظ†طں',
-        cancel: 'ط¥ظ„ط؛ط§ط،',
-        delete: 'ط­ط°ظپ',
-        deleted: 'طھظ… ط§ظ„ط­ط°ظپ',
-        deletedDesc: 'طھظ… ط¥ط؛ظ„ط§ظ‚ ط؛ط±ظپط© ط§ظ„ظ…ط´ط§ظ‡ط¯ط©.',
-        contentUnavailable: 'ط§ظ„ظ…ط­طھظˆظ‰ ط؛ظٹط± ظ…طھط§ط­',
-        contentUnavailableDesc: 'ط£ط¶ظپ ظپظٹظ„ظ…ظ‹ط§ ظˆط§ط­ط¯ظ‹ط§ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ ظ‚ط¨ظ„ ط¥ظ†ط´ط§ط، ط؛ط±ظپط© ظ…ط´ط§ظ‡ط¯ط©.',
-        createFailed: 'ظپط´ظ„ ط¥ظ†ط´ط§ط، ط§ظ„ط؛ط±ظپط©',
-        playbackUnavailable: 'ط§ظ„طھط´ط؛ظٹظ„ ط؛ظٹط± ظ…طھط§ط­',
-        playbackUnavailableDesc: 'ظ„ط§ ظٹظˆط¬ط¯ ط±ط§ط¨ط· ط¨ط« طµط§ظ„ط­ ظ„ظ‡ط°ظ‡ ط§ظ„ط؛ط±ظپط© ط­طھظ‰ ط§ظ„ط¢ظ†.',
-        playbackError: 'ط®ط·ط£ ظپظٹ ط§ظ„طھط´ط؛ظٹظ„',
-        host: 'ط§ظ„ظ…ط¶ظٹظپ',
-        unknown: 'ط؛ظٹط± ظ…ط¹ط±ظˆظپ',
-        noMessages: 'ظ„ط§ طھظˆط¬ط¯ ط±ط³ط§ط¦ظ„ ط¨ط¹ط¯. ط§ط¨ط¯ط£ ط§ظ„ظ…ط­ط§ط¯ط«ط©!',
-        saySomething: 'ط§ظƒطھط¨ ط±ط³ط§ظ„ط©...',
-        create: 'ط¥ظ†ط´ط§ط،',
-        createRoomTitle: 'ط¥ظ†ط´ط§ط، ط؛ط±ظپط© ظ…ط´ط§ظ‡ط¯ط©',
-        selectedContent: 'ط§ظ„ظ…ط­طھظˆظ‰ ط§ظ„ظ…ط­ط¯ط¯: {title}',
-        fallbackContent: 'ط§ظ„ظ…ط­طھظˆظ‰ ط§ظ„ظ…ط­ط¯ط¯: ط£ظˆظ„ ظپظٹظ„ظ… ظ…طھط§ط­',
-        roomName: 'ط§ط³ظ… ط§ظ„ط؛ط±ظپط©...',
-        watchTogether: 'ط´ط§ظ‡ط¯ظˆط§ ظ…ط¹ظ‹ط§',
-        watchTogetherDesc: 'ط§ظ†ط¶ظ… ط¥ظ„ظ‰ ط؛ط±ظپط© ط£ظˆ ط£ظ†ط´ط¦ ظˆط§ط­ط¯ط© ظ„ظ„ظ…ط´ط§ظ‡ط¯ط© ظ…ط¹ ط§ظ„ط£طµط¯ظ‚ط§ط،',
-        activeRooms: 'ط؛ط±ظپ ظ†ط´ط·ط©',
-        code: 'ط§ظ„ط±ظ…ط²',
-        public: 'ط¹ط§ظ…ط©',
-        private: 'ط®ط§طµط©',
-        join: 'ط§ظ†ط¶ظ…ط§ظ…',
-        noRooms: 'ظ„ط§ طھظˆط¬ط¯ ط؛ط±ظپ ظ†ط´ط·ط©',
-        noRoomsDesc: 'ط£ظ†ط´ط¦ ط؛ط±ظپط© ط¬ط¯ظٹط¯ط© ظ„ط¨ط¯ط، ط§ظ„ظ…ط´ط§ظ‡ط¯ط© ط§ظ„ط¬ظ…ط§ط¹ظٹط©!',
-        room: 'ط§ظ„ط؛ط±ظپط©',
-        updateRoomContent: 'طھط­ط¯ظٹط« ظ…ط­طھظˆظ‰ ط§ظ„ط؛ط±ظپط©',
-        roomUpdated: 'طھظ… طھط­ط¯ظٹط« ط§ظ„ط؛ط±ظپط©',
-        roomUpdatedDesc: 'طھظ… ط±ط¨ط· ط§ظ„ط؛ط±ظپط© ط¨ط§ظ„ظ…ط­طھظˆظ‰ ط§ظ„ظ…ط­ط¯ط¯ ط§ظ„ط¬ط¯ظٹط¯.',
+        error: 'خطأ',
+        joinFailed: 'تعذر الانضمام إلى الغرفة',
+        deleteRoom: 'حذف الغرفة',
+        deleteRoomConfirm: 'هل تريد حذف الغرفة "{name}" لجميع المشاركين؟',
+        cancel: 'إلغاء',
+        delete: 'حذف',
+        deleted: 'تم الحذف',
+        deletedDesc: 'تم إغلاق غرفة المشاهدة.',
+        contentUnavailable: 'المحتوى غير متاح',
+        contentUnavailableDesc: 'أضف فيلمًا واحدًا على الأقل قبل إنشاء غرفة مشاهدة.',
+        createFailed: 'فشل إنشاء الغرفة',
+        playbackUnavailable: 'التشغيل غير متاح',
+        playbackUnavailableDesc: 'لا يوجد رابط بث صالح لهذه الغرفة حتى الآن.',
+        playbackError: 'خطأ في التشغيل',
+        host: 'المضيف',
+        unknown: 'غير معروف',
+        noMessages: 'لا توجد رسائل بعد. ابدأ المحادثة!',
+        saySomething: 'اكتب رسالة...',
+        create: 'إنشاء',
+        createRoomTitle: 'إنشاء غرفة مشاهدة',
+        selectedContent: 'المحتوى المحدد: {title}',
+        fallbackContent: 'المحتوى المحدد: أول فيلم متاح',
+        roomName: 'اسم الغرفة...',
+        watchTogether: 'شاهدوا معًا',
+        watchTogetherDesc: 'انضم إلى غرفة أو أنشئ واحدة للمشاهدة مع الأصدقاء',
+        activeRooms: 'غرف نشطة',
+        code: 'الرمز',
+        public: 'عامة',
+        private: 'خاصة',
+        join: 'انضمام',
+        noRooms: 'لا توجد غرف نشطة',
+        noRoomsDesc: 'أنشئ غرفة جديدة لبدء المشاهدة الجماعية!',
+        room: 'الغرفة',
+        updateRoomContent: 'تحديث محتوى الغرفة',
+        roomUpdated: 'تم تحديث الغرفة',
+        roomUpdatedDesc: 'تم ربط الغرفة بالمحتوى المحدد الجديد.',
       }
     : {
         error: 'Error',
@@ -148,43 +145,24 @@ export default function WatchRoomScreen() {
   const loadRooms = useCallback(async () => {
     try {
       const rooms = await api.fetchActiveRooms();
-      if (mountedRef.current) {
-        setActiveRooms(rooms);
-      }
+      setActiveRooms(rooms);
     } catch {}
-    if (mountedRef.current) {
-      setLoading(false);
-    }
+    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    loadRooms();
-  }, [loadRooms]);
+  useEffect(() => { loadRooms(); }, [loadRooms]);
 
   useEffect(() => {
     if (!joinedRoom || !roomId) return;
-    let cancelled = false;
     const loadMessages = async () => {
       try {
         const msgs = await api.fetchRoomMessages(roomId);
-        if (!cancelled && mountedRef.current) {
-          setMessages(msgs);
-        }
+        setMessages(msgs);
       } catch {}
     };
     loadMessages();
     const interval = setInterval(loadMessages, 3000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [joinedRoom, roomId]);
 
   const handleJoinRoom = async (room: WatchRoom) => {
@@ -413,7 +391,7 @@ export default function WatchRoomScreen() {
             </View>
 
             <View style={styles.reactionsRow}>
-              {['ًں‘ڈ', 'ًںک‚', 'ًں”¥', 'â‌¤ï¸ڈ', 'ًںک®', 'ًںژ‰'].map(emoji => (
+              {['👏', '😂', '🔥', '❤️', '😮', '🎉'].map(emoji => (
                 <Pressable key={emoji} style={styles.reactionBtn} onPress={() => Haptics.selectionAsync()}>
                   <Text style={styles.reactionEmoji}>{emoji}</Text>
                 </Pressable>
@@ -450,8 +428,7 @@ export default function WatchRoomScreen() {
   }
 
   return (
-    <CinematicBackdrop style={{ direction } as any}>
-    <View style={[styles.container]}>
+    <View style={[styles.container, { backgroundColor: theme.background, direction }]}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={[styles.listHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Pressable onPress={() => router.back()}><MaterialIcons name="close" size={28} color="#FFF" /></Pressable>
@@ -520,56 +497,41 @@ export default function WatchRoomScreen() {
               </Animated.View>
             ))}
             {activeRooms.length === 0 ? (
-              <View style={{ paddingTop: 40, paddingHorizontal: 12 }}>
-                <EmptyStateView
-                  icon="groups"
-                  title={copy.noRooms}
-                  description={copy.noRoomsDesc}
-                />
+              <View style={{ alignItems: 'center', paddingTop: 40, gap: 12 }}>
+                <MaterialIcons name="groups" size={56} color={theme.textMuted} />
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFF' }}>{copy.noRooms}</Text>
+                <Text style={{ fontSize: 14, color: theme.textSecondary }}>{copy.noRoomsDesc}</Text>
               </View>
             ) : null}
           </ScrollView>
         )}
       </SafeAreaView>
     </View>
-    </CinematicBackdrop>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'transparent' },
-  listHeader: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginHorizontal: 12,
-    marginTop: 6,
-    marginBottom: 8,
-    borderRadius: 24,
-    backgroundColor: 'rgba(7, 11, 20, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
+  container: { flex: 1 },
+  listHeader: { alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   listTitle: { fontSize: 20, fontWeight: '700', color: '#FFF' },
-  createRoomBtn: { alignItems: 'center', gap: 4, backgroundColor: theme.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999 },
+  createRoomBtn: { alignItems: 'center', gap: 4, backgroundColor: theme.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   createRoomText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
-  heroImage: { width: SCREEN_WIDTH, height: 180 },
+  heroImage: { width: SCREEN_WIDTH, height: 160 },
   heroOverlay: { position: 'absolute', bottom: 16, left: 16, right: 16 },
   heroTitle: { fontSize: 22, fontWeight: '800', color: '#FFF', marginBottom: 4 },
   heroSubtitle: { fontSize: 14, color: theme.textSecondary },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: theme.textMuted, letterSpacing: 1, marginTop: 8 },
-  createCard: { marginHorizontal: 16, marginBottom: 16, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  createCard: { marginHorizontal: 16, marginBottom: 16, backgroundColor: theme.surface, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: theme.border },
   createTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
   selectedContentText: { fontSize: 13, color: theme.textSecondary, marginBottom: 12 },
-  createInput: { height: 48, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, paddingHorizontal: 16, fontSize: 15, color: '#FFF', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 16 },
+  createInput: { height: 48, backgroundColor: theme.surfaceLight, borderRadius: 12, paddingHorizontal: 16, fontSize: 15, color: '#FFF', borderWidth: 1, borderColor: theme.border, marginBottom: 16 },
   createActions: { gap: 12 },
-  createCancelBtn: { flex: 1, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  createCancelBtn: { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
   createCancelText: { fontSize: 14, fontWeight: '600', color: theme.textSecondary },
-  createSubmitBtn: { flex: 1, height: 44, borderRadius: 12, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
+  createSubmitBtn: { flex: 1, height: 44, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
   createSubmitText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
-  roomListCard: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 20, padding: 12, gap: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  roomListPoster: { width: 72, height: 102, borderRadius: 12 },
+  roomListCard: { alignItems: 'center', backgroundColor: theme.surface, borderRadius: 14, padding: 12, gap: 12, borderWidth: 1, borderColor: theme.border },
+  roomListPoster: { width: 70, height: 100, borderRadius: 8 },
   roomListInfo: { flex: 1, gap: 4 },
   roomListName: { fontSize: 15, fontWeight: '700', color: '#FFF' },
   roomListContent: { fontSize: 12, color: theme.textSecondary },
@@ -578,13 +540,13 @@ const styles = StyleSheet.create({
   roomListParticipants: { alignItems: 'center', gap: 4 },
   roomListParticipantText: { fontSize: 12, fontWeight: '600', color: theme.primary },
   roomPrivacyBadge: { alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  privacyPublic: { backgroundColor: 'rgba(34,197,94,0.12)' },
+  privacyPublic: { backgroundColor: 'rgba(16,185,129,0.12)' },
   privacyPrivate: { backgroundColor: 'rgba(245,158,11,0.12)' },
   roomListActions: { alignItems: 'center', gap: 10 },
-  inlineDeleteBtn: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239,68,68,0.12)' },
+  inlineDeleteBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239,68,68,0.12)' },
   joinBtn: { backgroundColor: theme.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 },
   joinBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  roomHeader: { alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  roomHeader: { alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
   roomHeaderTitle: { fontSize: 16, fontWeight: '700', color: '#FFF' },
   roomHeaderMeta: { alignItems: 'center', gap: 6, marginTop: 2 },
   roomLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.live },
@@ -602,7 +564,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(56,189,248,0.88)',
+    backgroundColor: 'rgba(99,102,241,0.88)',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
@@ -611,7 +573,7 @@ const styles = StyleSheet.create({
   reactionsRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
   reactionBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' },
   reactionEmoji: { fontSize: 20 },
-  chatContainer: { flex: 1, backgroundColor: 'rgba(4,7,13,0.55)' },
+  chatContainer: { flex: 1, backgroundColor: theme.backgroundSecondary },
   chatMsg: { gap: 10 },
   chatAvatarFallback: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
   chatAvatarText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
@@ -619,8 +581,7 @@ const styles = StyleSheet.create({
   chatName: { fontSize: 13, fontWeight: '700', color: '#FFF' },
   chatTime: { fontSize: 11, color: theme.textMuted },
   chatText: { fontSize: 14, color: '#D1D5DB', lineHeight: 20, marginTop: 2 },
-  chatInputRow: { alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(5,7,13,0.82)' },
-  chatInput: { flex: 1, height: 42, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 21, paddingHorizontal: 16, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  chatInputRow: { alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background },
+  chatInput: { flex: 1, height: 42, backgroundColor: theme.surface, borderRadius: 21, paddingHorizontal: 16, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
   chatSendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
 });
-

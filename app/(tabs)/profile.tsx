@@ -12,14 +12,13 @@ import { useAppContext } from '../../contexts/AppContext';
 import { getPreferences } from '../../services/preferences';
 import { useLocale } from '../../contexts/LocaleContext';
 import { localizePreferenceValue } from '../../constants/i18n';
-import { CinematicBackdrop } from '../../components/CinematicUI';
 
 interface SettingsItem { id: string; icon: string; label: string; subtitle?: string; color?: string; chevron?: boolean; slug?: string }
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { currentUser, authMethod, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { t, language, isRTL } = useLocale();
   const { showAlert } = useAlert();
   const { favorites, watchHistory, isAdmin, refreshHome } = useAppContext();
@@ -28,17 +27,8 @@ export default function ProfileScreen() {
   const [profileMeta, setProfileMeta] = useState({ username: '', display_name: '', avatar: '' });
 
   const loadProfileMeta = useCallback(async () => {
-    if (!currentUser?.id) {
+    if (!user?.id) {
       setProfileMeta({ username: '', display_name: '', avatar: '' });
-      return;
-    }
-
-    if (authMethod === 'subscription') {
-      setProfileMeta({
-        username: currentUser.username || 'subscription',
-        display_name: currentUser.username || 'Subscription Access',
-        avatar: '',
-      });
       return;
     }
 
@@ -47,22 +37,22 @@ export default function ProfileScreen() {
       const { data } = await supabase
         .from('user_profiles')
         .select('username, display_name, avatar')
-        .eq('id', currentUser.id)
+        .eq('id', user.id)
         .maybeSingle();
 
       setProfileMeta({
-        username: data?.username || currentUser.username || '',
+        username: data?.username || user.username || '',
         display_name: data?.display_name || '',
         avatar: data?.avatar || '',
       });
     } catch {
       setProfileMeta({
-        username: currentUser.username || '',
+        username: user.username || '',
         display_name: '',
         avatar: '',
       });
     }
-  }, [authMethod, currentUser?.id, currentUser?.username]);
+  }, [user?.id, user?.username]);
 
   const loadPreferenceMeta = useCallback(async () => {
     const preferences = await getPreferences();
@@ -114,25 +104,18 @@ export default function ProfileScreen() {
     showAlert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: async () => {
-        const { error } = await logout().catch((err: any) => ({ error: err?.message || 'Logout failed' }));
-        router.replace('/login');
+        const { error } = await logout();
         if (error) showAlert('Error', error);
       }},
     ]);
   };
 
-  const displayName = profileMeta.display_name || profileMeta.username || currentUser?.username || currentUser?.email?.split('@')[0] || 'User';
-  const avatarLetter = (displayName?.[0] || currentUser?.email?.[0] || 'U').toUpperCase();
-  const authMethodLabel = authMethod === 'subscription'
-    ? (language === 'Arabic' ? 'مفتاح اشتراك' : 'Subscription Access')
-    : authMethod === 'email'
-      ? (language === 'Arabic' ? 'البريد الإلكتروني' : 'Email Login')
-      : '';
+  const displayName = profileMeta.display_name || profileMeta.username || user?.username || user?.email?.split('@')[0] || 'User';
+  const avatarLetter = (displayName?.[0] || user?.email?.[0] || 'U').toUpperCase();
 
   return (
-    <CinematicBackdrop>
-    <SafeAreaView edges={['top']} style={styles.container}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 24, paddingTop: 4 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}>
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background }]}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}>
         <Animated.View entering={FadeInDown.duration(400)} style={styles.profileHeader}>
           <View style={styles.avatarWrap}>
             {profileMeta.avatar ? (
@@ -147,8 +130,7 @@ export default function ProfileScreen() {
             ) : null}
           </View>
           <Text style={styles.userName}>{displayName}</Text>
-          <Text style={styles.userEmail}>{currentUser?.email || ''}</Text>
-          {authMethodLabel ? <Text style={styles.authMethodText}>{authMethodLabel}</Text> : null}
+          <Text style={styles.userEmail}>{user?.email || ''}</Text>
           {isAdmin ? (
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
               <Pressable style={[styles.adminBtn, { marginTop: 0 }]} onPress={() => router.push('/admin')}>
@@ -202,64 +184,36 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
-    </CinematicBackdrop>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'transparent' },
-  profileHeader: {
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 24,
-    marginHorizontal: 12,
-    marginTop: 4,
-    marginBottom: 18,
-    borderRadius: 28,
-    backgroundColor: 'rgba(7, 11, 20, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    shadowColor: '#000',
-    shadowOpacity: 0.28,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-  },
+  container: { flex: 1 },
+  profileHeader: { alignItems: 'center', paddingTop: 16, paddingBottom: 24 },
   avatarWrap: { position: 'relative', marginBottom: 14 },
-  avatarImage: { width: 92, height: 92, borderRadius: 46, borderWidth: 2, borderColor: 'rgba(255,255,255,0.12)' },
-  avatarFallback: { width: 92, height: 92, borderRadius: 46, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.18)' },
+  avatarImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: theme.primaryLight },
+  avatarFallback: { width: 90, height: 90, borderRadius: 45, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: theme.primaryLight },
   avatarLetter: { fontSize: 36, fontWeight: '700', color: '#FFF' },
-  premiumBadge: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: theme.background },
+  premiumBadge: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: theme.background },
   userName: { fontSize: 22, fontWeight: '700', color: '#FFF' },
   userEmail: { fontSize: 14, color: theme.textSecondary, marginTop: 2 },
-  authMethodText: { fontSize: 12, color: '#8ED8FF', marginTop: 6, fontWeight: '700' },
-  adminBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, backgroundColor: theme.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999 },
+  adminBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, backgroundColor: theme.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20 },
   adminBtnText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 12,
-    marginBottom: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 24,
-    paddingVertical: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
+  statsRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 24, backgroundColor: theme.surface, borderRadius: 16, paddingVertical: 20, borderWidth: 1, borderColor: theme.border },
   statCard: { flex: 1, alignItems: 'center', gap: 4 },
-  statValue: { fontSize: 24, fontWeight: '800', color: '#FFF' },
+  statValue: { fontSize: 24, fontWeight: '700', color: '#FFF' },
   statLabel: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
-  statDivider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.08)' },
-  settingsGroup: { paddingHorizontal: 12, marginBottom: 20 },
-  groupTitle: { fontSize: 11, fontWeight: '800', color: '#8ED8FF', letterSpacing: 1.3, marginBottom: 10, paddingLeft: 4 },
-  groupCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
-  settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
-  settingsRowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  settingsIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+  statDivider: { width: 1, height: 36, backgroundColor: theme.border },
+  settingsGroup: { paddingHorizontal: 16, marginBottom: 24 },
+  groupTitle: { fontSize: 11, fontWeight: '700', color: theme.textMuted, letterSpacing: 1, marginBottom: 10, paddingLeft: 4 },
+  groupCard: { backgroundColor: theme.surface, borderRadius: 14, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' },
+  settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
+  settingsRowBorder: { borderBottomWidth: 1, borderBottomColor: theme.border },
+  settingsIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(156,163,175,0.1)', alignItems: 'center', justifyContent: 'center' },
   settingsLabel: { fontSize: 15, fontWeight: '500', color: '#FFF' },
   settingsSubtitle: { fontSize: 12, color: theme.textSecondary, marginTop: 1 },
-  signOutWrap: { alignItems: 'center', paddingVertical: 20, gap: 12 },
-  signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.06)' },
+  signOutWrap: { alignItems: 'center', paddingVertical: 24, gap: 12 },
+  signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
   signOutText: { fontSize: 15, fontWeight: '600', color: theme.error },
   versionText: { fontSize: 12, color: theme.textMuted },
 });
