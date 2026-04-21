@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Switch, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useAlert, useAuth, getSupabaseClient } from '@/template';
@@ -45,10 +45,6 @@ export default function SettingsDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [preferences, setPreferences] = useState(defaultPreferences);
   const [profileForm, setProfileForm] = useState({ username: '', display_name: '', avatar: '' });
-
-  if (!user) {
-    return <Redirect href="/login" />;
-  }
 
   useEffect(() => {
     const load = async () => {
