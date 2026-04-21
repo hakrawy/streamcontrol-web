@@ -420,7 +420,12 @@ function dedupeItems(items: ExternalImportItem[]) {
   });
 }
 
-async function fetchExternalText(url: string, headers?: Record<string, string>) {
+const FALLBACK_PROXY_ENDPOINTS = [
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+];
+
+async function fetchExternalTextOnce(url: string, headers?: Record<string, string>) {
   const response = await fetch(url, {
     method: 'GET',
     redirect: 'follow',
@@ -439,6 +444,30 @@ async function fetchExternalText(url: string, headers?: Record<string, string>) 
     throw error;
   }
   return { text, contentType, status: response.status };
+}
+
+async function fetchExternalText(url: string, headers?: Record<string, string>) {
+  const attempts = [
+    { label: 'direct', url, headers },
+    ...FALLBACK_PROXY_ENDPOINTS.map((endpoint) => ({
+      label: endpoint.includes('allorigins') ? 'allorigins' : 'corsproxy',
+      url: `${endpoint}${encodeURIComponent(url)}`,
+      headers: undefined,
+    })),
+  ];
+
+  let lastError: unknown;
+
+  for (const attempt of attempts) {
+    try {
+      const result = await fetchExternalTextOnce(attempt.url, attempt.headers);
+      return { ...result, source: attempt.label as 'direct' | 'corsproxy' | 'allorigins' };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Failed to fetch');
 }
 
 function providerLabel(provider: ExternalImportProvider) {
@@ -503,8 +532,12 @@ export async function readExternalImportSource(url: string, provider: ExternalIm
     throw new Error('Please enter a valid http/https URL.');
   }
 
-  const { text, contentType } = await fetchExternalText(resolvedUrl, options?.headers);
+  const { text, contentType, source } = await fetchExternalText(resolvedUrl, options?.headers);
   const parsed = parseExternalBody({ provider, url: resolvedUrl, text, contentType });
+  const warnings = [...parsed.warnings];
+  if (source && source !== 'direct') {
+    warnings.unshift(`Read via ${source} proxy fallback because the direct request was blocked.`);
+  }
   return {
     provider,
     requestedUrl: url,
@@ -513,7 +546,7 @@ export async function readExternalImportSource(url: string, provider: ExternalIm
     contentType,
     total: parsed.items.length,
     items: parsed.items,
-    warnings: parsed.warnings,
+    warnings,
   } as ExternalImportPreview;
 }
 
