@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, Pressable, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,9 +7,10 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth, useAlert } from '@/template';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { validateSubscriptionCode } from '../src/lib/edgeFunctions';
 import { theme } from '../constants/theme';
 import { useLocale } from '../contexts/LocaleContext';
-import * as subscriptions from '../services/subscriptions';
+import { saveSubscriptionSession } from '../services/subscriptions';
 
 type AuthMode = 'login' | 'register' | 'otp' | 'subscription';
 
@@ -197,8 +198,24 @@ export default function LoginScreen() {
     }
     setSubscriptionLoading(true);
     try {
-      await subscriptions.validateSubscriptionCode(subscriptionCode.trim());
-      router.replace('/(tabs)');
+      const result = await validateSubscriptionCode({ code: subscriptionCode.trim() });
+      if (result.valid === false) {
+        throw new Error(result.message || 'Invalid subscription code.');
+      }
+
+      await saveSubscriptionSession({
+        sessionId: result.sessionId || `sub_${Date.now().toString(36)}`,
+        subscriptionId: result.subscriptionId || result.codeId || result.sessionId || subscriptionCode.trim().toUpperCase(),
+        codeId: result.codeId || result.subscriptionId || result.sessionId || subscriptionCode.trim().toUpperCase(),
+        code: result.code || subscriptionCode.trim().toUpperCase(),
+        startedAt: result.startedAt || new Date().toISOString(),
+        expiresAt: result.expiresAt || null,
+      });
+
+      showAlert('Success', 'Subscription validated successfully.');
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 250);
     } catch (error: any) {
       showAlert(copy.subscriptionFailed, error?.message || 'Invalid subscription code.');
     } finally {
@@ -384,6 +401,7 @@ export default function LoginScreen() {
                 <Text style={styles.primaryBtnText}>
                   {operationLoading || subscriptionLoading ? copy.pleaseWait : mode === 'login' ? copy.signIn : mode === 'register' ? copy.create : mode === 'subscription' ? copy.subscriptionSignIn : copy.verify}
                 </Text>
+                {operationLoading || subscriptionLoading ? <ActivityIndicator color="#FFF" style={{ marginLeft: 10 }} /> : null}
               </Pressable>
 
               {mode === 'otp' ? (
@@ -603,6 +621,8 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 15, color: '#FFF' },
   primaryBtn: {
     backgroundColor: theme.primary, height: 52, borderRadius: 12,
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center', justifyContent: 'center', marginTop: 8,
   },
   btnDisabled: { opacity: 0.6 },

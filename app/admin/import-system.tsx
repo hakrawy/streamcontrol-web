@@ -1,17 +1,27 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons } from '@expo/vector-icons';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAlert } from '@/template';
+import { importM3U, importXtream, type ImportOperationResult } from '../../src/lib/edgeFunctions';
 import { theme } from '../../constants/theme';
 import { useLocale } from '../../contexts/LocaleContext';
-import * as importSystem from '../../services/importSystem';
-import type { ExternalContentType, ExternalImportItem } from '../../services/externalImport';
-import type { ImportSystemPreview } from '../../services/importSystem';
 
 type Mode = 'xtream' | 'm3u';
+
+type ImportSummary = ImportOperationResult & {
+  mode: Mode;
+  label: string;
+};
+
+function buildSummary(mode: Mode, result: ImportOperationResult): ImportSummary {
+  return {
+    ...result,
+    mode,
+    label: mode === 'xtream' ? 'Xtream Import' : 'M3U Import',
+  };
+}
 
 export default function ImportSystemAdmin() {
   const insets = useSafeAreaInsets();
@@ -22,171 +32,192 @@ export default function ImportSystemAdmin() {
   const [host, setHost] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [fullUrl, setFullUrl] = useState('');
-  const [includeSeriesInfo, setIncludeSeriesInfo] = useState(true);
-  const [preview, setPreview] = useState<ImportSystemPreview | null>(null);
-  const [filter, setFilter] = useState<ExternalContentType | 'all'>('all');
+  const [m3uUrl, setM3uUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [importing, setImporting] = useState(false);
+  const [summary, setSummary] = useState<ImportSummary | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const copy = {
-    title: ar ? 'Import System' : 'Import System',
-    subtitle: ar ? 'استيراد احترافي من Xtream Codes و M3U مع توزيع تلقائي للقنوات والأفلام والمسلسلات.' : 'Professional Xtream Codes and M3U imports with automatic routing into Live, Movies, and Series.',
+  const copy = useMemo(() => ({
+    title: ar ? 'نظام الاستيراد' : 'Import System',
+    subtitle: ar
+      ? 'استيراد احترافي عبر Supabase Edge Functions بدون CORS أو معالجة محلية.'
+      : 'Professional imports through Supabase Edge Functions with no CORS issues or browser-side parsing.',
+    xtream: ar ? 'Xtream Codes' : 'Xtream Codes',
+    m3u: ar ? 'رابط M3U' : 'M3U URL',
     host: ar ? 'Host' : 'Host',
     username: ar ? 'Username' : 'Username',
     password: ar ? 'Password' : 'Password',
-    fullUrl: ar ? 'الرابط الكامل get.php' : 'Full get.php URL',
-    read: ar ? 'قراءة / Preview' : 'Read / Preview',
-    import: ar ? 'استيراد / Import' : 'Import',
-    selectedOnly: ar ? 'استيراد المحدد' : 'Import selected',
-    includeSeriesInfo: ar ? 'جلب أول حلقة للمسلسلات عبر get_series_info' : 'Fetch first episode with get_series_info',
-    empty: ar ? 'أدخل بيانات Xtream أو رابط M3U ثم اضغط قراءة.' : 'Enter Xtream credentials or an M3U URL, then read.',
-  };
+    m3uUrl: ar ? 'رابط ملف M3U' : 'M3U playlist URL',
+    submit: ar ? 'تنفيذ الاستيراد' : 'Run Import',
+    loading: ar ? 'جاري التنفيذ...' : 'Running...',
+    success: ar ? 'تم الاستيراد بنجاح' : 'Import completed successfully',
+    error: ar ? 'فشل الاستيراد' : 'Import failed',
+    xtreamHint: ar
+      ? 'أدخل بيانات Xtream وسيتم الاستيراد بالكامل من السيرفر.'
+      : 'Enter Xtream credentials and the import will run entirely on the server.',
+    m3uHint: ar
+      ? 'أدخل رابط M3U وسيتم تحليل الملف والاستيراد على Supabase Edge Function.'
+      : 'Enter an M3U URL and let the Supabase Edge Function parse and import it.',
+    helper: ar
+      ? 'لن يتم تنفيذ أي تحليل أو استدعاء مباشر داخل المتصفح.'
+      : 'No direct external calls or parsing happen in the browser.',
+    imported: ar ? 'المستورَد' : 'Imported',
+    validated: ar ? 'المتحقق منه' : 'Validated',
+    skipped: ar ? 'المتجاوز' : 'Skipped',
+    failedSamples: ar ? 'أمثلة فاشلة' : 'Failed samples',
+    importedSeries: ar ? 'المسلسلات' : 'Series',
+    importedEpisodes: ar ? 'الحلقات' : 'Episodes',
+  }), [ar]);
 
-  const visibleItems = useMemo(() => (preview?.items || []).filter((item) => filter === 'all' || item.type === filter), [filter, preview]);
-  const selectedCount = useMemo(() => preview?.items.filter((item) => item.selected).length || 0, [preview]);
+  const submit = async () => {
+    if (loading) return;
 
-  const updateItems = (updater: (items: ExternalImportItem[]) => ExternalImportItem[]) => {
-    setPreview((current) => current ? { ...current, items: updater(current.items) } : current);
-  };
-
-  const read = async () => {
-    setLoading(true);
     try {
-      const nextPreview = mode === 'm3u'
-        ? await importSystem.readM3UImportPreview(fullUrl.trim())
-        : await importSystem.readXtreamPreview({ host, username, password, fullUrl }, { includeSeriesInfo, maxSeriesInfoRequests: 30 });
-      setPreview(nextPreview);
-      if (nextPreview.warnings.length) showAlert('Import warnings', nextPreview.warnings.slice(0, 4).join('\n'));
+      setLoading(true);
+      setErrorMessage('');
+      setSummary(null);
+
+      const result = mode === 'xtream'
+        ? await importXtream({ host, username, password })
+        : await importM3U({ m3uUrl });
+
+      const nextSummary = buildSummary(mode, result);
+      setSummary(nextSummary);
+      showAlert(copy.success, `${copy.imported}: ${Number(nextSummary.imported || 0)}`);
     } catch (error: any) {
-      showAlert('Import failed', error?.message || 'Could not read this source.');
+      const message = error?.message || (ar ? 'تعذر إكمال العملية.' : 'Could not complete the request.');
+      setErrorMessage(message);
+      showAlert(copy.error, message);
     } finally {
       setLoading(false);
     }
   };
 
-  const doImport = async (selectedOnly = true) => {
-    if (!preview) return;
-    setImporting(true);
-    try {
-      const payload = selectedOnly ? preview : { ...preview, items: preview.items.map((item) => ({ ...item, selected: true })) };
-      const result = await importSystem.importSystemItems(payload);
-      showAlert('Import complete', `Imported: ${result.imported}\nMerged: ${result.merged}\nFailed: ${result.failed}\nChannels: ${result.channels}\nMovies: ${result.movies}\nSeries: ${result.series}`);
-    } catch (error: any) {
-      showAlert('Import failed', error?.message || 'Could not import content.');
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const setSelectedByType = (target: ExternalContentType | 'all', selected: boolean) => {
-    setPreview((current) => current
-      ? {
-          ...current,
-          items: current.items.map((item) => target === 'all' || item.type === target ? { ...item, selected } : item),
-        }
-      : current
-    );
-  };
+  const summaryItems = summary
+    ? [
+        { label: copy.imported, value: Number(summary.imported || 0) },
+        { label: copy.validated, value: Number(summary.validated || summary.total || 0) },
+        { label: copy.skipped, value: Number(summary.skipped || 0) },
+        { label: copy.importedSeries, value: Number(summary.importedSeries || 0) },
+        { label: copy.importedEpisodes, value: Number(summary.importedEpisodes || 0) },
+      ]
+    : [];
 
   return (
     <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={['rgba(34,211,238,0.18)', 'rgba(99,102,241,0.08)', 'rgba(10,10,15,0)']} style={styles.hero}>
-        <View style={styles.heroIcon}><MaterialIcons name="downloading" size={30} color="#FFF" /></View>
+        <View style={styles.heroIcon}>
+          <MaterialIcons name="cloud-sync" size={30} color="#FFF" />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { textAlign: isRTL ? 'right' : 'left' }]}>{copy.title}</Text>
           <Text style={[styles.subtitle, { textAlign: isRTL ? 'right' : 'left' }]}>{copy.subtitle}</Text>
+          <Text style={[styles.helper, { textAlign: isRTL ? 'right' : 'left' }]}>{copy.helper}</Text>
         </View>
       </LinearGradient>
 
       <View style={styles.modeRow}>
-        <ModeButton label="Xtream Codes API" icon="hub" active={mode === 'xtream'} onPress={() => setMode('xtream')} />
-        <ModeButton label="M3U Link" icon="playlist-play" active={mode === 'm3u'} onPress={() => setMode('m3u')} />
+        <ModeButton label={copy.xtream} icon="hub" active={mode === 'xtream'} onPress={() => setMode('xtream')} />
+        <ModeButton label={copy.m3u} icon="playlist-play" active={mode === 'm3u'} onPress={() => setMode('m3u')} />
       </View>
 
       <View style={styles.card}>
         {mode === 'xtream' ? (
           <>
-            <TextInput style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]} value={host} onChangeText={setHost} placeholder="http://host-or-domain" placeholderTextColor={theme.textMuted} autoCapitalize="none" />
+            <Text style={styles.sectionTitle}>{copy.xtream}</Text>
+            <Text style={styles.sectionHint}>{copy.xtreamHint}</Text>
+            <TextInput
+              style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+              value={host}
+              onChangeText={setHost}
+              placeholder="https://host-or-domain"
+              placeholderTextColor={theme.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
             <View style={styles.twoCols}>
-              <TextInput style={[styles.input, styles.flexInput]} value={username} onChangeText={setUsername} placeholder={copy.username} placeholderTextColor={theme.textMuted} autoCapitalize="none" />
-              <TextInput style={[styles.input, styles.flexInput]} value={password} onChangeText={setPassword} placeholder={copy.password} placeholderTextColor={theme.textMuted} autoCapitalize="none" secureTextEntry />
-            </View>
-            <TextInput style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]} value={fullUrl} onChangeText={setFullUrl} placeholder="http://host-or-domain/get.php?username=...&password=...&type=m3u_plus" placeholderTextColor={theme.textMuted} autoCapitalize="none" />
-            <View style={styles.switchRow}>
-              <Text style={styles.switchText}>{copy.includeSeriesInfo}</Text>
-              <Switch value={includeSeriesInfo} onValueChange={setIncludeSeriesInfo} />
+              <TextInput
+                style={[styles.input, styles.flexInput, { textAlign: isRTL ? 'right' : 'left' }]}
+                value={username}
+                onChangeText={setUsername}
+                placeholder={copy.username}
+                placeholderTextColor={theme.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TextInput
+                style={[styles.input, styles.flexInput, { textAlign: isRTL ? 'right' : 'left' }]}
+                value={password}
+                onChangeText={setPassword}
+                placeholder={copy.password}
+                placeholderTextColor={theme.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+              />
             </View>
           </>
         ) : (
-          <TextInput style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]} value={fullUrl} onChangeText={setFullUrl} placeholder="https://example.com/get.php?username=...&password=...&type=m3u_plus" placeholderTextColor={theme.textMuted} autoCapitalize="none" />
+          <>
+            <Text style={styles.sectionTitle}>{copy.m3u}</Text>
+            <Text style={styles.sectionHint}>{copy.m3uHint}</Text>
+            <TextInput
+              style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+              value={m3uUrl}
+              onChangeText={setM3uUrl}
+              placeholder="https://example.com/playlist.m3u"
+              placeholderTextColor={theme.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </>
         )}
-        <View style={styles.actions}>
-          <Pressable style={styles.primaryBtn} onPress={read} disabled={loading}>
-            {loading ? <ActivityIndicator color="#FFF" /> : <MaterialIcons name="travel-explore" size={18} color="#FFF" />}
-            <Text style={styles.primaryText}>{copy.read}</Text>
-          </Pressable>
-          <Pressable style={[styles.primaryBtn, styles.successBtn]} onPress={() => doImport(false)} disabled={!preview || importing}>
-            {importing ? <ActivityIndicator color="#FFF" /> : <MaterialIcons name="download-done" size={18} color="#FFF" />}
-            <Text style={styles.primaryText}>{copy.import}</Text>
-          </Pressable>
-          <Pressable style={[styles.primaryBtn, styles.mutedBtn]} onPress={() => doImport(true)} disabled={!preview || importing}>
-            <MaterialIcons name="checklist" size={18} color="#FFF" />
-            <Text style={styles.primaryText}>{copy.selectedOnly}</Text>
-          </Pressable>
-        </View>
+
+        <Pressable style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]} onPress={submit} disabled={loading}>
+          {loading ? <ActivityIndicator color="#FFF" /> : <MaterialIcons name="download" size={18} color="#FFF" />}
+          <Text style={styles.primaryText}>{loading ? copy.loading : copy.submit}</Text>
+        </Pressable>
       </View>
 
-      {preview ? (
-        <View style={styles.stats}>
-          <Stat label="Live" value={preview.liveCount} color={theme.info} />
-          <Stat label="VOD" value={preview.vodCount} color={theme.accent} />
-          <Stat label="Series" value={preview.seriesCount} color={theme.success} />
-          <Stat label="Selected" value={selectedCount} color="#C084FC" />
-        </View>
-      ) : null}
-
-      {preview ? (
-        <View style={styles.filterRow}>
-          {(['all', 'channel', 'movie', 'series'] as const).map((item) => (
-            <Pressable key={item} style={[styles.chip, filter === item && styles.chipActive]} onPress={() => setFilter(item)}>
-              <Text style={[styles.chipText, filter === item && styles.chipTextActive]}>{item}</Text>
-            </Pressable>
-          ))}
-          <Pressable style={styles.quickSelect} onPress={() => setSelectedByType(filter === 'all' ? 'all' : filter, true)}>
-            <Text style={styles.quickSelectText}>Select visible</Text>
-          </Pressable>
-          <Pressable style={styles.quickSelect} onPress={() => setSelectedByType(filter === 'all' ? 'all' : filter, false)}>
-            <Text style={styles.quickSelectText}>Clear visible</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {!preview ? <View style={styles.empty}><Text style={styles.subtitle}>{copy.empty}</Text></View> : null}
-
-      {visibleItems.slice(0, 180).map((item) => (
-        <View key={item.id} style={styles.item}>
-          <Pressable style={[styles.check, item.selected && styles.checkActive]} onPress={() => updateItems((items) => items.map((row) => row.id === item.id ? { ...row, selected: !row.selected } : row))}>
-            {item.selected ? <MaterialIcons name="check" size={15} color="#FFF" /> : null}
-          </Pressable>
-          <Image source={{ uri: item.logo || undefined }} style={styles.poster} contentFit="cover" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.itemTitle} numberOfLines={1}>{item.name}</Text>
-            <Text style={styles.itemMeta} numberOfLines={1}>{item.type} · {item.group} · {item.streamType}</Text>
-            <Text style={styles.itemUrl} numberOfLines={1}>{item.url}</Text>
+      {summary ? (
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryHeader}>
+            <MaterialIcons name="check-circle" size={18} color={theme.success} />
+            <Text style={styles.summaryTitle}>{copy.success}</Text>
           </View>
+          <View style={styles.summaryGrid}>
+            {summaryItems.map((item) => (
+              <View key={item.label} style={styles.summaryItem}>
+                <Text style={styles.summaryValue}>{item.value}</Text>
+                <Text style={styles.summaryLabel}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
+          {Array.isArray(summary.failedSamples) && summary.failedSamples.length > 0 ? (
+            <Text style={styles.summaryText}>
+              {copy.failedSamples}: {summary.failedSamples.slice(0, 3).join(', ')}
+            </Text>
+          ) : null}
         </View>
-      ))}
+      ) : null}
+
+      {errorMessage ? (
+        <View style={styles.errorCard}>
+          <MaterialIcons name="error-outline" size={18} color={theme.error} />
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
 
 function ModeButton({ label, icon, active, onPress }: { label: string; icon: keyof typeof MaterialIcons.glyphMap; active: boolean; onPress: () => void }) {
-  return <Pressable style={[styles.modeBtn, active && styles.modeBtnActive]} onPress={onPress}><MaterialIcons name={icon} size={18} color={active ? '#FFF' : theme.textSecondary} /><Text style={[styles.modeText, active && styles.modeTextActive]}>{label}</Text></Pressable>;
-}
-
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
-  return <View style={[styles.stat, { borderColor: `${color}55`, backgroundColor: `${color}18` }]}><Text style={[styles.statValue, { color }]}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>;
+  return (
+    <Pressable style={[styles.modeBtn, active && styles.modeBtnActive]} onPress={onPress}>
+      <MaterialIcons name={icon} size={18} color={active ? '#FFF' : theme.textSecondary} />
+      <Text style={[styles.modeText, active && styles.modeTextActive]}>{label}</Text>
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -195,39 +226,29 @@ const styles = StyleSheet.create({
   heroIcon: { width: 56, height: 56, borderRadius: 18, backgroundColor: '#0891B2', alignItems: 'center', justifyContent: 'center' },
   title: { color: '#FFF', fontSize: 26, fontWeight: '900' },
   subtitle: { color: theme.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 5 },
+  helper: { color: theme.textMuted, fontSize: 12, lineHeight: 18, marginTop: 4 },
   modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
-  modeBtn: { flex: 1, minWidth: 180, height: 46, borderRadius: 14, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  modeBtn: { flex: 1, minWidth: 160, height: 46, borderRadius: 14, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   modeBtnActive: { backgroundColor: theme.primary, borderColor: theme.primaryLight },
   modeText: { color: theme.textSecondary, fontWeight: '900' },
   modeTextActive: { color: '#FFF' },
   card: { borderRadius: 20, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10 },
+  sectionTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+  sectionHint: { color: theme.textSecondary, fontSize: 12, lineHeight: 18, marginBottom: 2 },
   input: { height: 46, borderRadius: 14, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, color: theme.textPrimary, paddingHorizontal: 12 },
   twoCols: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   flexInput: { flex: 1, minWidth: 180 },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  switchText: { color: theme.textSecondary, fontSize: 12, fontWeight: '700', flex: 1 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  primaryBtn: { minHeight: 42, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 14, backgroundColor: theme.primary },
-  successBtn: { backgroundColor: theme.success },
-  mutedBtn: { backgroundColor: theme.surfaceLight },
-  primaryText: { color: '#FFF', fontWeight: '900', fontSize: 12 },
-  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginVertical: 12 },
-  stat: { minWidth: 112, borderRadius: 16, borderWidth: 1, padding: 12 },
-  statValue: { fontSize: 19, fontWeight: '900' },
-  statLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '800', marginTop: 3 },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  chip: { borderRadius: 999, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, paddingHorizontal: 12, paddingVertical: 8 },
-  chipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
-  chipText: { color: theme.textMuted, fontWeight: '900', textTransform: 'capitalize' },
-  chipTextActive: { color: '#FFF' },
-  quickSelect: { borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 12, paddingVertical: 8 },
-  quickSelectText: { color: theme.textSecondary, fontSize: 12, fontWeight: '900' },
-  empty: { minHeight: 140, borderRadius: 20, borderWidth: 1, borderStyle: 'dashed', borderColor: theme.borderLight, alignItems: 'center', justifyContent: 'center', padding: 20, marginTop: 12 },
-  item: { flexDirection: 'row', gap: 10, alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 10, marginBottom: 9 },
-  check: { width: 28, height: 28, borderRadius: 9, borderWidth: 1, borderColor: theme.borderLight, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.backgroundSecondary },
-  checkActive: { backgroundColor: theme.primary, borderColor: theme.primaryLight },
-  poster: { width: 54, height: 54, borderRadius: 14, backgroundColor: theme.surfaceLight },
-  itemTitle: { color: '#FFF', fontSize: 14, fontWeight: '900' },
-  itemMeta: { color: theme.textSecondary, fontSize: 11, marginTop: 3 },
-  itemUrl: { color: theme.textMuted, fontSize: 10, marginTop: 3 },
+  primaryBtn: { minHeight: 44, borderRadius: 14, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 },
+  primaryBtnDisabled: { opacity: 0.75 },
+  primaryText: { color: '#FFF', fontWeight: '900', fontSize: 13 },
+  summaryCard: { marginTop: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(16,185,129,0.22)', backgroundColor: 'rgba(16,185,129,0.08)', padding: 14, gap: 10 },
+  summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  summaryTitle: { color: '#E8FFF1', fontSize: 15, fontWeight: '900' },
+  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  summaryItem: { minWidth: 104, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.04)', padding: 12 },
+  summaryValue: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+  summaryLabel: { color: theme.textSecondary, fontSize: 11, fontWeight: '700', marginTop: 4 },
+  summaryText: { color: '#DCFCE7', fontSize: 12, lineHeight: 18 },
+  errorCard: { marginTop: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(239,68,68,0.22)', backgroundColor: 'rgba(239,68,68,0.08)', padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  errorText: { flex: 1, color: '#FECACA', fontSize: 12, lineHeight: 18 },
 });

@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '@/template';
+import { importM3U as importM3UEdge } from '@/src/lib/edgeFunctions';
 
 const supabase = getSupabaseClient();
 
@@ -1158,150 +1159,38 @@ function parseSeasonEpisodeFromText(value: string) {
 }
 
 export async function importChannelsFromM3UUrl(playlistUrl: string) {
-  const response = await fetch(playlistUrl);
-  if (!response.ok) {
-    throw new Error('Failed to fetch the M3U playlist URL.');
-  }
-
-  const content = await response.text();
-  const entries = parseM3UPlaylist(content).filter((entry) => inferM3UContentKind(entry) === 'channel');
-  const { validEntries, validated, skipped, failedSamples } = await validatePlaylistEntries(entries);
-  let imported = 0;
-
-  for (const [index, entry] of validEntries.entries()) {
-    await upsertChannel({
-      name: entry.title,
-      logo: sanitizePosterUrl(entry.logo, ''),
-      stream_url: entry.url,
-      stream_sources: [{ label: 'Server 1', url: entry.url }],
-      category: entry.groupTitle || 'general',
-      current_program: 'Now Streaming',
-      is_live: true,
-      is_featured: index < 8,
-      viewers: 0,
-      sort_order: index,
-    });
-    imported += 1;
-  }
-
-  return { imported, total: entries.length, validated, skipped, failedSamples } as ImportValidationSummary;
+  const result = await importM3UEdge({ m3uUrl: playlistUrl.trim() });
+  return {
+    imported: Number(result.imported || 0),
+    total: Number(result.total || 0),
+    validated: Number(result.validated || result.total || 0),
+    skipped: Number(result.skipped || 0),
+    failedSamples: Array.isArray(result.failedSamples) ? result.failedSamples : [],
+  } as ImportValidationSummary;
 }
 
 export async function importMoviesFromM3UUrl(playlistUrl: string) {
-  const response = await fetch(playlistUrl);
-  if (!response.ok) {
-    throw new Error('Failed to fetch the M3U playlist URL.');
-  }
-
-  const content = await response.text();
-  const entries = parseM3UPlaylist(content).filter((entry) => inferM3UContentKind(entry) === 'movie');
-  const { validEntries, validated, skipped, failedSamples } = await validatePlaylistEntries(entries);
-  let imported = 0;
-
-  for (const entry of validEntries) {
-    await upsertMovie({
-      title: entry.title,
-      description: `Imported from M3U playlist${entry.groupTitle ? ` - ${entry.groupTitle}` : ''}.`,
-      poster: sanitizePosterUrl(entry.logo, 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80'),
-      backdrop: sanitizePosterUrl(entry.logo, 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1400&q=80'),
-      trailer_url: '',
-      stream_url: entry.url,
-      stream_sources: [{ label: 'Server 1', url: entry.url }],
-      genre: entry.groupTitle ? [entry.groupTitle] : ['Imported'],
-      year: new Date().getFullYear(),
-      duration: 'Unknown',
-      cast_members: [],
-      quality: ['Auto'],
-      subtitle_url: '',
-      is_featured: false,
-      is_trending: false,
-      is_new: true,
-      is_exclusive: false,
-      is_published: true,
-    });
-    imported += 1;
-  }
-
-  return { imported, total: entries.length, validated, skipped, failedSamples } as ImportValidationSummary;
+  const result = await importM3UEdge({ m3uUrl: playlistUrl.trim() });
+  return {
+    imported: Number(result.imported || 0),
+    total: Number(result.total || 0),
+    validated: Number(result.validated || result.total || 0),
+    skipped: Number(result.skipped || 0),
+    failedSamples: Array.isArray(result.failedSamples) ? result.failedSamples : [],
+  } as ImportValidationSummary;
 }
 
 export async function importSeriesFromM3UUrl(playlistUrl: string) {
-  const response = await fetch(playlistUrl);
-  if (!response.ok) {
-    throw new Error('Failed to fetch the M3U playlist URL.');
-  }
-
-  const content = await response.text();
-  const entries = parseM3UPlaylist(content).filter((entry) => inferM3UContentKind(entry) === 'series');
-  const { validEntries, validated, skipped, failedSamples } = await validatePlaylistEntries(entries);
-  const seriesMap = new Map<string, { id: string; title: string }>();
-  const seasonMap = new Map<string, string>();
-  let importedSeries = 0;
-  let importedEpisodes = 0;
-
-  for (const entry of validEntries) {
-    const tokens = parseSeriesTokens(entry.title);
-    let seriesId = seriesMap.get(tokens.seriesTitle)?.id;
-
-    if (!seriesId) {
-      const created = await upsertSeries({
-        title: tokens.seriesTitle,
-        description: `Imported from M3U playlist${entry.groupTitle ? ` - ${entry.groupTitle}` : ''}.`,
-        poster: sanitizePosterUrl(entry.logo, 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80'),
-        backdrop: sanitizePosterUrl(entry.logo, 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1400&q=80'),
-        trailer_url: '',
-        genre: entry.groupTitle ? [entry.groupTitle] : ['Imported'],
-        year: new Date().getFullYear(),
-        rating: 0,
-        cast_members: [],
-        is_featured: false,
-        is_trending: false,
-        is_new: true,
-        is_exclusive: false,
-        is_published: true,
-      });
-      seriesId = created.id;
-      if (!seriesId) continue;
-      seriesMap.set(tokens.seriesTitle, { id: seriesId, title: tokens.seriesTitle });
-      importedSeries += 1;
-    }
-
-    if (!seriesId) continue;
-    const seasonKey = `${seriesId}:${tokens.seasonNumber}`;
-    let seasonId = seasonMap.get(seasonKey);
-
-    if (!seasonId) {
-      const season = await upsertSeason({
-        series_id: seriesId,
-        number: tokens.seasonNumber,
-        title: `Season ${tokens.seasonNumber}`,
-      });
-      seasonId = season.id;
-      if (seasonId) seasonMap.set(seasonKey, seasonId);
-    }
-
-    if (!seriesId || !seasonId) continue;
-
-    await upsertEpisode({
-      season_id: seasonId,
-      series_id: seriesId,
-      number: tokens.episodeNumber,
-      title: entry.title,
-      description: `Imported from M3U playlist${entry.groupTitle ? ` - ${entry.groupTitle}` : ''}.`,
-      thumbnail: sanitizePosterUrl(entry.logo, 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1400&q=80'),
-      stream_url: entry.url,
-      stream_sources: [{ label: 'Server 1', url: entry.url }],
-      subtitle_url: '',
-      duration: 'Unknown',
-    });
-    importedEpisodes += 1;
-  }
-
-  for (const { id } of seriesMap.values()) {
-    await updateSeriesCounts(id);
-  }
-
-  return { imported: importedEpisodes, total: entries.length, validated, skipped, failedSamples, importedSeries, importedEpisodes };
+  const result = await importM3UEdge({ m3uUrl: playlistUrl.trim() });
+  return {
+    imported: Number(result.importedEpisodes || result.imported || 0),
+    total: Number(result.total || 0),
+    validated: Number(result.validated || result.total || 0),
+    skipped: Number(result.skipped || 0),
+    failedSamples: Array.isArray(result.failedSamples) ? result.failedSamples : [],
+    importedSeries: Number(result.importedSeries || 0),
+    importedEpisodes: Number(result.importedEpisodes || result.imported || 0),
+  };
 }
 
 async function findExistingContentRef(key: string | null, contentType: 'movie' | 'series' | 'episode') {

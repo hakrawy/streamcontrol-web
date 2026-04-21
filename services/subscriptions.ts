@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { getSupabaseClient } from '@/template';
 import * as api from './api';
+import { validateSubscriptionCode as validateSubscriptionCodeEdge } from '@/src/lib/edgeFunctions';
 
 export type SubscriptionCodeStatus = 'active' | 'disabled' | 'expired';
 
@@ -20,15 +22,17 @@ export interface SubscriptionCode {
 
 export interface SubscriptionSession {
   sessionId: string;
+  subscriptionId?: string;
   codeId: string;
   code: string;
   startedAt: string;
-  expiresAt: string;
+  expiresAt: string | null;
 }
 
 const CODES_SETTING_KEY = 'subscription_codes';
 const SESSION_KEY = 'subscription_session';
 const supabase = getSupabaseClient();
+const isWeb = Platform.OS === 'web';
 
 function id(prefix = 'sub') {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
@@ -97,6 +101,32 @@ async function fetchDbCodes() {
 async function fetchSettingsCodes() {
   const settings = await api.fetchAppSettings().catch(() => ({} as Record<string, string>));
   return parseCodes(settings[CODES_SETTING_KEY]).map((code) => ({ ...code, status: effectiveStatus(code) }));
+}
+
+async function readSessionStorage() {
+  if (isWeb && typeof window !== 'undefined' && window.localStorage) {
+    return window.localStorage.getItem(SESSION_KEY);
+  }
+
+  return AsyncStorage.getItem(SESSION_KEY);
+}
+
+async function writeSessionStorage(value: string) {
+  if (isWeb && typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem(SESSION_KEY, value);
+    return;
+  }
+
+  await AsyncStorage.setItem(SESSION_KEY, value);
+}
+
+async function removeSessionStorage() {
+  if (isWeb && typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.removeItem(SESSION_KEY);
+    return;
+  }
+
+  await AsyncStorage.removeItem(SESSION_KEY);
 }
 
 function mergeCodes(primary: SubscriptionCode[], fallback: SubscriptionCode[]) {
@@ -204,74 +234,50 @@ export async function deleteSubscriptionCode(idValue: string) {
 }
 
 export async function validateSubscriptionCode(rawCode: string) {
-  const current = await fetchSubscriptionCodes();
-  const normalized = normalizeCode(rawCode);
-  const match = current.find((code) => normalizeCode(code.code) === normalized);
-  if (!match) throw new Error('Subscription code was not found.');
-  const status = effectiveStatus(match);
-  if (status === 'disabled') throw new Error('Subscription code is disabled.');
-  if (status === 'expired') throw new Error('Subscription code is expired or fully used.');
-
-  const startedAt = new Date();
-  const expiresAt = new Date(startedAt.getTime() + match.durationDays * 24 * 60 * 60 * 1000);
-  const session: SubscriptionSession = {
-    sessionId: id('session'),
-    codeId: match.id,
-    code: match.code,
-    startedAt: startedAt.toISOString(),
-    expiresAt: expiresAt.toISOString(),
-  };
-  try {
-    const { error: updateError } = await supabase
-      .from('subscription_codes')
-      .update({
-        used_count: match.usedCount + 1,
-        last_used_at: startedAt.toISOString(),
-        updated_at: startedAt.toISOString(),
-      })
-      .eq('id', match.id);
-    if (updateError) throw updateError;
-    await supabase.from('subscription_code_uses').insert({
-      code_id: match.id,
-      session_id: session.sessionId,
-      used_at: startedAt.toISOString(),
-      expires_at: expiresAt.toISOString(),
-    });
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    return session;
-  } catch {
-    // Fallback below.
+  const response = await validateSubscriptionCodeEdge({ code: rawCode });
+  if (response.valid === false) {
+    throw new Error(response.message || 'Invalid subscription code.');
   }
-  const nextCodes = current.map((code) => code.id === match.id
-    ? {
-        ...code,
-        usedCount: code.usedCount + 1,
-        lastUsedAt: startedAt.toISOString(),
-        usedBy: [{ sessionId: session.sessionId, usedAt: startedAt.toISOString(), expiresAt: expiresAt.toISOString() }, ...(code.usedBy || [])].slice(0, 100),
-      }
-    : code
-  );
-  await saveCodes(nextCodes).catch(() => null);
-  await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+  const startedAt = response.startedAt || new Date().toISOString();
+  const session: SubscriptionSession = {
+    sessionId: response.sessionId || id('session'),
+    subscriptionId: response.subscriptionId || response.codeId || response.sessionId || normalizeCode(rawCode),
+    codeId: response.codeId || response.subscriptionId || response.sessionId || normalizeCode(rawCode),
+    code: response.code || normalizeCode(rawCode),
+    startedAt,
+    expiresAt: response.expiresAt || null,
+  };
+
+  if (!session.expiresAt) {
+    throw new Error(response.message || 'Subscription code did not return an expiration date.');
+  }
+
+  await saveSubscriptionSession(session);
   return session;
 }
 
 export async function getSubscriptionSession() {
-  const raw = await AsyncStorage.getItem(SESSION_KEY);
+  const raw = await readSessionStorage();
   if (!raw) return null;
   try {
     const session = JSON.parse(raw) as SubscriptionSession;
-    if (new Date(session.expiresAt).getTime() < Date.now()) {
-      await AsyncStorage.removeItem(SESSION_KEY);
+    if (!session.expiresAt || new Date(session.expiresAt).getTime() < Date.now()) {
+      await removeSessionStorage();
       return null;
     }
     return session;
   } catch {
-    await AsyncStorage.removeItem(SESSION_KEY);
+    await removeSessionStorage();
     return null;
   }
 }
 
+export async function saveSubscriptionSession(session: SubscriptionSession) {
+  await writeSessionStorage(JSON.stringify(session));
+  return session;
+}
+
 export async function clearSubscriptionSession() {
-  await AsyncStorage.removeItem(SESSION_KEY);
+  await removeSessionStorage();
 }
