@@ -11,6 +11,8 @@ export interface SubscriptionSession {
 }
 
 const SESSION_KEY = 'subscription_session';
+const SUBSCRIPTION_ACCESS_KEY = 'subscription_access';
+const SUBSCRIPTION_ID_KEY = 'subscription_id';
 
 function readWebStorageSession() {
   if (typeof window === 'undefined' || !window.localStorage) return null;
@@ -94,10 +96,22 @@ export function peekPersistedSubscriptionSession(): SubscriptionSession | null {
 export async function persistSubscriptionSession(session: SubscriptionSession) {
   const payload = JSON.stringify(session);
   await AsyncStorage.setItem(SESSION_KEY, payload);
+  await AsyncStorage.setItem(SUBSCRIPTION_ACCESS_KEY, 'true');
+  await AsyncStorage.setItem(SUBSCRIPTION_ID_KEY, session.subscriptionId);
   writeWebStorageSession(payload);
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem(SUBSCRIPTION_ACCESS_KEY, 'true');
+    window.localStorage.setItem(SUBSCRIPTION_ID_KEY, session.subscriptionId);
+  }
 }
 
 export async function clearPersistedSubscriptionSession() {
   await AsyncStorage.removeItem(SESSION_KEY);
+  await AsyncStorage.removeItem(SUBSCRIPTION_ACCESS_KEY);
+  await AsyncStorage.removeItem(SUBSCRIPTION_ID_KEY);
   removeWebStorageSession();
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.removeItem(SUBSCRIPTION_ACCESS_KEY);
+    window.localStorage.removeItem(SUBSCRIPTION_ID_KEY);
+  }
 }

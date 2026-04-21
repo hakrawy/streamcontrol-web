@@ -1,14 +1,47 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Redirect, Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AlertProvider, AuthProvider } from '@/template';
+import { AlertProvider, AuthProvider, useAuth } from '@/template';
 import { AppProvider } from '../contexts/AppContext';
 import { LocaleProvider, useLocale } from '../contexts/LocaleContext';
 
 function AppShell() {
   const { direction } = useLocale();
+  const pathname = usePathname();
+  const { currentUser, isAuthenticated: authStateAuthenticated, initialized, authLoading } = useAuth();
+  const [authReady, setAuthReady] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    if (!initialized || authLoading) {
+      return;
+    }
+
+    const hasSubscriptionAccess =
+      typeof window !== 'undefined' &&
+      Boolean(window.localStorage) &&
+      window.localStorage.getItem('subscription_access') === 'true';
+    const hasSessionUser = Boolean(currentUser || authStateAuthenticated);
+
+    setIsAuthenticated(hasSessionUser || hasSubscriptionAccess);
+    setAuthReady(true);
+  }, [authLoading, authStateAuthenticated, currentUser, initialized]);
+
+  const isLoginRoute = useMemo(() => pathname === '/login', [pathname]);
+
+  if (!authReady) {
+    return null;
+  }
+
+  if (!isAuthenticated && !isLoginRoute) {
+    return <Redirect href="/login" />;
+  }
+
+  if (isAuthenticated && isLoginRoute) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   return (
     <View style={{ flex: 1, direction }}>
