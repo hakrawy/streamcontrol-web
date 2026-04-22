@@ -157,7 +157,7 @@ export default function AdminAddons() {
 
   return (
     <>
-      <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}>
+      <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 24 }}>
         <View style={styles.card}>
           <Text style={styles.title}>{t.title}</Text>
           <Text style={styles.muted}>{t.hint}</Text>
@@ -226,14 +226,14 @@ function Icon({ icon, color, onPress }: { icon: React.ComponentProps<typeof Mate
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: theme.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.border, padding: 16, gap: 10, marginBottom: 12 },
+  card: { backgroundColor: theme.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.border, padding: theme.spacing.md, gap: 10, marginBottom: 12 },
   title: { color: '#FFF', fontSize: 22, fontWeight: '800' },
   name: { color: '#FFF', fontSize: 16, fontWeight: '800' },
   muted: { color: theme.textSecondary, fontSize: 12, lineHeight: 18 },
-  input: { height: 46, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, color: '#FFF', paddingHorizontal: 12 },
+  input: { height: 46, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, color: '#FFF', paddingHorizontal: 12 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  rowStart: { gap: 12, alignItems: 'flex-start' },
-  btn: { minWidth: 100, height: 42, borderRadius: 12, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  rowStart: { gap: theme.spacing.sm, alignItems: 'flex-start' },
+  btn: { minWidth: 100, height: 42, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
   primary: { backgroundColor: theme.primary, borderColor: theme.primary },
   btnText: { color: '#FFF', fontWeight: '700' },
   preview: { borderRadius: 14, backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border, padding: 12, gap: 6 },
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   chipText: { color: theme.textSecondary, fontSize: 12, fontWeight: '700' },
   chipTextActive: { color: '#FFF' },
-  icon: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 38, height: 38, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center' },
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  modal: { width: '100%', maxWidth: 560, borderRadius: 18, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, padding: 16, gap: 10 },
+  modal: { width: '100%', maxWidth: 560, borderRadius: 18, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, padding: theme.spacing.md, gap: 10 },
 });

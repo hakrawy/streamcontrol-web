@@ -365,7 +365,7 @@ export default function AdminSettings() {
       <ScrollView
         style={[styles.container, { direction }]}
         contentContainerStyle={[
-          { padding: 16, paddingBottom: insets.bottom + 32 },
+          { padding: theme.spacing.md, paddingBottom: insets.bottom + 32 },
           isWide && { maxWidth: 680, alignSelf: 'center', width: '100%', paddingHorizontal: 24 },
         ]}
         showsVerticalScrollIndicator={false}
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     gap: 14,
     backgroundColor: theme.surface,
     borderRadius: 14,
-    padding: 16,
+    padding: theme.spacing.md,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: theme.border,
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
   settingIcon: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: theme.radius.md,
     backgroundColor: 'rgba(99,102,241,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   settingInput: {
     height: 38,
     backgroundColor: theme.surfaceLight,
-    borderRadius: 8,
+    borderRadius: theme.radius.sm,
     paddingHorizontal: 12,
     fontSize: 14,
     color: '#FFF',
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.surfaceLight,
-    borderRadius: 8,
+    borderRadius: theme.radius.sm,
     borderWidth: 1,
     borderColor: theme.border,
   },
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
     gap: 14,
     backgroundColor: theme.surface,
     borderRadius: 14,
-    padding: 16,
+    padding: theme.spacing.md,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: theme.border,
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   infoCard: {
     backgroundColor: theme.surface,
     borderRadius: 14,
-    padding: 16,
+    padding: theme.spacing.md,
     borderWidth: 1,
     borderColor: theme.border,
   },
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(99,102,241,0.18)',
-    borderRadius: 8,
+    borderRadius: theme.radius.sm,
     borderWidth: 1,
     borderColor: 'rgba(99,102,241,0.4)',
   },

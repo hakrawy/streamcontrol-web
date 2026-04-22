@@ -160,7 +160,7 @@ export default function AdminSources() {
   }
 
   return (
-    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 20 }} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>{copy.title}</Text>
 
       <View style={styles.card}>
@@ -277,27 +277,27 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   centered: { alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 24, fontWeight: '800', color: '#FFF', marginBottom: 16 },
-  card: { backgroundColor: theme.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: theme.border, gap: 10, marginBottom: 14 },
+  card: { backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: theme.spacing.md, borderWidth: 1, borderColor: theme.border, gap: 10, marginBottom: 14 },
   toggleRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border },
   chipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   chipText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
   chipTextActive: { color: '#FFF' },
-  input: { minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, paddingHorizontal: 14, paddingVertical: 10, color: '#FFF' },
+  input: { minHeight: 44, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, paddingHorizontal: 14, paddingVertical: 10, color: '#FFF' },
   notes: { minHeight: 88, textAlignVertical: 'top' },
   list: { gap: 8 },
-  listItem: { paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border },
+  listItem: { paddingHorizontal: 14, paddingVertical: theme.spacing.sm, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border },
   listItemActive: { borderColor: theme.primary, backgroundColor: theme.primaryDark },
   listTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   listMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#FFF' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
   switchLabel: { color: '#FFF', fontSize: 13, fontWeight: '600' },
-  primaryBtn: { height: 46, borderRadius: 12, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
+  primaryBtn: { height: 46, borderRadius: theme.radius.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
   primaryBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
-  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.surfaceLight, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: theme.border },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.surfaceLight, borderRadius: theme.radius.md, padding: 12, borderWidth: 1, borderColor: theme.border },
   sourceTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   sourceMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
   sourceHint: { fontSize: 11, color: theme.textMuted, marginTop: 2 },
-  iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 36, height: 36, borderRadius: theme.radius.md, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' },
 });

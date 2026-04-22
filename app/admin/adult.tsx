@@ -131,7 +131,7 @@ export default function AdminAdultContent() {
   return (
     <ScrollView
       style={[styles.container, { direction }]}
-      contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }}
+      contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 16 }}
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.sectionTitle}>{copy.title}</Text>
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   centered: { justifyContent: 'center', alignItems: 'center' },
   sectionTitle: { fontSize: 11, fontWeight: '700', color: theme.textMuted, letterSpacing: 1, marginBottom: 12 },
-  searchBar: { alignItems: 'center', gap: 8, backgroundColor: theme.surface, borderRadius: 12, borderWidth: 1, borderColor: theme.border, height: 46, paddingHorizontal: 12, marginBottom: 12 },
+  searchBar: { alignItems: 'center', gap: 8, backgroundColor: theme.surface, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, height: 46, paddingHorizontal: 12, marginBottom: 12 },
   searchInput: { flex: 1, color: '#FFF', fontSize: 14 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   filterChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
@@ -232,15 +232,15 @@ const styles = StyleSheet.create({
   filterChipText: { color: theme.textSecondary, fontWeight: '700', fontSize: 12 },
   filterChipTextActive: { color: '#FFF' },
   countText: { fontSize: 13, color: theme.textSecondary, marginBottom: 12, fontWeight: '600' },
-  itemCard: { gap: 12, backgroundColor: theme.surface, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: theme.border },
-  poster: { width: 60, height: 90, borderRadius: 10, backgroundColor: theme.surfaceLight },
+  itemCard: { gap: theme.spacing.sm, backgroundColor: theme.surface, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: theme.border },
+  poster: { width: 60, height: 90, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight },
   title: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   meta: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   badgeText: { fontSize: 11, fontWeight: '700' },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 10 },
-  actionBtn: { flex: 1, height: 42, borderRadius: 12, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  actionBtn: { flex: 1, height: 42, borderRadius: theme.radius.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   secondaryBtn: { backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border },
   actionBtnText: { color: '#FFF', fontWeight: '700' },
 });

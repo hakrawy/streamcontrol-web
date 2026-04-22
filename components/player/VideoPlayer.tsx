@@ -977,7 +977,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     paddingHorizontal: 10,
-    borderRadius: 12,
+    borderRadius: theme.radius.md,
   },
   sourceItemActive: {
     backgroundColor: `${theme.primary}20`,

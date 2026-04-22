@@ -155,7 +155,7 @@ export default function ProfileScreen() {
           <Text style={styles.userName}>{displayName}</Text>
           <Text style={styles.userEmail}>{user?.email || ''}</Text>
           {isAdmin ? (
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginTop: 12 }}>
               <Pressable style={[styles.adminBtn, { marginTop: 0 }]} onPress={() => router.push('/admin')}>
                 <MaterialIcons name="dashboard" size={16} color="#FFF" />
                 <Text style={styles.adminBtnText}>{t('profile.adminDashboard')}</Text>
@@ -253,7 +253,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  profileHeader: { alignItems: 'center', paddingTop: 16, paddingBottom: 24 },
+  profileHeader: { alignItems: 'center', paddingTop: theme.spacing.md, paddingBottom: 24 },
   avatarWrap: { position: 'relative', marginBottom: 14 },
   avatarImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: theme.primaryLight },
   avatarFallback: { width: 90, height: 90, borderRadius: 45, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: theme.primaryLight },
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   premiumBadge: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: theme.background },
   userName: { fontSize: 22, fontWeight: '700', color: '#FFF' },
   userEmail: { fontSize: 14, color: theme.textSecondary, marginTop: 2 },
-  adminBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, backgroundColor: theme.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20 },
+  adminBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: theme.spacing.sm, backgroundColor: theme.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20 },
   adminBtnText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
   statsRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 24, backgroundColor: theme.surface, borderRadius: 16, paddingVertical: 20, borderWidth: 1, borderColor: theme.border },
   statCard: { flex: 1, alignItems: 'center', gap: 4 },

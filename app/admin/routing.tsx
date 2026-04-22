@@ -127,7 +127,7 @@ export default function AdminRoutingScreen() {
   return (
     <ScrollView
       style={[styles.container, { direction }]}
-      contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}
+      contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 24 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} colors={[theme.primary]} />}
       showsVerticalScrollIndicator={false}
     >
@@ -228,7 +228,7 @@ function MoveButton({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { alignItems: 'center', justifyContent: 'center' },
-  hero: { backgroundColor: theme.surface, borderRadius: 20, borderWidth: 1, borderColor: theme.border, padding: 16, gap: 10, marginBottom: 14 },
+  hero: { backgroundColor: theme.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, padding: theme.spacing.md, gap: 10, marginBottom: 14 },
   title: { color: '#FFF', fontSize: 22, fontWeight: '800' },
   subtitle: { color: theme.textSecondary, fontSize: 13, lineHeight: 20 },
   addonName: { color: '#A5B4FC', fontSize: 14, fontWeight: '700' },
@@ -236,12 +236,12 @@ const styles = StyleSheet.create({
   bulkActions: { gap: 8 },
   bulkLabel: { color: theme.textSecondary, fontSize: 12, fontWeight: '700' },
   bulkButtonsRow: { flexDirection: 'row', gap: 8 },
-  searchInput: { height: 46, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, color: '#FFF', paddingHorizontal: 12 },
-  autoFixBtn: { height: 44, borderRadius: 12, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  searchInput: { height: 46, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, color: '#FFF', paddingHorizontal: 12 },
+  autoFixBtn: { height: 44, borderRadius: theme.radius.md, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   autoFixText: { color: '#000', fontWeight: '800' },
   empty: { color: theme.textMuted, textAlign: 'center', marginTop: 40 },
-  card: { backgroundColor: theme.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.border, padding: 14, gap: 12, marginBottom: 12 },
-  headRow: { gap: 12, alignItems: 'flex-start' },
+  card: { backgroundColor: theme.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.border, padding: 14, gap: theme.spacing.sm, marginBottom: 12 },
+  headRow: { gap: theme.spacing.sm, alignItems: 'flex-start' },
   poster: { width: 72, height: 96, borderRadius: 14, backgroundColor: theme.surfaceLight },
   itemTitle: { color: '#FFF', fontSize: 16, fontWeight: '800' },
   itemDesc: { color: theme.textSecondary, fontSize: 12, lineHeight: 18 },
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
   chipText: { fontSize: 11, fontWeight: '800' },
   actions: { flexDirection: 'row', gap: 8 },
-  moveBtn: { flex: 1, height: 42, borderRadius: 12, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center' },
+  moveBtn: { flex: 1, height: 42, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center' },
   moveBtnPrimary: { backgroundColor: 'rgba(34,197,94,0.16)', borderColor: 'rgba(34,197,94,0.35)' },
   moveBtnActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   moveBtnText: { color: '#FFF', fontWeight: '800' },

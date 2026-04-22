@@ -78,7 +78,7 @@ export default function WatchlistScreen() {
       ) : items.length > 0 ? (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 16, gap: 12 }}
+          contentContainerStyle={{ paddingHorizontal: theme.spacing.md, paddingBottom: insets.bottom + 16, gap: 12 }}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}
         >
@@ -128,7 +128,7 @@ export default function WatchlistScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: theme.spacing.md, paddingVertical: 12 },
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
   headerCount: { fontSize: 14, fontWeight: '500', color: theme.textSecondary },
   listCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: theme.surface, borderRadius: 14, padding: 12, gap: 14, borderWidth: 1, borderColor: theme.border },

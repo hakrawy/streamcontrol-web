@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   },
   optionChipText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
   optionChipTextActive: { color: '#FFF' },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalActions: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: 8 },
   modalSecondaryBtn: {
     flex: 1,
     height: 50,

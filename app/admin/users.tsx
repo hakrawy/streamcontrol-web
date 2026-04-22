@@ -36,7 +36,7 @@ export default function AdminUsers() {
 
   return (
     <AdminPageShell title="Users" subtitle="Manage roles, admins, and access safely" icon="people">
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
       <View style={styles.summaryRow}>
         <View style={[styles.summaryCard, { borderLeftColor: theme.accent }]}>
           <Text style={styles.summaryValue}>{adminUsers.length}</Text>
@@ -81,16 +81,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  summaryCard: { flex: 1, backgroundColor: theme.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: theme.border, borderLeftWidth: 3, gap: 4 },
+  summaryCard: { flex: 1, backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 14, borderWidth: 1, borderColor: theme.border, borderLeftWidth: 3, gap: 4 },
   summaryValue: { fontSize: 22, fontWeight: '800', color: '#FFF' },
   summaryLabel: { fontSize: 11, fontWeight: '500', color: theme.textSecondary },
   countText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 12 },
-  userCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  userCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: theme.border, gap: 12 },
   avatarWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 18, fontWeight: '700', color: '#FFF' },
   userInfo: { flex: 1, gap: 2 },
   userName: { fontSize: 15, fontWeight: '600', color: '#FFF' },
   userEmail: { fontSize: 12, color: theme.textSecondary },
   roleBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
-  roleBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center' },
+  roleBtn: { width: 40, height: 40, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center' },
 });

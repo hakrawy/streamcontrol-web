@@ -192,7 +192,7 @@ export default function SearchScreen() {
             keyExtractor={(item) => `${item.type}-${item.id}`}
             contentContainerStyle={{ paddingBottom: insets.bottom + 22, paddingTop: 8 }}
             renderItem={({ item, index }) => (
-              <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 28).duration(260)} style={{ flex: 1, marginBottom: 12, paddingRight: index % gridColumns === gridColumns - 1 ? 0 : 12 }}>
+              <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 28).duration(260)} style={{ flex: 1, marginBottom: theme.spacing.sm, paddingRight: index % gridColumns === gridColumns - 1 ? 0 : 12 }}>
                 <Pressable onPress={() => openItem(item)}>
                   <View style={styles.card}>
                     <View style={styles.posterWrap}>
@@ -247,15 +247,15 @@ function ActivityPill() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  searchBarWrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  searchBarWrap: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.xs, paddingBottom: 12 },
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: theme.surface, borderRadius: 12, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: theme.border },
   searchInput: { flex: 1, fontSize: 15, color: '#FFF' },
-  chipRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12, flexWrap: 'wrap' },
+  chipRow: { flexDirection: 'row', paddingHorizontal: theme.spacing.md, gap: 8, marginBottom: theme.spacing.sm, flexWrap: 'wrap' },
   chip: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
   chipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   chipText: { fontSize: 13, fontWeight: '700', color: theme.textSecondary },
   chipTextActive: { color: '#FFF' },
-  genreRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
+  genreRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: theme.spacing.md, paddingBottom: 14 },
   genreChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
   genreChipActive: { backgroundColor: theme.primaryDark, borderColor: theme.primary },
   genreText: { color: theme.textSecondary, fontSize: 12, fontWeight: '600' },

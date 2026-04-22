@@ -321,20 +321,20 @@ const styles = StyleSheet.create({
     maxWidth: 900,
     alignSelf: 'center',
     width: '100%',
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.spacing.lg,
   },
   // Stats
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 24 },
   statCard: {
     backgroundColor: theme.surface,
-    borderRadius: 16,
+    borderRadius: theme.radius.md,
     padding: 14,
     borderWidth: 1,
     borderColor: theme.border,
     gap: 6,
     marginBottom: 12,
   },
-  statIconWrap: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  statIconWrap: { width: 40, height: 40, borderRadius: theme.radius.md, alignItems: 'center', justifyContent: 'center' },
   statValue: { fontSize: 26, fontWeight: '800', color: '#FFF' },
   statLabel: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
   // Section
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1, marginBottom: 12, marginTop: 8,
   },
   activityCard: {
-    borderRadius: 16,
+    borderRadius: theme.radius.md,
     backgroundColor: theme.surface,
     borderWidth: 1,
     borderColor: theme.border,
@@ -360,9 +360,9 @@ const styles = StyleSheet.create({
   menuGrid: { gap: 8, marginBottom: 24 },
   menuGridWide: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' },
   menuCard: {
-    alignItems: 'center', gap: 12,
+    alignItems: 'center', gap: theme.spacing.sm,
     backgroundColor: theme.surface, borderRadius: 14,
-    padding: 16, borderWidth: 1, borderColor: theme.border,
+    padding: theme.spacing.md, borderWidth: 1, borderColor: theme.border,
     marginBottom: 0,
   },
   menuCardPressed: { opacity: 0.7, backgroundColor: theme.surfaceLight },
@@ -371,8 +371,8 @@ const styles = StyleSheet.create({
   menuCount: { fontSize: 12, color: theme.textSecondary, marginTop: 1 },
   // Top items
   topItem: {
-    alignItems: 'center', gap: 12,
-    backgroundColor: theme.surface, borderRadius: 12,
+    alignItems: 'center', gap: theme.spacing.sm,
+    backgroundColor: theme.surface, borderRadius: theme.radius.md,
     padding: 12, marginBottom: 8,
     borderWidth: 1, borderColor: theme.border,
   },

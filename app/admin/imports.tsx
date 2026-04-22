@@ -127,7 +127,7 @@ export default function AdminImports() {
   };
 
   return (
-    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
       <Text style={styles.sectionTitle}>{copy.section}</Text>
 
       <View style={styles.typeRow}>
@@ -236,28 +236,28 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   sectionTitle: { fontSize: 11, fontWeight: '700', color: theme.textMuted, letterSpacing: 1, marginBottom: 12, marginTop: 8 },
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  typeChip: { flex: 1, height: 42, borderRadius: 12, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
+  typeChip: { flex: 1, height: 42, borderRadius: theme.radius.md, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
   typeChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   typeChipText: { color: theme.textSecondary, fontWeight: '700' },
   typeChipTextActive: { color: '#FFF' },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: theme.surface, borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: theme.border },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: theme.surface, borderRadius: 14, padding: theme.spacing.md, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.border },
   switchTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   switchDesc: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-  card: { backgroundColor: theme.surface, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.border },
+  card: { backgroundColor: theme.surface, borderRadius: 14, padding: theme.spacing.md, marginBottom: 12, borderWidth: 1, borderColor: theme.border },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#FFF', marginBottom: 10 },
   searchRow: { flexDirection: 'row', gap: 10 },
-  input: { flex: 1, height: 44, borderRadius: 10, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12, color: '#FFF' },
-  primaryBtn: { height: 44, borderRadius: 10, backgroundColor: theme.primary, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  input: { flex: 1, height: 44, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12, color: '#FFF' },
+  primaryBtn: { height: 44, borderRadius: theme.radius.md, backgroundColor: theme.primary, paddingHorizontal: theme.spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   primaryBtnText: { color: '#FFF', fontWeight: '700' },
-  previewCard: { flexDirection: 'row', gap: 14, backgroundColor: theme.surface, borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: theme.border },
-  previewPoster: { width: 100, height: 150, borderRadius: 12, backgroundColor: theme.surfaceLight },
+  previewCard: { flexDirection: 'row', gap: 14, backgroundColor: theme.surface, borderRadius: 14, padding: theme.spacing.md, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.border },
+  previewPoster: { width: 100, height: 150, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight },
   previewTitle: { fontSize: 18, fontWeight: '800', color: '#FFF' },
   previewMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
   previewText: { fontSize: 13, color: theme.textSecondary, marginTop: 8, lineHeight: 20 },
-  resultCard: { flexDirection: 'row', gap: 12, backgroundColor: theme.surface, borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.border },
-  resultPoster: { width: 64, height: 96, borderRadius: 10, backgroundColor: theme.surfaceLight },
+  resultCard: { flexDirection: 'row', gap: theme.spacing.sm, backgroundColor: theme.surface, borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.border },
+  resultPoster: { width: 64, height: 96, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight },
   resultTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   resultMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
   resultOverview: { fontSize: 12, color: theme.textMuted, marginTop: 6, lineHeight: 18 },
-  inlineSaveBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  inlineSaveBtn: { width: 40, height: 40, borderRadius: theme.radius.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
 });

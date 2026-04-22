@@ -712,7 +712,7 @@ export default function ContentDetailScreen() {
           {!isMovie && normalizedSeasons.length > 0 && (
             <Animated.View entering={FadeInDown.delay(150).duration(400)}>
               <Text style={styles.sectionLabel}>SEASONS & EPISODES</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 16 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: theme.spacing.xs, marginBottom: 16 }}>
                 {normalizedSeasons.map((season, i) => (
                   <Pressable key={season.id} onPress={() => { Haptics.selectionAsync(); setSelectedSeason(i); }} style={[styles.seasonTab, selectedSeason === i && styles.seasonTabActive]}>
                     <Text style={[styles.seasonTabText, selectedSeason === i && styles.seasonTabTextActive]}>
@@ -853,20 +853,20 @@ export default function ContentDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
-  infoSection: { paddingHorizontal: 16, marginTop: -60 },
-  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  infoBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4 },
+  infoSection: { paddingHorizontal: theme.spacing.md, marginTop: -60 },
+  badgeRow: { flexDirection: 'row', gap: theme.spacing.xs, marginBottom: 10 },
+  infoBadge: { paddingHorizontal: theme.spacing.sm, paddingVertical: 4, borderRadius: 4 },
   infoBadgeText: { fontSize: 11, fontWeight: '700', color: '#FFF', letterSpacing: 0.5 },
   title: { fontSize: 28, fontWeight: '800', color: '#FFF', letterSpacing: -0.5, marginBottom: 10 },
   originalTitle: { fontSize: 14, color: theme.textMuted, marginTop: -4, marginBottom: 12 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing.sm, marginBottom: 20 },
   ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   ratingText: { fontSize: 15, fontWeight: '700', color: theme.accent },
   metaText: { fontSize: 14, color: theme.textSecondary, fontWeight: '500' },
   genrePills: { flexDirection: 'row', gap: 6 },
-  genrePill: { backgroundColor: theme.surfaceLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  genrePill: { backgroundColor: theme.surfaceLight, paddingHorizontal: theme.spacing.sm, paddingVertical: 4, borderRadius: 12 },
   genrePillText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
-  actionRow: { flexDirection: 'row', gap: 12, marginBottom: 18 },
+  actionRow: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: 18 },
   playBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FFF', height: 52, borderRadius: 12 },
   playBtnText: { fontSize: 17, fontWeight: '700', color: '#000' },
   trailerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.surfaceLight, height: 52, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1, borderColor: theme.border },
@@ -874,13 +874,13 @@ const styles = StyleSheet.create({
     secondaryActionBtn: { width: 52, height: 52, borderRadius: 12, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
     secondaryActionBtnDisabled: { opacity: 0.4 },
     downloadHint: { fontSize: 12, color: theme.textMuted, marginBottom: 18 },
-    emptyEpisodesWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 12, width: '100%' },
+    emptyEpisodesWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: theme.spacing.sm, width: '100%' },
   emptyEpisodesText: { fontSize: 14, color: theme.textMuted, textAlign: 'center' },
   quickActions: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 },
   quickAction: { alignItems: 'center', gap: 6 },
   quickActionText: { fontSize: 11, fontWeight: '500', color: theme.textSecondary },
   description: { fontSize: 15, color: '#D1D5DB', lineHeight: 24, marginBottom: 20 },
-  detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 22 },
+  detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, marginBottom: 22 },
   detailCard: {
     width: '48%',
     backgroundColor: theme.surface,
@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
   castList: { fontSize: 14, color: theme.textSecondary, lineHeight: 22 },
   qualitySection: { marginBottom: 24 },
   qualityRow: { flexDirection: 'row', gap: 8 },
-  qualityBadge: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  qualityBadge: { paddingHorizontal: theme.spacing.md, paddingVertical: 8, borderRadius: 8, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
   qualityBadgeActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   qualityText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
   qualityTextActive: { color: '#FFF' },
@@ -939,7 +939,7 @@ const styles = StyleSheet.create({
   seasonTabTextActive: { color: '#FFF' },
   episodesGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },
   episodeCardWrap: { width: Platform.OS === 'web' ? '50%' : '100%', paddingHorizontal: 6, marginBottom: 12 },
-  episodeCard: { gap: 12, backgroundColor: theme.surface, borderRadius: 14, padding: 10, borderWidth: 1, borderColor: theme.border, minHeight: 260 },
+  episodeCard: { gap: theme.spacing.sm, backgroundColor: theme.surface, borderRadius: 14, padding: 10, borderWidth: 1, borderColor: theme.border, minHeight: 260 },
   episodeThumbnailWrap: { width: '100%', height: 150, borderRadius: 10, overflow: 'hidden' },
   episodeThumbnail: { width: '100%', height: '100%' },
   episodePlayOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
@@ -955,7 +955,7 @@ const styles = StyleSheet.create({
   relatedTitle: { fontSize: 12, fontWeight: '600', color: '#FFF', marginBottom: 2 },
   relatedRating: { fontSize: 11, fontWeight: '700', color: theme.accent },
   backBtn: { position: 'absolute', left: 16, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  stickyBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 16, paddingTop: 30 },
-  stickyPlayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FFF', height: 52, borderRadius: 12 },
+  stickyBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: theme.spacing.md, paddingTop: 30 },
+  stickyPlayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: theme.spacing.xs, backgroundColor: '#FFF', height: 52, borderRadius: 12 },
   stickyPlayText: { fontSize: 16, fontWeight: '700', color: '#000' },
 });

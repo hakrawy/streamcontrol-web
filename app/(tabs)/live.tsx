@@ -101,7 +101,7 @@ export default function LiveScreen() {
         {featuredChannels.length > 0 && (
           <Animated.View entering={FadeInDown.duration(400)}>
             <Text style={[styles.sectionTitle, styles.pageShell]}>{copy.featured}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: theme.spacing.md, gap: 12 }}>
               {featuredChannels.map(ch => (
                 <Pressable key={ch.id} style={styles.featuredCard} onPress={() => openChannel(ch)}>
                   <Image source={{ uri: ch.logo }} style={styles.featuredImage} contentFit="cover" transition={perf.imageTransition} />
@@ -168,14 +168,14 @@ export default function LiveScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageShell: { width: '100%', maxWidth: 1180, alignSelf: 'center' },
-  header: { justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+  header: { justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: theme.spacing.md, paddingVertical: 12 },
   liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   liveRedDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.live },
   liveCount: { fontSize: 14, fontWeight: '600', color: theme.live },
-  searchWrap: { paddingHorizontal: 16, paddingBottom: 8 },
+  searchWrap: { paddingHorizontal: theme.spacing.md, paddingBottom: 8 },
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: theme.surface, borderRadius: 14, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 14, height: 48 },
   searchInput: { flex: 1, fontSize: 14, color: '#FFF' },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', letterSpacing: -0.3, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', letterSpacing: -0.3, paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.xs, paddingBottom: 12 },
   featuredCard: { width: SCREEN_WIDTH * 0.75, height: 180, borderRadius: 14, overflow: 'hidden', backgroundColor: theme.surface },
   featuredImage: { width: '100%', height: '100%' },
   featuredOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'space-between', padding: 14 },
@@ -187,12 +187,12 @@ const styles = StyleSheet.create({
   featuredProgram: { fontSize: 13, color: 'rgba(255,255,255,0.8)' },
   featuredViewers: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   featuredViewerCount: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
-  categoryRow: { paddingHorizontal: 16, gap: 8, paddingTop: 20, paddingBottom: 16 },
+  categoryRow: { paddingHorizontal: theme.spacing.md, gap: theme.spacing.xs, paddingTop: 20, paddingBottom: 16 },
   categoryChip: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
   categoryChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   categoryText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
   categoryTextActive: { color: '#FFF' },
-  channelGrid: { paddingHorizontal: 16, gap: 12 },
+  channelGrid: { paddingHorizontal: theme.spacing.md, gap: 12 },
   channelCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: 18, padding: 16, gap: 16, borderWidth: 1, borderColor: theme.border, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
   channelLogoPanel: { width: 110, height: 78, borderRadius: 18, padding: 10, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },
   channelLogoWrap: { width: '100%', height: '100%', borderRadius: 14, overflow: 'hidden', backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', padding: 10 },
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   channelInfo: { flex: 1, gap: 4 },
   channelName: { fontSize: 17, fontWeight: '800', color: '#FFF', letterSpacing: -0.2 },
   channelProgram: { fontSize: 13, color: theme.textSecondary, lineHeight: 18 },
-  channelMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' },
+  channelMeta: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs, marginTop: 6, flexWrap: 'wrap' },
   channelCatBadge: { backgroundColor: 'rgba(99,102,241,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   channelCatText: { fontSize: 10, fontWeight: '700', color: theme.primary, letterSpacing: 0.5 },
   channelViewers: { fontSize: 11, color: theme.textMuted },

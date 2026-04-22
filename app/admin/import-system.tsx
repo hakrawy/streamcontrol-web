@@ -221,7 +221,7 @@ export default function ImportSystemAdmin() {
     : [];
 
   return (
-    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={['rgba(34,211,238,0.18)', 'rgba(99,102,241,0.08)', 'rgba(10,10,15,0)']} style={styles.hero}>
         <View style={styles.heroIcon}>
           <MaterialIcons name="cloud-sync" size={30} color="#FFF" />
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   modeBtnActive: { backgroundColor: theme.primary, borderColor: theme.primaryLight },
   modeText: { color: theme.textSecondary, fontWeight: '900' },
   modeTextActive: { color: '#FFF' },
-  card: { borderRadius: 20, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10 },
+  card: { borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10 },
   sectionTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
   sectionHint: { color: theme.textSecondary, fontSize: 12, lineHeight: 18, marginBottom: 2 },
   input: { height: 46, borderRadius: 14, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, color: theme.textPrimary, paddingHorizontal: 12 },
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   primaryBtn: { minHeight: 44, borderRadius: 14, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 },
   primaryBtnDisabled: { opacity: 0.75 },
   primaryText: { color: '#FFF', fontWeight: '900', fontSize: 13 },
-  summaryCard: { marginTop: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(16,185,129,0.22)', backgroundColor: 'rgba(16,185,129,0.08)', padding: 14, gap: 10 },
+  summaryCard: { marginTop: 14, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: 'rgba(16,185,129,0.22)', backgroundColor: 'rgba(16,185,129,0.08)', padding: 14, gap: 10 },
   summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   summaryTitle: { color: '#E8FFF1', fontSize: 15, fontWeight: '900' },
   summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -416,16 +416,16 @@ const styles = StyleSheet.create({
   summaryText: { color: '#DCFCE7', fontSize: 12, lineHeight: 18 },
   warningBox: { marginTop: 4, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(251,191,36,0.22)', backgroundColor: 'rgba(251,191,36,0.08)', padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
   warningText: { flex: 1, color: '#FEF3C7', fontSize: 12, lineHeight: 18 },
-  errorCard: { marginTop: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(239,68,68,0.22)', backgroundColor: 'rgba(239,68,68,0.08)', padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  errorCard: { marginTop: 14, borderRadius: theme.radius.md, borderWidth: 1, borderColor: 'rgba(239,68,68,0.22)', backgroundColor: 'rgba(239,68,68,0.08)', padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   errorText: { flex: 1, color: '#FECACA', fontSize: 12, lineHeight: 18 },
-  historyCard: { marginTop: 14, borderRadius: 20, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10 },
+  historyCard: { marginTop: 14, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10 },
   historyHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   historyTitle: { color: '#FFF', fontSize: 15, fontWeight: '900' },
   historyClearBtn: { minHeight: 34, borderRadius: 999, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
   historyClearText: { color: theme.textSecondary, fontSize: 11, fontWeight: '800' },
   historyEmpty: { color: theme.textSecondary, fontSize: 12, lineHeight: 18 },
   historyList: { gap: 10 },
-  historyItem: { borderRadius: 16, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, padding: 12, gap: 6 },
+  historyItem: { borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, padding: 12, gap: 6 },
   historyItemHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   historyItemLabel: { color: '#FFF', fontSize: 14, fontWeight: '800', flex: 1 },
   historyBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },

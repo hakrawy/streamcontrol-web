@@ -88,7 +88,7 @@ export default function SubscriptionsAdmin() {
   if (loading) return <View style={[styles.container, styles.center]}><ActivityIndicator size="large" color={theme.primary} /></View>;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={['rgba(16,185,129,0.18)', 'rgba(99,102,241,0.08)', 'rgba(10,10,15,0)']} style={styles.hero}>
         <View style={styles.heroIcon}><MaterialIcons name="vpn-key" size={28} color="#FFF" /></View>
         <View style={{ flex: 1 }}>
@@ -152,10 +152,10 @@ const styles = StyleSheet.create({
   title: { color: '#FFF', fontSize: 26, fontWeight: '900' },
   subtitle: { color: theme.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 4 },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
-  stat: { minWidth: 120, borderWidth: 1, borderRadius: 16, padding: 12 },
+  stat: { minWidth: 120, borderWidth: 1, borderRadius: theme.radius.md, padding: 12 },
   statValue: { fontSize: 20, fontWeight: '900' },
   statLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '800', marginTop: 3 },
-  card: { borderRadius: 20, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10, marginBottom: 12 },
+  card: { borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10, marginBottom: 12 },
   cardTitle: { color: '#FFF', fontSize: 16, fontWeight: '900' },
   input: { height: 46, borderRadius: 14, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, color: '#FFF', paddingHorizontal: 12 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -166,5 +166,5 @@ const styles = StyleSheet.create({
   code: { color: '#FFF', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
   sessionText: { color: theme.textMuted, fontSize: 11, marginTop: 3 },
   actions: { flexDirection: 'row', gap: 8 },
-  iconBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 38, height: 38, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
 });
