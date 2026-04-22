@@ -282,6 +282,57 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}
       >
+{/* FEATURED HERO SECTION - Full Width Cinematic */}
+        {featuredMovies.length > 0 && (
+          <View style={styles.featuredHero}>
+            <Image 
+              source={{ uri: featuredMovies[0].backdrop || featuredMovies[0].poster }} 
+              style={StyleSheet.absoluteFill} 
+              contentFit="cover" 
+              transition={perf.imageTransition}
+            />
+            <LinearGradient colors={['rgba(5,7,13,0.2)', 'rgba(5,7,13,0.4)', 'rgba(5,7,13,0.7)', 'rgba(5,7,13,0.95)', theme.background]} style={StyleSheet.absoluteFill} locations={[0, 0.2, 0.5, 0.75, 1]} />
+            
+            {/* Featured Content Overlay */}
+            <View style={styles.featuredContent}>
+              <View style={styles.featuredBadge}>
+                <Text style={styles.featuredBadgeText}>FEATURED</Text>
+              </View>
+              <Text style={styles.featuredTitle}>{featuredMovies[0].title}</Text>
+              <Text style={styles.featuredDescription} numberOfLines={2}>{featuredMovies[0].description}</Text>
+              
+              <View style={styles.featuredMeta}>
+                <MaterialIcons name="star" size={16} color={theme.accent} />
+                <Text style={styles.featuredRating}>{featuredMovies[0].rating || 'N/A'}</Text>
+                <Text style={styles.featuredDot}>·</Text>
+                <Text style={styles.featuredYear}>{featuredMovies[0].year}</Text>
+                {featuredMovies[0].type === 'movie' && 'duration' in (featuredMovies[0] as any) && (
+                  <>
+                    <Text style={styles.featuredDot}>·</Text>
+                    <Text style={styles.featuredDuration}>{(featuredMovies[0] as any).duration || 0}min</Text>
+                  </>
+                )}
+              </View>
+              
+              {/* Featured Actions */}
+              <View style={styles.featuredActions}>
+                <Pressable style={styles.featuredPlayBtn} onPress={() => navigateToContent(featuredMovies[0])}>
+                  <MaterialIcons name="play-arrow" size={28} color="#000" />
+                  <Text style={styles.featuredPlayText}>PLAY</Text>
+                </Pressable>
+                <Pressable style={styles.featuredAddBtn} onPress={() => { Haptics.selectionAsync(); addToFavorites(featuredMovies[0].id, featuredMovies[0].type); }}>
+                  <MaterialIcons name={isFavorite(featuredMovies[0].id) ? 'check' : 'add'} size={24} color="#FFF" />
+                </Pressable>
+                <Pressable style={styles.featuredInfoBtn} onPress={() => navigateToContent(featuredMovies[0])}>
+                  <MaterialIcons name="info-outline" size={24} color="#FFF" />
+                </Pressable>
+              </View>
+            </View>
+            
+            {/* Featured Gradient Line */}
+            <View style={styles.featuredGradientLine} />
+          </View>
+        )}
         <View style={styles.homeSearchWrap}>
           <Pressable style={styles.homeSearchBar} onPress={() => router.push({ pathname: '/(tabs)/search', params: homeSearch ? { q: homeSearch } : {} })}>
             <MaterialIcons name="search" size={20} color={theme.textMuted} />
@@ -648,6 +699,105 @@ function ContentCard({ item, onPress, showBadge }: { item: ContentItem; onPress:
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
+  
+  // FEATURED HERO - Full Cinematic Section
+  featuredHero: {
+    height: 600,
+    width: '100%',
+    position: 'relative',
+  },
+  featuredContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: theme.spacing.xl,
+    paddingBottom: theme.spacing.xxl * 2,
+  },
+  featuredBadge: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginBottom: theme.spacing.md,
+  },
+  featuredBadgeText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  featuredTitle: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: '#FFF',
+    letterSpacing: -0.5,
+    marginBottom: theme.spacing.sm,
+  },
+  featuredDescription: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 22,
+    marginBottom: theme.spacing.md,
+  },
+  featuredMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+  },
+  featuredRating: { color: theme.accent, fontSize: 14, fontWeight: '700' },
+  featuredYear: { color: '#FFF', fontSize: 14 },
+  featuredDuration: { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
+  featuredDot: { color: 'rgba(255,255,255,0.5)', fontSize: 14 },
+  featuredActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  featuredPlayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    borderRadius: 8,
+    gap: theme.spacing.sm,
+  },
+  featuredPlayText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  featuredAddBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featuredInfoBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featuredGradientLine: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+    backgroundColor: 'transparent',
+  },
+
   floatingHeader: { 
     position: 'absolute', 
     top: 0, 

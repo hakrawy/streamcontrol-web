@@ -854,7 +854,13 @@ function WebDirectPlayer({
             <ActivityIndicator size="large" color="#FFF" />
             <Text style={styles.bufferingText}>Optimizing playback…</Text>
           </View>
-        ) : null}
+        ) : (!isPlaying ? (
+          <Pressable style={styles.centerPlayContainer} onPress={togglePlay}>
+            <View style={styles.centerPlayBtn}>
+              <MaterialIcons name="play-arrow" size={48} color="#05070D" />
+            </View>
+          </Pressable>
+        ) : null)}
       </Pressable>
 
       {showControls ? (
@@ -2461,6 +2467,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5,7,13,0.4)',
     justifyContent: 'space-between',
     zIndex: 1000,
+    elevation: 12,
+  },
+  
+  // Large Center Play Button
+  centerPlayContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerPlayBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 12,
   },
   embeddedOverlay: { backgroundColor: 'transparent' },
