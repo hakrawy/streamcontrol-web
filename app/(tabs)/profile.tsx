@@ -1,298 +1,163 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, RefreshControl } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useAuth, useAlert, getSupabaseClient } from '@/template';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { theme } from '../../constants/theme';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAlert, useAuth, getSupabaseClient } from '@/template';
 import { useAppContext } from '../../contexts/AppContext';
+import { useLocale } from '../../contexts/LocaleContext';
 import { getPreferences } from '../../services/preferences';
 import { clearSubscriptionSession, getSubscriptionSession, type SubscriptionSession } from '../../services/subscriptions';
-import { useLocale } from '../../contexts/LocaleContext';
-import { localizePreferenceValue } from '../../constants/i18n';
-
-interface SettingsItem { id: string; icon: string; label: string; subtitle?: string; color?: string; chevron?: boolean; slug?: string }
+import { Screen, SectionTitle, Shell, TopNav, stream, useLayoutTier } from '../../components/StreamingDesignSystem';
 
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const layout = useLayoutTier();
   const { user, logout } = useAuth();
-  const { t, language, isRTL } = useLocale();
   const { showAlert } = useAlert();
-  const { favorites, watchHistory, isAdmin, refreshHome } = useAppContext();
-  const [refreshing, setRefreshing] = useState(false);
-  const [preferenceMeta, setPreferenceMeta] = useState({ language: 'English', videoQuality: 'Auto' });
-  const [profileMeta, setProfileMeta] = useState({ username: '', display_name: '', avatar: '' });
-  const [subscriptionSession, setSubscriptionSession] = useState<SubscriptionSession | null>(null);
+  const { t, isRTL } = useLocale();
+  const { favorites, watchHistory, isAdmin } = useAppContext();
+  const [profile, setProfile] = useState({ username: '', display_name: '', avatar: '' });
+  const [preferences, setPreferences] = useState({ language: 'English', videoQuality: 'Auto' });
+  const [subscription, setSubscription] = useState<SubscriptionSession | null>(null);
 
-  const loadProfileMeta = useCallback(async () => {
-    if (!user?.id) {
-      setProfileMeta({ username: '', display_name: '', avatar: '' });
-      return;
+  const load = useCallback(async () => {
+    if (user?.id) {
+      try {
+        const { data } = await getSupabaseClient().from('user_profiles').select('username, display_name, avatar').eq('id', user.id).maybeSingle();
+        setProfile({ username: data?.username || user.username || '', display_name: data?.display_name || '', avatar: data?.avatar || '' });
+      } catch {
+        setProfile({ username: user.username || '', display_name: '', avatar: '' });
+      }
     }
-
-    try {
-      const supabase = getSupabaseClient();
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('username, display_name, avatar')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      setProfileMeta({
-        username: data?.username || user.username || '',
-        display_name: data?.display_name || '',
-        avatar: data?.avatar || '',
-      });
-    } catch {
-      setProfileMeta({
-        username: user.username || '',
-        display_name: '',
-        avatar: '',
-      });
-    }
+    const prefs = await getPreferences();
+    setPreferences({ language: prefs.language, videoQuality: prefs.videoQuality });
+    setSubscription(await getSubscriptionSession().catch(() => null));
   }, [user?.id, user?.username]);
 
-  const loadPreferenceMeta = useCallback(async () => {
-    const preferences = await getPreferences();
-    setPreferenceMeta({
-      language: preferences.language,
-      videoQuality: preferences.videoQuality,
-    });
-  }, []);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
-  const loadSubscriptionSession = useCallback(async () => {
-    const session = await getSubscriptionSession().catch(() => null);
-    setSubscriptionSession(session);
-  }, []);
+  const displayName = profile.display_name || profile.username || user?.username || user?.email?.split('@')[0] || 'User';
+  const avatarLetter = (displayName[0] || 'U').toUpperCase();
 
-  useFocusEffect(useCallback(() => {
-    void loadProfileMeta();
-    void loadPreferenceMeta();
-    void loadSubscriptionSession();
-  }, [loadPreferenceMeta, loadProfileMeta, loadSubscriptionSession]));
-
-  const settingsGroups = useMemo<{ title: string; items: SettingsItem[] }[]>(() => [
+  const groups = useMemo(() => [
     {
       title: t('profile.account'),
       items: [
-        { id: 's1', icon: 'person-outline', label: t('profile.editProfile'), chevron: true, slug: 'edit-profile' },
-        { id: 's2', icon: 'notifications-none', label: t('profile.notifications'), chevron: true, slug: 'notifications' },
-        { id: 's3', icon: 'download', label: t('profile.downloads'), chevron: true, slug: 'downloads' },
+        ['person-outline', t('profile.editProfile'), 'edit-profile', ''],
+        ['notifications-none', t('profile.notifications'), 'notifications', ''],
+        ['download', t('profile.downloads'), 'downloads', ''],
       ],
     },
     {
       title: t('profile.preferences'),
       items: [
-        { id: 's5', icon: 'translate', label: t('profile.language'), subtitle: localizePreferenceValue(language, preferenceMeta.language), chevron: true, slug: 'language' },
-        { id: 's6', icon: 'subtitles', label: t('profile.subtitlePreferences'), chevron: true, slug: 'subtitle-preferences' },
-        { id: 's7', icon: 'hd', label: t('profile.videoQuality'), subtitle: localizePreferenceValue(language, preferenceMeta.videoQuality), chevron: true, slug: 'video-quality' },
+        ['translate', t('profile.language'), 'language', preferences.language],
+        ['subtitles', t('profile.subtitlePreferences'), 'subtitle-preferences', ''],
+        ['hd', t('profile.videoQuality'), 'video-quality', preferences.videoQuality],
       ],
     },
     {
       title: t('profile.support'),
       items: [
-        { id: 's9', icon: 'help-outline', label: t('profile.helpCenter'), chevron: true, slug: 'help-center' },
-        { id: 's10', icon: 'privacy-tip', label: t('profile.privacyPolicy'), chevron: true, slug: 'privacy-policy' },
-        { id: 's11', icon: 'description', label: t('profile.terms'), chevron: true, slug: 'terms-of-service' },
+        ['help-outline', t('profile.helpCenter'), 'help-center', ''],
+        ['privacy-tip', t('profile.privacyPolicy'), 'privacy-policy', ''],
+        ['description', t('profile.terms'), 'terms-of-service', ''],
       ],
     },
-  ], [language, preferenceMeta.language, preferenceMeta.videoQuality, t]);
+  ], [preferences.language, preferences.videoQuality, t]);
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([refreshHome(), loadProfileMeta()]);
-    setRefreshing(false);
-  }, [loadProfileMeta, refreshHome]);
-
-  const handleLogout = () => {
+  const signOut = () => {
     showAlert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: async () => {
-        const { error } = await logout();
-        if (error) showAlert('Error', error);
-      }},
+      { text: 'Sign Out', style: 'destructive', onPress: async () => { await logout(); } },
     ]);
   };
-
-  const handleClearSubscription = () => {
-    showAlert('Subscription', 'Remove the active subscription session from this device?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          await clearSubscriptionSession();
-          setSubscriptionSession(null);
-          showAlert('Subscription', 'Subscription session cleared.');
-        },
-      },
-    ]);
-  };
-
-  const displayName = profileMeta.display_name || profileMeta.username || user?.username || user?.email?.split('@')[0] || 'User';
-  const avatarLetter = (displayName?.[0] || user?.email?.[0] || 'U').toUpperCase();
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}>
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.profileHeader}>
-          <View style={styles.avatarWrap}>
-            {profileMeta.avatar ? (
-              <Image source={{ uri: profileMeta.avatar }} style={styles.avatarImage} contentFit="cover" transition={200} />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarLetter}>{avatarLetter}</Text>
+    <Screen>
+      <TopNav title="Profile" subtitle="Account, preferences, and access" />
+      <Shell bottom={96}>
+        <View style={{ paddingHorizontal: layout.contentPad, paddingTop: 18 }}>
+          <View style={{ borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong }}>
+            <View style={{ height: 150, backgroundColor: '#11141D' }}>
+              <Image source={{ uri: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1400&q=80' }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+              <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110, backgroundColor: 'rgba(6,7,11,0.68)' }} />
+            </View>
+            <View style={{ marginTop: -48, padding: 18, alignItems: layout.isPhone ? 'flex-start' : 'center' }}>
+              <View style={{ width: 96, height: 96, borderRadius: 999, backgroundColor: stream.red, borderWidth: 3, borderColor: '#FFF', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                {profile.avatar ? <Image source={{ uri: profile.avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <Text style={{ color: '#FFF', fontSize: 38, fontWeight: '900' }}>{avatarLetter}</Text>}
               </View>
-            )}
-            {isAdmin ? (
-              <View style={styles.premiumBadge}><MaterialIcons name="admin-panel-settings" size={14} color="#000" /></View>
-            ) : null}
-          </View>
-          <Text style={styles.userName}>{displayName}</Text>
-          <Text style={styles.userEmail}>{user?.email || ''}</Text>
-          {isAdmin ? (
-            <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginTop: 12 }}>
-              <Pressable style={[styles.adminBtn, { marginTop: 0 }]} onPress={() => router.push('/admin')}>
-                <MaterialIcons name="dashboard" size={16} color="#FFF" />
-                <Text style={styles.adminBtnText}>{t('profile.adminDashboard')}</Text>
-              </Pressable>
-              <Pressable style={[styles.adminBtn, { marginTop: 0, backgroundColor: theme.accent }]} onPress={() => router.push('/admin/addons')}>
-                <MaterialIcons name="extension" size={16} color="#FFF" />
-                <Text style={styles.adminBtnText}>Stremio Addons</Text>
-              </Pressable>
-            </View>
-          ) : null}
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.statsRow}>
-          <View style={styles.statCard}><Text style={styles.statValue}>{favorites.length}</Text><Text style={styles.statLabel}>{t('profile.favorites')}</Text></View>
-          <View style={styles.statDivider} />
-          <View style={styles.statCard}><Text style={styles.statValue}>{watchHistory.length}</Text><Text style={styles.statLabel}>{t('profile.watched')}</Text></View>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(180).duration(400)} style={styles.subscriptionCard}>
-          <View style={styles.subscriptionHeader}>
-            <View style={styles.subscriptionBadge}>
-              <MaterialIcons name="vpn-key" size={16} color="#D1FAE5" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.subscriptionTitle}>Subscription Access</Text>
-              <Text style={styles.subscriptionSubtitle}>
-                {subscriptionSession ? 'This device is validated with a subscription key.' : 'No active subscription session on this device.'}
-              </Text>
-            </View>
-            <View style={[styles.subscriptionStatus, subscriptionSession ? styles.subscriptionStatusActive : styles.subscriptionStatusIdle]}>
-              <Text style={styles.subscriptionStatusText}>{subscriptionSession ? 'Active' : 'Idle'}</Text>
+              <Text style={{ color: '#FFF', fontSize: 28, fontWeight: '900', marginTop: 12 }}>{displayName}</Text>
+              <Text style={{ color: stream.muted, fontSize: 14, marginTop: 3 }}>{user?.email || ''}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
+                <Metric label={t('profile.favorites')} value={favorites.length} />
+                <Metric label={t('profile.watched')} value={watchHistory.length} />
+                <Metric label="Access" value={subscription ? 'Active' : 'Idle'} />
+              </View>
+              {isAdmin ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
+                  <Action label={t('profile.adminDashboard')} icon="dashboard" onPress={() => router.push('/admin')} />
+                  <Action label="Addons" icon="extension" onPress={() => router.push('/admin/addons')} />
+                </View>
+              ) : null}
             </View>
           </View>
+        </View>
 
-          <View style={styles.subscriptionGrid}>
-            <View style={styles.subscriptionMetric}>
-              <Text style={styles.subscriptionMetricLabel}>Code</Text>
-              <Text style={styles.subscriptionMetricValue}>{subscriptionSession?.code || '—'}</Text>
-            </View>
-            <View style={styles.subscriptionMetric}>
-              <Text style={styles.subscriptionMetricLabel}>Subscription ID</Text>
-              <Text style={styles.subscriptionMetricValue}>{subscriptionSession?.subscriptionId || '—'}</Text>
-            </View>
-            <View style={styles.subscriptionMetric}>
-              <Text style={styles.subscriptionMetricLabel}>Expires</Text>
-              <Text style={styles.subscriptionMetricValue}>
-                {subscriptionSession?.expiresAt ? new Date(subscriptionSession.expiresAt).toLocaleString() : 'No expiry'}
-              </Text>
-            </View>
+        <SectionTitle title="Subscription Access" subtitle={subscription ? 'This device is validated.' : 'No active subscription session on this device.'} />
+        <View style={{ paddingHorizontal: layout.contentPad }}>
+          <View style={{ borderRadius: 8, borderWidth: 1, borderColor: subscription ? 'rgba(34,197,94,0.38)' : stream.line, backgroundColor: subscription ? 'rgba(34,197,94,0.1)' : stream.panel, padding: 16, gap: 10 }}>
+            <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900' }}>{subscription ? 'Active Subscription' : 'Subscription Idle'}</Text>
+            <Text style={{ color: stream.muted, lineHeight: 20 }}>Code: {subscription?.code || 'Not connected'} | Expires: {subscription?.expiresAt ? new Date(subscription.expiresAt).toLocaleDateString() : 'No expiry'}</Text>
+            {subscription ? <Action label="Clear Subscription" icon="logout" danger onPress={async () => { await clearSubscriptionSession(); setSubscription(null); }} /> : null}
           </View>
+        </View>
 
-          {subscriptionSession ? (
-            <Pressable style={styles.subscriptionActionBtn} onPress={handleClearSubscription}>
-              <MaterialIcons name="logout" size={16} color="#FFF" />
-              <Text style={styles.subscriptionActionText}>Clear Subscription</Text>
-            </Pressable>
-          ) : null}
-        </Animated.View>
-
-        {settingsGroups.map((group, gi) => (
-          <Animated.View key={group.title} entering={FadeInDown.delay(260 + gi * 80).duration(400)} style={styles.settingsGroup}>
-            <Text style={styles.groupTitle}>{group.title}</Text>
-            <View style={styles.groupCard}>
-              {group.items.map((item, index) => (
-                <Pressable key={item.id} style={[styles.settingsRow, index < group.items.length - 1 && styles.settingsRowBorder]} onPress={() => {
-                  if (item.slug) {
-                    router.push({ pathname: '/settings/[slug]', params: { slug: item.slug } });
-                  }
-                }}>
-                  <View style={[styles.settingsIconWrap, item.color ? { backgroundColor: `${item.color}20` } : {}]}>
-                    <MaterialIcons name={item.icon as any} size={20} color={item.color || theme.textSecondary} />
+        {groups.map((group) => (
+          <View key={group.title}>
+            <SectionTitle title={group.title} />
+            <View style={{ paddingHorizontal: layout.contentPad, gap: 10 }}>
+              {group.items.map(([icon, label, slug, value]) => (
+                <Pressable key={slug} onPress={() => router.push({ pathname: '/settings/[slug]', params: { slug } })} style={{ minHeight: 64, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, paddingHorizontal: 14, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+                    <MaterialIcons name={icon as any} size={20} color={stream.cyan} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.settingsLabel}>{item.label}</Text>
-                    {item.subtitle ? <Text style={styles.settingsSubtitle}>{item.subtitle}</Text> : null}
+                    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '850' as any }}>{label}</Text>
+                    {value ? <Text style={{ color: stream.muted, fontSize: 12, marginTop: 3 }}>{value}</Text> : null}
                   </View>
-                  {item.chevron ? <MaterialIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color={theme.textMuted} /> : null}
+                  <MaterialIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color={stream.muted} />
                 </Pressable>
               ))}
             </View>
-          </Animated.View>
+          </View>
         ))}
 
-        <View style={styles.signOutWrap}>
-          <Pressable style={styles.signOutBtn} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={20} color={theme.error} />
-            <Text style={styles.signOutText}>{t('profile.signOut')}</Text>
-          </Pressable>
-          <Text style={styles.versionText}>Ali Control v2.0.0</Text>
+        <View style={{ paddingHorizontal: layout.contentPad, paddingTop: 30 }}>
+          <Action label={t('profile.signOut')} icon="logout" danger onPress={signOut} />
+          <Text style={{ color: stream.dim, textAlign: 'center', marginTop: 14, fontSize: 12 }}>Ali Control v2.0.0</Text>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </Shell>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  profileHeader: { alignItems: 'center', paddingTop: theme.spacing.md, paddingBottom: 24 },
-  avatarWrap: { position: 'relative', marginBottom: 14 },
-  avatarImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: theme.primaryLight },
-  avatarFallback: { width: 90, height: 90, borderRadius: 45, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: theme.primaryLight },
-  avatarLetter: { fontSize: 36, fontWeight: '700', color: '#FFF' },
-  premiumBadge: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: theme.background },
-  userName: { fontSize: 22, fontWeight: '700', color: '#FFF' },
-  userEmail: { fontSize: 14, color: theme.textSecondary, marginTop: 2 },
-  adminBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: theme.spacing.sm, backgroundColor: theme.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20 },
-  adminBtnText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
-  statsRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 24, backgroundColor: theme.surface, borderRadius: 16, paddingVertical: 20, borderWidth: 1, borderColor: theme.border },
-  statCard: { flex: 1, alignItems: 'center', gap: 4 },
-  statValue: { fontSize: 24, fontWeight: '700', color: '#FFF' },
-  statLabel: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
-  statDivider: { width: 1, height: 36, backgroundColor: theme.border },
-  subscriptionCard: { marginHorizontal: 16, marginBottom: 24, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(16,185,129,0.22)', backgroundColor: 'rgba(16,185,129,0.08)', padding: 14, gap: 12 },
-  subscriptionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  subscriptionBadge: { width: 40, height: 40, borderRadius: 14, backgroundColor: 'rgba(16,185,129,0.2)', alignItems: 'center', justifyContent: 'center' },
-  subscriptionTitle: { color: '#FFF', fontSize: 16, fontWeight: '900' },
-  subscriptionSubtitle: { color: theme.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 2 },
-  subscriptionStatus: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  subscriptionStatusActive: { backgroundColor: 'rgba(16,185,129,0.18)' },
-  subscriptionStatusIdle: { backgroundColor: 'rgba(148,163,184,0.14)' },
-  subscriptionStatusText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
-  subscriptionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  subscriptionMetric: { flex: 1, minWidth: 150, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.04)', padding: 12, gap: 4 },
-  subscriptionMetricLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
-  subscriptionMetricValue: { color: '#FFF', fontSize: 13, fontWeight: '700' },
-  subscriptionActionBtn: { minHeight: 44, borderRadius: 14, backgroundColor: 'rgba(239,68,68,0.14)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.28)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  subscriptionActionText: { color: '#FEE2E2', fontSize: 13, fontWeight: '800' },
-  settingsGroup: { paddingHorizontal: 16, marginBottom: 24 },
-  groupTitle: { fontSize: 11, fontWeight: '700', color: theme.textMuted, letterSpacing: 1, marginBottom: 10, paddingLeft: 4 },
-  groupCard: { backgroundColor: theme.surface, borderRadius: 14, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' },
-  settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
-  settingsRowBorder: { borderBottomWidth: 1, borderBottomColor: theme.border },
-  settingsIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(156,163,175,0.1)', alignItems: 'center', justifyContent: 'center' },
-  settingsLabel: { fontSize: 15, fontWeight: '500', color: '#FFF' },
-  settingsSubtitle: { fontSize: 12, color: theme.textSecondary, marginTop: 1 },
-  signOutWrap: { alignItems: 'center', paddingVertical: 24, gap: 12 },
-  signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
-  signOutText: { fontSize: 15, fontWeight: '600', color: theme.error },
-  versionText: { fontSize: 12, color: theme.textMuted },
-});
+function Metric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <View style={{ minWidth: 116, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: 'rgba(255,255,255,0.08)', padding: 12 }}>
+      <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900' }}>{value}</Text>
+      <Text style={{ color: stream.muted, fontSize: 12, marginTop: 2 }}>{label}</Text>
+    </View>
+  );
+}
+
+function Action({ label, icon, onPress, danger }: { label: string; icon: keyof typeof MaterialIcons.glyphMap; onPress: () => void; danger?: boolean }) {
+  return (
+    <Pressable onPress={onPress} style={{ minHeight: 44, borderRadius: 8, paddingHorizontal: 16, backgroundColor: danger ? 'rgba(229,9,20,0.16)' : stream.red, borderWidth: danger ? 1 : 0, borderColor: 'rgba(229,9,20,0.36)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      <MaterialIcons name={icon} size={18} color="#FFF" />
+      <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{label}</Text>
+    </Pressable>
+  );
+}

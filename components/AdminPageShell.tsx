@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { theme } from '../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { stream, useLayoutTier } from './StreamingDesignSystem';
 
 export function AdminPageShell({
   title,
@@ -15,32 +15,53 @@ export function AdminPageShell({
   icon?: keyof typeof MaterialIcons.glyphMap;
   children: React.ReactNode;
 }) {
+  const layout = useLayoutTier();
   return (
     <View style={styles.shell}>
-      <LinearGradient colors={['rgba(56,189,248,0.16)', 'rgba(245,158,11,0.08)', 'rgba(5,7,13,0)']} style={styles.wash} pointerEvents="none" />
-      <View style={styles.glow} pointerEvents="none" />
-      <View style={styles.glowTwo} pointerEvents="none" />
-      <View style={styles.header}>
-        <View style={styles.icon}>
-          <MaterialIcons name={icon} size={24} color="#FFF" />
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(229,9,20,0.14)', 'rgba(36,198,220,0.08)', 'rgba(6,7,11,0)']}
+        style={styles.wash}
+      />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ width: '100%', maxWidth: layout.maxWidth as any, alignSelf: 'center', paddingHorizontal: layout.contentPad, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <View style={styles.icon}>
+            <MaterialIcons name={icon} size={25} color="#FFF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.kicker}>CONTROL ROOM</Text>
+            <Text style={styles.title}>{title}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        </View>
-      </View>
-      {children}
+        {children}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  shell: { flex: 1, backgroundColor: theme.background, overflow: 'hidden' },
-  wash: { position: 'absolute', top: 0, left: 0, right: 0, height: 240 },
-  glow: { position: 'absolute', top: -130, right: -120, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(56,189,248,0.10)' },
-  glowTwo: { position: 'absolute', bottom: -150, left: -110, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(245,158,11,0.08)' },
-  header: { marginHorizontal: theme.spacing.md, marginTop: 14, marginBottom: 12, padding: theme.spacing.md, borderRadius: 26, borderWidth: 1, borderColor: 'rgba(125,211,252,0.12)', backgroundColor: 'rgba(17,24,39,0.76)', flexDirection: 'row', gap: theme.spacing.sm, alignItems: 'center' },
-  icon: { width: 52, height: 52, borderRadius: 18, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOpacity: 0.32, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
-  title: { color: '#F8FAFC', fontSize: 24, fontWeight: '900', letterSpacing: -0.4 },
-  subtitle: { color: theme.textSecondary, fontSize: 12, marginTop: 4, lineHeight: 18 },
+  shell: { flex: 1, backgroundColor: stream.bg, overflow: 'hidden' },
+  wash: { position: 'absolute', top: 0, left: 0, right: 0, height: 320 },
+  header: {
+    marginTop: 18,
+    marginBottom: 18,
+    minHeight: 138,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: stream.line,
+    backgroundColor: stream.panelStrong,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  icon: { width: 62, height: 62, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center' },
+  kicker: { color: stream.cyan, fontSize: 11, fontWeight: '900', letterSpacing: 0, marginBottom: 5 },
+  title: { color: '#FFF', fontSize: 30, fontWeight: '900', letterSpacing: 0 },
+  subtitle: { color: stream.muted, fontSize: 13, marginTop: 6, lineHeight: 20 },
 });

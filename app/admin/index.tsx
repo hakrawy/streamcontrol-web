@@ -1,430 +1,141 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-  ActivityIndicator,
-  RefreshControl,
-  useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import { fetchAdminActivity } from '../../services/adminActivity';
-import { useLocale } from '../../contexts/LocaleContext';
-
-interface StatCard {
-  label: string;
-  value: number;
-  icon: string;
-  color: string;
-}
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 export default function AdminDashboard() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { language, direction, isRTL } = useLocale();
   const [analytics, setAnalytics] = useState<any>(null);
   const [activity, setActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const isWide = width >= 900;
+  const statColumns = width >= 1200 ? 4 : width >= 760 ? 3 : 2;
 
-  // Responsive: 2 cols on small, 3 on medium, 4 on large
-  const numStatCols = width < 480 ? 2 : width < 768 ? 3 : 4;
-  const statCardWidth = (width - 32 - (numStatCols - 1) * 12) / numStatCols;
-  const isWide = width >= 768;
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [data, recentActivity] = await Promise.all([api.fetchAnalytics(), fetchAdminActivity()]);
+        setAnalytics(data);
+        setActivity(recentActivity);
+      } finally {
+        setLoading(false);
+      }
+    };
+    void load();
+  }, []);
 
-  const copy = useMemo(
-    () =>
-      language === 'Arabic'
-        ? {
-            totalUsers: 'إجمالي المستخدمين',
-            movies: 'الأفلام',
-            series: 'المسلسلات',
-            adult: 'عناوين +18',
-            activeRooms: 'الغرف النشطة',
-            channels: 'القنوات',
-            banners: 'البنرات',
-            management: 'الإدارة',
-            manageMovies: 'إدارة الأفلام',
-            manageSeries: 'إدارة المسلسلات',
-            manageAdult: 'إدارة محتوى +18',
-            manageChannels: 'إدارة القنوات',
-            tmdbImports: 'استيراد TMDB',
-            manageUsers: 'إدارة المستخدمين',
-            manageBanners: 'إدارة البنرات',
-            settings: 'إعدادات التطبيق',
-            addons: 'Stremio Addons',
-            sources: 'مصادر التشغيل',
-            externalImports: 'الاستيراد الخارجي',
-            importSystem: 'Import System',
-            watchroomHealth: 'Watchroom Health',
-            subscriptions: 'أكواد الاشتراك',
-            playerSettings: 'إعدادات المشغل',
-            items: 'عنصر',
-            topMovies: 'الأفلام الأعلى مشاهدة',
-            topSeries: 'المسلسلات الأعلى مشاهدة',
-            views: 'مشاهدة',
-            rating: 'تقييم',
-            backToApp: '← العودة للتطبيق',
-          }
-        : {
-            totalUsers: 'Total Users',
-            movies: 'Movies',
-            series: 'Series',
-            adult: 'Adult Titles',
-            activeRooms: 'Active Rooms',
-            channels: 'Channels',
-            banners: 'Banners',
-            management: 'MANAGEMENT',
-            manageMovies: 'Manage Movies',
-            manageSeries: 'Manage Series',
-            manageAdult: 'Manage +18 Content',
-            manageChannels: 'Manage Channels',
-            tmdbImports: 'TMDB Imports',
-            manageUsers: 'Manage Users',
-            manageBanners: 'Manage Banners',
-            settings: 'App Settings',
-            addons: 'Stremio Addons',
-            sources: 'Playback Sources',
-            externalImports: 'External Imports',
-            importSystem: 'Import System',
-            watchroomHealth: 'Watchroom Health',
-            subscriptions: 'Subscriptions',
-            playerSettings: 'Player Settings',
-            items: 'items',
-            topMovies: 'TOP MOVIES BY VIEWS',
-            topSeries: 'TOP SERIES BY VIEWS',
-            views: 'views',
-            rating: 'rating',
-            backToApp: '← Back to App',
-          },
-    [language]
-  );
+  const stats = useMemo(() => analytics ? [
+    ['Total Users', analytics.totalUsers, 'people', stream.cyan],
+    ['Movies', analytics.totalMovies, 'movie', stream.gold],
+    ['Series', analytics.totalSeries, 'tv', stream.green],
+    ['Adult Titles', analytics.totalAdultContent || 0, 'shield', '#F472B6'],
+    ['Active Rooms', analytics.activeRooms, 'groups', stream.red],
+    ['Channels', analytics.totalChannels, 'live-tv', '#60A5FA'],
+    ['Banners', analytics.totalBanners, 'image', '#F97316'],
+  ] : [], [analytics]);
 
-  const load = async () => {
-    try {
-      const [data, recentActivity] = await Promise.all([api.fetchAnalytics(), fetchAdminActivity()]);
-      setAnalytics(data);
-      setActivity(recentActivity);
-    } catch {}
-    setLoading(false);
-  };
-
-  useEffect(() => { void load(); }, []);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
-
-  const stats: StatCard[] = analytics ? [
-    { label: copy.totalUsers,  value: analytics.totalUsers,              icon: 'people',        color: theme.primary },
-    { label: copy.movies,      value: analytics.totalMovies,             icon: 'movie',         color: theme.accent },
-    { label: copy.series,      value: analytics.totalSeries,             icon: 'tv',            color: theme.success },
-    { label: copy.adult,       value: analytics.totalAdultContent || 0,  icon: 'shield',        color: '#C084FC' },
-    { label: copy.activeRooms, value: analytics.activeRooms,             icon: 'groups',        color: theme.error },
-    { label: copy.channels,    value: analytics.totalChannels,           icon: 'live-tv',       color: theme.info },
-    { label: copy.banners,     value: analytics.totalBanners,            icon: 'image',         color: '#EC4899' },
-  ] : [];
-
-  const menuItems = [
-    { label: copy.manageMovies,   icon: 'movie',          route: '/admin/movies',   color: theme.accent,         count: analytics?.totalMovies },
-    { label: copy.manageSeries,   icon: 'tv',             route: '/admin/series',   color: theme.success,        count: analytics?.totalSeries },
-    { label: copy.manageAdult,    icon: 'shield',         route: '/admin/adult',    color: '#C084FC',            count: analytics?.totalAdultContent || 0 },
-    { label: copy.manageChannels, icon: 'live-tv',        route: '/admin/channels', color: theme.error,          count: analytics?.totalChannels },
-    { label: copy.tmdbImports,    icon: 'cloud-download', route: '/admin/imports',  color: '#38BDF8' },
-    { label: copy.importSystem,   icon: 'downloading',    route: '/admin/import-system', color: '#22D3EE' },
-    { label: copy.externalImports, icon: 'travel-explore', route: '/admin/external-imports', color: '#22D3EE' },
-    { label: copy.watchroomHealth, icon: 'monitor',        route: '/admin/watchroom-health', color: '#F59E0B' },
-    { label: copy.addons,         icon: 'extension',      route: '/admin/addons',   color: '#A78BFA' },
-    { label: copy.sources,        icon: 'dns',            route: '/admin/sources',  color: '#34D399' },
-    { label: copy.subscriptions,  icon: 'vpn-key',        route: '/admin/subscriptions', color: '#10B981' },
-    { label: copy.playerSettings, icon: 'play-circle', route: '/admin/player-settings', color: '#F59E0B' },
-    { label: copy.manageUsers,    icon: 'people',         route: '/admin/users',    color: theme.primary,        count: analytics?.totalUsers },
-    { label: copy.manageBanners,  icon: 'image',          route: '/admin/banners',  color: '#EC4899',            count: analytics?.totalBanners },
-    { label: copy.settings,       icon: 'settings',       route: '/admin/settings', color: theme.textSecondary },
+  const menu = [
+    ['Manage Movies', 'movie', '/admin/movies', stream.gold, analytics?.totalMovies],
+    ['Manage Series', 'tv', '/admin/series', stream.green, analytics?.totalSeries],
+    ['Manage +18 Content', 'shield', '/admin/adult', '#F472B6', analytics?.totalAdultContent || 0],
+    ['Manage Channels', 'live-tv', '/admin/channels', stream.red, analytics?.totalChannels],
+    ['TMDB Imports', 'cloud-download', '/admin/imports', stream.cyan],
+    ['Import System', 'downloading', '/admin/import-system', '#22D3EE'],
+    ['External Imports', 'travel-explore', '/admin/external-imports', '#22D3EE'],
+    ['Watchroom Health', 'monitor', '/admin/watchroom-health', stream.gold],
+    ['Stremio Addons', 'extension', '/admin/addons', '#A78BFA'],
+    ['Playback Sources', 'dns', '/admin/sources', stream.green],
+    ['Subscriptions', 'vpn-key', '/admin/subscriptions', '#10B981'],
+    ['Player Settings', 'play-circle', '/admin/player-settings', stream.gold],
+    ['Manage Users', 'people', '/admin/users', stream.cyan, analytics?.totalUsers],
+    ['Manage Banners', 'image', '/admin/banners', '#F97316', analytics?.totalBanners],
+    ['App Settings', 'settings', '/admin/settings', stream.muted],
   ];
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
+      <AdminPageShell title="Dashboard" subtitle="Loading control room metrics" icon="dashboard">
+        <View style={{ minHeight: 360, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={stream.red} />
+        </View>
+      </AdminPageShell>
     );
   }
 
   return (
-    <ScrollView
-      style={[styles.container, { direction }]}
-      contentContainerStyle={[
-        styles.contentContainer,
-        { paddingBottom: insets.bottom + 24 },
-        isWide && styles.contentContainerWide,
-      ]}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          tintColor={theme.primary}
-          colors={[theme.primary]}
-          progressBackgroundColor={theme.surface}
-        />
-      }
-    >
-      {/* ── Stats grid ─ dynamic column count ────────────────── */}
-      <View style={[styles.statsGrid, { gap: 12 }]}>
-        {stats.map((stat, index) => (
-          <Animated.View
-            key={stat.label}
-            entering={FadeInDown.delay(index * 55).duration(320)}
-            style={[styles.statCard, { width: statCardWidth }]}
-          >
-            <View style={[styles.statIconWrap, { backgroundColor: `${stat.color}20` }]}>
-              <MaterialIcons name={stat.icon as any} size={22} color={stat.color} />
+    <AdminPageShell title="Dashboard" subtitle="Operate content, imports, live channels, rooms, subscriptions, and playback health from one premium console." icon="dashboard">
+      <View style={{ minHeight: 250, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong, marginBottom: 18 }}>
+        <Image source={{ uri: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1600&q=80' }} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} contentFit="cover" />
+        <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(6,7,11,0.7)' }} />
+        <View style={{ flex: 1, justifyContent: 'flex-end', padding: 20 }}>
+          <Text style={{ color: stream.cyan, fontSize: 11, fontWeight: '900' }}>SYSTEM SNAPSHOT</Text>
+          <Text style={{ color: '#FFF', fontSize: isWide ? 38 : 30, lineHeight: isWide ? 42 : 34, fontWeight: '900', marginTop: 8 }}>Streaming operations, rebuilt for fast decisions.</Text>
+          <Text style={{ color: stream.muted, fontSize: 14, lineHeight: 21, maxWidth: 720, marginTop: 10 }}>The dashboard now prioritizes catalog scale, live service health, imports, and moderation paths without burying operators in unrelated blocks.</Text>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6, marginBottom: 26 }}>
+        {stats.map(([label, value, icon, color], index) => (
+          <Animated.View key={label as string} entering={FadeInDown.delay(index * 35).duration(260)} style={{ width: `${100 / statColumns}%`, padding: 6 }}>
+            <View style={{ minHeight: 142, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong, padding: 15, justifyContent: 'space-between' }}>
+              <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: `${color}22`, alignItems: 'center', justifyContent: 'center' }}>
+                <MaterialIcons name={icon as any} size={23} color={color as string} />
+              </View>
+              <Text style={{ color: '#FFF', fontSize: 30, fontWeight: '900' }}>{value as any}</Text>
+              <Text style={{ color: stream.muted, fontSize: 13, fontWeight: '800' }}>{label as string}</Text>
             </View>
-            <Text style={styles.statValue}>{stat.value ?? '—'}</Text>
-            <Text style={styles.statLabel} numberOfLines={1}>{stat.label}</Text>
           </Animated.View>
         ))}
       </View>
 
-      {/* ── Management menu ────────────────────────────────────── */}
       {activity.length > 0 ? (
-        <>
-          <Text style={styles.sectionTitle}>RECENT ADMIN ACTIVITY</Text>
-          <View style={styles.activityCard}>
+        <View style={{ marginBottom: 26 }}>
+          <Text style={sectionTitle}>Recent Admin Activity</Text>
+          <View style={{ borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, overflow: 'hidden' }}>
             {activity.slice(0, 5).map((entry) => (
-              <View key={entry.id} style={styles.activityRow}>
-                <View
-                  style={[
-                    styles.activityDot,
-                    {
-                      backgroundColor:
-                        entry.level === 'success'
-                          ? theme.success
-                          : entry.level === 'warning'
-                            ? theme.warning
-                            : entry.level === 'error'
-                              ? theme.error
-                              : theme.primary,
-                    },
-                  ]}
-                />
+              <View key={entry.id} style={{ minHeight: 64, padding: 13, flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderBottomWidth: 1, borderBottomColor: stream.line }}>
+                <View style={{ width: 9, height: 9, borderRadius: 99, marginTop: 5, backgroundColor: entry.level === 'error' ? stream.red : entry.level === 'warning' ? stream.gold : stream.green }} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.activityTitle}>{entry.title}</Text>
-                  <Text style={styles.activityDetail} numberOfLines={2}>
-                    {entry.detail}
-                  </Text>
+                  <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{entry.title}</Text>
+                  <Text style={{ color: stream.muted, fontSize: 12, lineHeight: 17, marginTop: 2 }}>{entry.detail}</Text>
                 </View>
-                <Text style={styles.activityTime}>
-                  {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
               </View>
             ))}
           </View>
-        </>
+        </View>
       ) : null}
-      <Text style={styles.sectionTitle}>{copy.management}</Text>
-      <View style={[styles.menuGrid, isWide && styles.menuGridWide]}>
-        {menuItems.map((item, index) => (
-          <Animated.View
-            key={item.label}
-            entering={FadeInDown.delay(180 + index * 45).duration(320)}
-            style={isWide ? { width: '48%' } : undefined}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.menuCard,
-                { flexDirection: isRTL ? 'row-reverse' : 'row' },
-                pressed && styles.menuCardPressed,
-              ]}
-              onPress={() => router.push(item.route as any)}
-            >
-              <View style={[styles.menuIconWrap, { backgroundColor: `${item.color}20` }]}>
-                <MaterialIcons name={item.icon as any} size={26} color={item.color} />
+
+      <Text style={sectionTitle}>Management</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 }}>
+        {menu.map(([label, icon, route, color, count], index) => (
+          <Animated.View key={label as string} entering={FadeInDown.delay(120 + index * 28).duration(240)} style={{ width: isWide ? '33.333%' : '100%', padding: 6 }}>
+            <Pressable onPress={() => router.push(route as any)} style={{ minHeight: 78, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: `${color}22`, alignItems: 'center', justifyContent: 'center' }}>
+                <MaterialIcons name={icon as any} size={23} color={color as string} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.menuLabel, { textAlign: isRTL ? 'right' : 'left' }]}>{item.label}</Text>
-                {item.count !== undefined ? (
-                  <Text style={[styles.menuCount, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    {item.count} {copy.items}
-                  </Text>
-                ) : null}
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{label as string}</Text>
+                {count !== undefined ? <Text style={{ color: stream.muted, fontSize: 12, marginTop: 3 }}>{count as any} items</Text> : null}
               </View>
-              <MaterialIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={theme.textMuted} />
+              <MaterialIcons name="chevron-right" size={20} color={stream.muted} />
             </Pressable>
           </Animated.View>
         ))}
       </View>
-
-      {/* ── Top movies ─────────────────────────────────────────── */}
-      {analytics?.topMovies?.length > 0 ? (
-        <>
-          <Text style={styles.sectionTitle}>{copy.topMovies}</Text>
-          {analytics.topMovies.map((movie: any, index: number) => (
-            <Animated.View key={movie.id} entering={FadeInDown.delay(320 + index * 35).duration(250)}>
-              <View style={[styles.topItem, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <Text style={styles.topRank}>#{index + 1}</Text>
-                {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.topPoster} contentFit="cover" transition={180} /> : null}
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.topTitle, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{movie.title}</Text>
-                  <Text style={[styles.topMeta, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    {api.formatViewers(movie.view_count)} {copy.views} · {movie.rating} {copy.rating}
-                  </Text>
-                </View>
-              </View>
-            </Animated.View>
-          ))}
-        </>
-      ) : null}
-
-      {/* ── Top series ─────────────────────────────────────────── */}
-      {analytics?.topSeries?.length > 0 ? (
-        <>
-          <Text style={styles.sectionTitle}>{copy.topSeries}</Text>
-          {analytics.topSeries.map((series: any, index: number) => (
-            <Animated.View key={series.id} entering={FadeInDown.delay(400 + index * 35).duration(250)}>
-              <View style={[styles.topItem, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <Text style={styles.topRank}>#{index + 1}</Text>
-                {series.poster ? <Image source={{ uri: series.poster }} style={styles.topPoster} contentFit="cover" transition={180} /> : null}
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.topTitle, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{series.title}</Text>
-                  <Text style={[styles.topMeta, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    {api.formatViewers(series.view_count)} {copy.views} · {series.rating} {copy.rating}
-                  </Text>
-                </View>
-              </View>
-            </Animated.View>
-          ))}
-        </>
-      ) : null}
-    </ScrollView>
+    </AdminPageShell>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
-  centered: { justifyContent: 'center', alignItems: 'center' },
-  contentContainer: { padding: theme.spacing.lg },
-  contentContainerWide: {
-    maxWidth: 1200,
-    alignSelf: 'center',
-    width: '100%',
-    paddingHorizontal: theme.spacing.lg,
-  },
-  
-  // NEW: Full Width Dashboard Layout
-  dashboardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(56, 189, 248, 0.15)',
-  },
-  dashboardTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FFF',
-    letterSpacing: -0.5,
-  },
-  dashboardSubtitle: {
-    fontSize: 14,
-    color: theme.textMuted,
-    marginTop: 4,
-  },
-  backToAppBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.2)',
-  },
-  
-  // Full Stats Grid
-  statsGrid: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: 'rgba(5, 7, 13, 0.8)',
-    borderRadius: theme.spacing.lg,
-    padding: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.15)',
-    gap: theme.spacing.md,
-  },
-  statIconWrap: { 
-    width: 56, 
-    height: 56, 
-    borderRadius: 16, 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
-  },
-  statValue: { fontSize: 32, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
-  statLabel: { fontSize: 14, fontWeight: '600', color: theme.textSecondary },
-  
-  // Section
-  sectionTitle: {
-    fontSize: 18, fontWeight: '800', color: '#FFF',
-    letterSpacing: -0.3, marginBottom: theme.spacing.lg, marginTop: theme.spacing.lg,
-  },
-  activityCard: {
-    borderRadius: theme.spacing.lg,
-    backgroundColor: 'rgba(5, 7, 13, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.1)',
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
-  },
-  activityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  activityDot: { width: 10, height: 10, borderRadius: 999, marginTop: 4 },
-  activityTitle: { color: '#FFF', fontSize: 13, fontWeight: '800' },
-  activityDetail: { color: theme.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 2 },
-  activityTime: { color: theme.textMuted, fontSize: 10, fontWeight: '700' },
-  activityMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 18 },
-  // Menu
-  menuGrid: { gap: 8, marginBottom: 24 },
-  menuGridWide: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' },
-  menuCard: {
-    alignItems: 'center', gap: theme.spacing.sm,
-    backgroundColor: theme.surface, borderRadius: 14,
-    padding: theme.spacing.md, borderWidth: 1, borderColor: theme.border,
-    marginBottom: 0,
-  },
-  menuCardPressed: { opacity: 0.7, backgroundColor: theme.surfaceLight },
-  menuIconWrap: { width: 42, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  menuLabel: { fontSize: 14, fontWeight: '600', color: '#FFF' },
-  menuCount: { fontSize: 12, color: theme.textSecondary, marginTop: 1 },
-  // Top items
-  topItem: {
-    alignItems: 'center', gap: theme.spacing.sm,
-    backgroundColor: theme.surface, borderRadius: theme.radius.md,
-    padding: 12, marginBottom: 8,
-    borderWidth: 1, borderColor: theme.border,
-  },
-  topRank: { fontSize: 16, fontWeight: '800', color: theme.primary, width: 28, textAlign: 'center' },
-  topPoster: { width: 34, height: 50, borderRadius: 5 },
-  topTitle: { fontSize: 14, fontWeight: '600', color: '#FFF' },
-  topMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-});
+const sectionTitle = {
+  color: '#FFF',
+  fontSize: 20,
+  fontWeight: '900' as const,
+  marginBottom: 12,
+};
