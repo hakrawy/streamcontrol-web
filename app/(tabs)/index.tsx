@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { theme } from '../../constants/theme';
+import { theme, spacing, radius, typography } from '../../constants/theme';
 import { config } from '../../constants/config';
 import { useAppContext } from '../../contexts/AppContext';
 import { formatViewers } from '../../services/api';
@@ -22,11 +22,10 @@ import { PremiumLoader } from '../../components/PremiumLoader';
 import { CinematicBackdrop } from '../../components/CinematicUI';
 import { useAdaptivePerformance } from '../../hooks/useAdaptivePerformance';
 import NotificationCenter from '../../components/NotificationCenter';
-import { fetchNotifications, getUnreadNotificationCount, markAllNotificationsRead, markNotificationRead, clearNotifications, recordNotification } from '../../services/notifications';
+import { fetchNotifications, getUnreadNotificationCount, recordNotification } from '../../services/notifications';
 import { prefetchHomeAssets } from '../../services/homePrefetch';
-// NEW: Premium UI Components
-import { ContentRail, HeroRail, LiveRail } from '../../components/ui/ContentRail';
-import { EmptyState, LoadingState } from '../../components/ui/EmptyState';
+// Design System
+import { SectionHeader, Spacer } from '../../components/design-system';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
