@@ -44,7 +44,7 @@ export default function HomeScreen() {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const heroRef = useRef<ScrollView>(null);
   const prefetchKeyRef = useRef('');
-  const HERO_HEIGHT = Math.min(460, screenWidth * 0.7);
+  const HERO_HEIGHT = Math.min(580, screenWidth * 0.75);
   const copy = language === 'Arabic'
     ? {
         loading: 'جارٍ تحميل علي كنترول...',
@@ -309,8 +309,8 @@ export default function HomeScreen() {
                   else if (banner.content_id) router.push(`/content/${banner.content_id}`);
                 }} style={{ width: screenWidth, height: HERO_HEIGHT }}>
                   <Image source={{ uri: banner.backdrop }} style={StyleSheet.absoluteFill} contentFit="cover" transition={perf.imageTransition} />
-                  <LinearGradient colors={['transparent', 'rgba(10,10,15,0.4)', 'rgba(10,10,15,0.85)', theme.background]} style={StyleSheet.absoluteFill} locations={[0, 0.4, 0.7, 1]} />
-                  <View style={[styles.heroContent, { paddingTop: 40 }]}>
+                  <LinearGradient colors={['rgba(5,7,13,0.3)', 'rgba(5,7,13,0.5)', 'rgba(5,7,13,0.92)', theme.background]} style={StyleSheet.absoluteFill} locations={[0, 0.25, 0.65, 1]} />
+                  <View style={[styles.heroContent]}>
                     {banner.badge ? <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>{banner.badge}</Text></View> : null}
                     <Text style={styles.heroTitle}>{banner.title}</Text>
                     <Text style={styles.heroSubtitle}>{banner.subtitle}</Text>
@@ -655,12 +655,13 @@ const styles = StyleSheet.create({
     right: 0, 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    paddingHorizontal: theme.spacing.md, 
-    paddingBottom: theme.spacing.sm, 
-    zIndex: 10, 
-    backgroundColor: 'rgba(5,7,15,0.85)', 
+    paddingHorizontal: theme.spacing.lg, 
+    paddingBottom: theme.spacing.md, 
+    zIndex: 100, 
+    backgroundColor: 'rgba(5,7,13,0.75)', 
     borderBottomWidth: 1, 
-    borderBottomColor: 'rgba(255,255,255,0.06)' 
+    borderBottomColor: 'rgba(56, 189, 248, 0.15)',
+    backdropFilter: 'blur(16px)',
   },
   brandWrap: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   brandMark: { 
@@ -678,15 +679,19 @@ const styles = StyleSheet.create({
   appTitle: { fontSize: 24, fontWeight: '900', color: '#FFF', letterSpacing: -0.6 },
   headerIcons: { flexDirection: 'row', gap: theme.spacing.md },
   headerIcon: { 
-    width: 42, 
-    height: 42, 
-    borderRadius: 21, 
-    backgroundColor: 'rgba(255,255,255,0.12)', 
+    width: 44, 
+    height: 44, 
+    borderRadius: 22, 
+    backgroundColor: 'rgba(56, 189, 248, 0.15)', 
     alignItems: 'center', 
     justifyContent: 'center', 
     borderWidth: 1, 
-    borderColor: 'rgba(255,255,255,0.08)', 
-    position: 'relative' 
+    borderColor: 'rgba(56, 189, 248, 0.25)', 
+    position: 'relative',
+    shadowColor: theme.primary,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
   notificationBadge: { 
     position: 'absolute', 
@@ -702,63 +707,102 @@ const styles = StyleSheet.create({
   },
   notificationBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '900' },
   heroContent: { 
-    flex: 1, 
+    flex: 1.2, 
     justifyContent: 'flex-end', 
-    paddingHorizontal: theme.spacing.lg, 
-    paddingBottom: theme.spacing.lg,
-    paddingTop: 40 
+    paddingHorizontal: theme.spacing.xl, 
+    paddingBottom: theme.spacing.xl,
+    paddingTop: 60 
   },
   homeSearchWrap: { 
-    paddingHorizontal: theme.spacing.md, 
-    paddingBottom: theme.spacing.md 
+    paddingHorizontal: theme.spacing.lg, 
+    paddingBottom: theme.spacing.md,
+    paddingTop: 100,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
   },
   homeSearchBar: { 
     flexDirection: 'row', 
     alignItems: 'center', 
     gap: theme.spacing.sm, 
-    backgroundColor: theme.surface, 
-    borderRadius: theme.radius.xl, 
+    backgroundColor: 'rgba(17, 24, 39, 0.85)', 
+    borderRadius: theme.radius.lg, 
     borderWidth: 1, 
-    borderColor: theme.border, 
-    paddingHorizontal: theme.spacing.md, 
-    height: 50 
+    borderColor: 'rgba(56, 189, 248, 0.2)', 
+    paddingHorizontal: theme.spacing.lg, 
+    height: 52,
+    backdropFilter: 'blur(12px)',
   },
-  homeSearchInput: { flex: 1, fontSize: 14, color: '#FFF' },
   heroBadge: { 
     alignSelf: 'flex-start', 
-    backgroundColor: theme.primary, 
-    paddingHorizontal: theme.spacing.sm, 
-    paddingVertical: 4, 
+    backgroundColor: 'rgba(56, 189, 248, 0.9)', 
+    paddingHorizontal: theme.spacing.md, 
+    paddingVertical: 6, 
     borderRadius: theme.radius.sm, 
-    marginBottom: theme.spacing.sm 
+    marginBottom: theme.spacing.sm,
+    shadowColor: '#38BDF8',
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
-  heroBadgeText: { fontSize: 11, fontWeight: '700', color: '#FFF', letterSpacing: 1 },
-  heroTitle: { fontSize: 32, fontWeight: '800', color: '#FFF', letterSpacing: -0.5, marginBottom: 4 },
-  heroSubtitle: { fontSize: 15, fontWeight: '400', color: 'rgba(255,255,255,0.7)', marginBottom: 10 },
+  heroTitle: { 
+    fontSize: 42, 
+    fontWeight: '900', 
+    color: '#FFF', 
+    letterSpacing: -1, 
+    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+  heroSubtitle: { 
+    fontSize: 16, 
+    fontWeight: '400', 
+    color: 'rgba(255,255,255,0.8)', 
+    marginBottom: 16,
+    lineHeight: 22,
+  },
   heroMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: theme.spacing.md },
   heroRating: { fontSize: 14, fontWeight: '700', color: theme.accent },
   heroDot: { fontSize: 14, color: 'rgba(255,255,255,0.4)' },
   heroYear: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
   heroGenre: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.6)', marginLeft: 2 },
-  heroActions: { flexDirection: 'row', gap: theme.spacing.md },
+  heroBadgeText: { fontSize: 12, fontWeight: '700', color: '#05070D', letterSpacing: 1 },
+  homeSearchInput: { flex: 1, fontSize: 15, color: '#FFF', fontWeight: '500' },
+  heroActions: { 
+    flexDirection: 'row', 
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+  },
   playButton: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    gap: theme.spacing.xs, 
+    justifyContent: 'center',
+    gap: theme.spacing.sm, 
     backgroundColor: '#FFF', 
     paddingHorizontal: theme.spacing.xl, 
-    paddingVertical: theme.spacing.sm, 
-    borderRadius: theme.radius.sm 
+    paddingVertical: theme.spacing.md, 
+    borderRadius: theme.radius.sm,
+    minWidth: 140,
+    shadowColor: '#FFF',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
-  playButtonText: { fontSize: 16, fontWeight: '700', color: '#000' },
+  playButtonText: { fontSize: 17, fontWeight: '800', color: '#000' },
   listButton: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    gap: theme.spacing.xs, 
+    justifyContent: 'center',
+    gap: theme.spacing.sm, 
     backgroundColor: 'rgba(255,255,255,0.15)', 
-    paddingHorizontal: 20, 
-    paddingVertical: theme.spacing.sm, 
-    borderRadius: theme.radius.sm 
+    paddingHorizontal: theme.spacing.lg, 
+    paddingVertical: theme.spacing.md, 
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   listButtonText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
   heroDots: { 
@@ -773,16 +817,19 @@ const styles = StyleSheet.create({
   sectionHeader: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    paddingHorizontal: theme.spacing.md, 
-    paddingTop: theme.spacing.lg, 
+    paddingHorizontal: theme.spacing.lg, 
+    paddingTop: theme.spacing.xl, 
     paddingBottom: theme.spacing.sm 
   },
   sectionTitle: { 
     flex: 1, 
-    fontSize: 18, 
+    fontSize: 20, 
     fontWeight: '800', 
     color: '#FFF', 
-    letterSpacing: -0.35 
+    letterSpacing: -0.4,
+    textShadowColor: 'rgba(56, 189, 248, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   railWrap: { position: 'relative' },
   railArrow: { 
@@ -803,16 +850,20 @@ const styles = StyleSheet.create({
   rowContainer: { paddingHorizontal: theme.spacing.md, paddingRight: 56, gap: theme.spacing.sm },
   rowInner: { alignItems: 'flex-start', gap: theme.spacing.sm },
   rowItem: { flexShrink: 0 },
-  contentCard: { width: theme.cards.width },
+  contentCard: { width: 150 },
   posterWrap: { 
-    width: 140, 
-    height: 210, 
+    width: 150, 
+    height: 225, 
     borderRadius: theme.radius.md, 
     overflow: 'hidden', 
     marginBottom: theme.spacing.sm, 
     backgroundColor: theme.surface, 
     borderWidth: 1, 
-    borderColor: 'rgba(255,255,255,0.08)' 
+    borderColor: 'rgba(56, 189, 248, 0.15)',
+    shadowColor: theme.primary,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
   poster: { width: '100%', height: '100%' },
   cardBadge: { 
@@ -824,9 +875,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.sm 
   },
   cardBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFF', letterSpacing: 0.5 },
-  cardTitle: { fontSize: 13, fontWeight: '600', color: '#FFF', marginBottom: 2 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardRating: { fontSize: 12, fontWeight: '700', color: theme.accent },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: '#FFF', marginBottom: 4, letterSpacing: 0.2 },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardRating: { fontSize: 13, fontWeight: '700', color: theme.accent },
   cardGenre: { fontSize: 12, color: theme.textSecondary },
   trendingCard: { flexDirection: 'row', alignItems: 'flex-end', width: 160 },
   trendingNumberWrap: { marginRight: -12, zIndex: 1 },

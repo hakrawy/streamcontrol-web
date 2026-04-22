@@ -128,7 +128,7 @@ const PlayerControls = memo(function PlayerControls({
       exiting={FadeOut.duration(180)}
       style={styles.controlsOverlay}
     >
-      <LinearGradient colors={['rgba(0,0,0,0.82)', 'transparent']} style={styles.topGradient}>
+      <LinearGradient colors={['rgba(5,7,13,0.95)', 'rgba(5,7,13,0.6)', 'transparent']} style={styles.topGradient}>
         <View style={styles.topBar}>
           <Pressable style={styles.iconButton} onPress={onClose}>
             <MaterialIcons name="arrow-back" size={24} color="#FFF" />
@@ -219,7 +219,7 @@ const PlayerControls = memo(function PlayerControls({
         )}
       </View>
 
-      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.bottomGradient}>
+      <LinearGradient colors={['transparent', 'rgba(5,7,13,0.9)', 'rgba(5,7,13,0.98)']} style={styles.bottomGradient}>
         <View style={styles.progressContainer}>
           <Slider
             style={styles.progressSlider}
