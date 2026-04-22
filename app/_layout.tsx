@@ -7,6 +7,7 @@ import { AlertProvider, AuthProvider } from '@/template';
 import { AppProvider } from '../contexts/AppContext';
 import { LocaleProvider, useLocale } from '../contexts/LocaleContext';
 import { PremiumLoader } from '../components/PremiumLoader';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 function AppShell() {
   const { direction } = useLocale();
@@ -106,16 +107,18 @@ function AppShell() {
 
 export default function RootLayout() {
   return (
-    <AlertProvider>
-      <AuthProvider>
-        <SafeAreaProvider>
-          <LocaleProvider>
-            <AppProvider>
-              <AppShell />
-            </AppProvider>
-          </LocaleProvider>
-        </SafeAreaProvider>
-      </AuthProvider>
-    </AlertProvider>
+    <ErrorBoundary>
+      <AlertProvider>
+        <AuthProvider>
+          <SafeAreaProvider>
+            <LocaleProvider>
+              <AppProvider>
+                <AppShell />
+              </AppProvider>
+            </LocaleProvider>
+          </SafeAreaProvider>
+        </AuthProvider>
+      </AlertProvider>
+    </ErrorBoundary>
   );
 }

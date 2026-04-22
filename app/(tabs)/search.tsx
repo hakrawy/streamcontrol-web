@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, TextInput, StyleSheet, useWindowDimensions } from 'react-native';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { View, Text, Pressable, TextInput, StyleSheet, useWindowDimensions, FlatList, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -16,6 +16,10 @@ import { buildContentRoute } from '../../services/navigation';
 import { CinematicBackdrop, SkeletonGrid } from '../../components/CinematicUI';
 import { useAdaptivePerformance } from '../../hooks/useAdaptivePerformance';
 import { useAuth, useAlert } from '@/template';
+// NEW: Premium Search & Filter Components
+import { SearchBar, FilterModal, SearchResults } from '../../components/ui/SearchFilter';
+import { EmptyState, LoadingState } from '../../components/ui/EmptyState';
+import { ContentCard } from '../../components/ui/ContentCard';
 
 type SearchFilter = 'all' | 'favorite' | 'movie' | 'series' | 'channel';
 

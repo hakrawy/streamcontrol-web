@@ -24,6 +24,9 @@ import { useAdaptivePerformance } from '../../hooks/useAdaptivePerformance';
 import NotificationCenter from '../../components/NotificationCenter';
 import { fetchNotifications, getUnreadNotificationCount, markAllNotificationsRead, markNotificationRead, clearNotifications, recordNotification } from '../../services/notifications';
 import { prefetchHomeAssets } from '../../services/homePrefetch';
+// NEW: Premium UI Components
+import { ContentRail, HeroRail, LiveRail } from '../../components/ui/ContentRail';
+import { EmptyState, LoadingState } from '../../components/ui/EmptyState';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
