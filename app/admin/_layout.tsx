@@ -39,6 +39,7 @@ export default function AdminLayout() {
         externalImports: 'الاستيراد الخارجي',
         importSystem: 'Import System',
         subscriptions: 'أكواد الاشتراك',
+        playerSettings: 'إعدادات المشغل',
       }
     : {
         dashboard: 'Admin Dashboard',
@@ -55,6 +56,7 @@ export default function AdminLayout() {
         externalImports: 'External Imports',
         importSystem: 'Import System',
         subscriptions: 'Subscriptions',
+        playerSettings: 'Player Settings',
       };
 
   if (authLoading || !initialized || userDataLoading) {
@@ -102,6 +104,7 @@ export default function AdminLayout() {
       <Stack.Screen name="import-system" options={{ title: copy.importSystem, ...homeBtn }} />
       <Stack.Screen name="external-imports" options={{ title: copy.externalImports, ...homeBtn }} />
       <Stack.Screen name="subscriptions" options={{ title: copy.subscriptions, ...homeBtn }} />
+      <Stack.Screen name="player-settings" options={{ title: copy.playerSettings, ...homeBtn }} />
       <Stack.Screen name="routing"  options={{ title: language === 'Arabic' ? 'توجيه المحتوى' : 'Content Routing', ...homeBtn }} />
     </Stack>
   );
