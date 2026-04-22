@@ -46,13 +46,6 @@ export function createSubscriptionAuthUser(session: SubscriptionSession, label?:
     id: `subscription:${session.subscriptionId}`,
     email: fallbackEmail,
     username,
-    authMethod: 'subscription',
-    subscriptionId: session.subscriptionId,
-    sessionId: session.sessionId,
-    subscriptionCode: session.code,
-    expiresAt: session.expiresAt,
-    created_at: session.startedAt,
-    updated_at: session.startedAt,
   };
 }
 
