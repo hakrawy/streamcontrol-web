@@ -748,12 +748,12 @@ const styles = StyleSheet.create({
   },
   topGradient: {
     paddingTop: Platform.OS === 'ios' ? 52 : 24,
-    paddingHorizontal: 16,
+    paddingHorizontal: theme.spacing.md,
     paddingBottom: 40,
   },
   bottomGradient: {
     paddingTop: 40,
-    paddingHorizontal: 16,
+    paddingHorizontal: theme.spacing.md,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
 

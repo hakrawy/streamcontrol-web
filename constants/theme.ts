@@ -66,23 +66,24 @@ export const theme = {
     },
   },
 
-  // Spacing
+  // Spacing (8px grid system)
   spacing: {
-    xs: 4,
+    xxs: 4,
+    xs: 8,
+    sm: 12,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
+    xxxl: 64,
+  },
+
+  // Border Radius (consistent 12-16px)
+  radius: {
     sm: 8,
     md: 12,
     lg: 16,
     xl: 20,
-    xxl: 24,
-    xxxl: 32,
-  },
-
-  // Border Radius
-  radius: {
-    sm: 6,
-    md: 10,
-    lg: 14,
-    xl: 18,
     full: 9999,
   },
 
@@ -101,6 +102,31 @@ export const theme = {
       elevated: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16 },
     },
   }),
+
+  // Animations
+  animations: {
+    fast: 150,
+    normal: 250,
+    slow: 400,
+    cardHover: {
+      scale: 1.03,
+      opacity: 0.92,
+    },
+    cardPress: {
+      scale: 0.97,
+      opacity: 0.85,
+    },
+    fadeGradient: ['transparent', 'rgba(5,7,13,0.56)', '#05070D'] as const,
+    cardGlow: '0 0 20px rgba(56, 189, 248, 0.15)',
+  },
+
+  // Cards (consistent)
+  cards: {
+    aspectRatio: 0.65,
+    width: 140,
+    borderRadius: 12,
+    padding: 12,
+  },
 };
 
 export type Theme = typeof theme;
