@@ -7,6 +7,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 export default function WatchroomHealthAdmin() {
   const insets = useSafeAreaInsets();
@@ -100,13 +102,16 @@ export default function WatchroomHealthAdmin() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
+      <AdminPageShell title="Watchroom Health" subtitle="Loading realtime health" icon="monitor">
+        <View style={[styles.center, { minHeight: 360 }]}>
+          <ActivityIndicator size="large" color={stream.red} />
+        </View>
+      </AdminPageShell>
     );
   }
 
   return (
+    <AdminPageShell title={copy.title} subtitle={copy.subtitle} icon="monitor">
     <ScrollView
       style={[styles.container, { direction }]}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
@@ -209,6 +214,7 @@ export default function WatchroomHealthAdmin() {
         </View>
       )}
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
@@ -239,16 +245,16 @@ function Metric({ label, value, suffix, hideNumeric }: { label: string; value: n
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { alignItems: 'center', justifyContent: 'center' },
-  content: { padding: theme.spacing.md, gap: 12 },
+  content: { gap: 12 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: stream.line },
   backText: { color: '#FFF', fontWeight: '800' },
-  refreshBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: theme.primary },
+  refreshBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: stream.red },
   refreshText: { color: '#FFF', fontWeight: '800' },
-  hero: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 22, padding: theme.spacing.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface },
-  heroBadge: { width: 54, height: 54, borderRadius: 18, backgroundColor: '#0F766E', alignItems: 'center', justifyContent: 'center' },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 8, padding: theme.spacing.md, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel },
+  heroBadge: { width: 54, height: 54, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center' },
   title: { color: '#FFF', fontSize: 24, fontWeight: '900' },
   subtitle: { color: theme.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 4 },
   summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -256,10 +262,10 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 20, fontWeight: '900' },
   summaryLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '800', marginTop: 4 },
   sectionTitle: { fontSize: 11, fontWeight: '800', color: theme.textMuted, letterSpacing: 1, marginTop: 4 },
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 36, gap: 10, borderRadius: 18, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 36, gap: 10, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel },
   emptyText: { color: theme.textSecondary, fontSize: 14, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, justifyContent: 'space-between' },
-  roomCard: { borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10 },
+  roomCard: { borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, padding: 14, gap: 10 },
   roomHeader: { alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   roomTitle: { color: '#FFF', fontSize: 16, fontWeight: '900' },
   roomMeta: { color: theme.textSecondary, fontSize: 11, marginTop: 2 },
@@ -270,12 +276,12 @@ const styles = StyleSheet.create({
   tag: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   tagText: { fontSize: 11, fontWeight: '800' },
   metricRow: { flexDirection: 'row', gap: 8 },
-  metricCard: { flex: 1, minWidth: 90, borderRadius: 14, backgroundColor: theme.backgroundSecondary, borderWidth: 1, borderColor: theme.border, padding: 10 },
+  metricCard: { flex: 1, minWidth: 90, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: stream.line, padding: 10 },
   metricLabel: { color: theme.textMuted, fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
   metricValue: { color: '#FFF', fontSize: 14, fontWeight: '900', marginTop: 4 },
   roomFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   footerText: { color: theme.textSecondary, fontSize: 12, fontWeight: '700' },
-  openBtn: { backgroundColor: theme.primary, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
+  openBtn: { backgroundColor: stream.red, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
   openBtnText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
   metricsTrail: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   metricTrailItem: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.04)', paddingHorizontal: 10, paddingVertical: 6 },

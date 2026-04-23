@@ -10,6 +10,8 @@ import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import type { ContentItem } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 type FilterMode = 'all' | 'visible' | 'hidden' | 'blocked';
 
@@ -122,19 +124,22 @@ export default function AdminAdultContent() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
+      <AdminPageShell title="Adult Content Control" subtitle="Loading moderation queue" icon="shield">
+        <View style={[styles.centered, { minHeight: 360 }]}>
+          <ActivityIndicator size="large" color={stream.red} />
+        </View>
+      </AdminPageShell>
     );
   }
 
   return (
+    <AdminPageShell title={copy.title} subtitle="Moderate restricted catalog visibility with a cinematic control grid." icon="shield">
     <ScrollView
       style={[styles.container, { direction }]}
-      contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 16 }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.sectionTitle}>{copy.title}</Text>
+      <Text style={styles.sectionTitle}>MODERATION QUEUE</Text>
 
       <View style={[styles.searchBar, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <MaterialIcons name="search" size={18} color={theme.textMuted} />
@@ -217,30 +222,31 @@ export default function AdminAdultContent() {
         </Animated.View>
       ))}
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   centered: { justifyContent: 'center', alignItems: 'center' },
   sectionTitle: { fontSize: 11, fontWeight: '700', color: theme.textMuted, letterSpacing: 1, marginBottom: 12 },
-  searchBar: { alignItems: 'center', gap: 8, backgroundColor: theme.surface, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, height: 46, paddingHorizontal: 12, marginBottom: 12 },
+  searchBar: { alignItems: 'center', gap: 8, backgroundColor: stream.panel, borderRadius: 8, borderWidth: 1, borderColor: stream.lineStrong, height: 48, paddingHorizontal: 12, marginBottom: 12 },
   searchInput: { flex: 1, color: '#FFF', fontSize: 14 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  filterChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
-  filterChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  filterChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: stream.line },
+  filterChipActive: { backgroundColor: stream.red, borderColor: stream.red },
   filterChipText: { color: theme.textSecondary, fontWeight: '700', fontSize: 12 },
   filterChipTextActive: { color: '#FFF' },
   countText: { fontSize: 13, color: theme.textSecondary, marginBottom: 12, fontWeight: '600' },
-  itemCard: { gap: theme.spacing.sm, backgroundColor: theme.surface, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: theme.border },
-  poster: { width: 60, height: 90, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight },
+  itemCard: { gap: theme.spacing.sm, backgroundColor: stream.panel, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: stream.line },
+  poster: { width: 66, height: 98, borderRadius: 8, backgroundColor: stream.panelStrong },
   title: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   meta: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   badgeText: { fontSize: 11, fontWeight: '700' },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 10 },
-  actionBtn: { flex: 1, height: 42, borderRadius: theme.radius.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  secondaryBtn: { backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border },
+  actionBtn: { flex: 1, height: 42, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  secondaryBtn: { backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: stream.line },
   actionBtnText: { color: '#FFF', fontWeight: '700' },
 });

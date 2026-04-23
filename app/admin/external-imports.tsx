@@ -17,6 +17,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useAlert } from '@/template';
 import { theme } from '../../constants/theme';
 import { useLocale } from '../../contexts/LocaleContext';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 import * as externalImport from '../../services/externalImport';
 import type {
   ExternalContentType,
@@ -271,6 +273,7 @@ export default function ExternalImportsAdmin() {
   };
 
   return (
+    <AdminPageShell title={copy.title} subtitle={copy.subtitle} icon="travel-explore">
     <ScrollView
       style={[styles.container, { direction }]}
       contentContainerStyle={[styles.content, isWide && styles.contentWide, { paddingBottom: insets.bottom + 28 }]}
@@ -431,6 +434,7 @@ export default function ExternalImportsAdmin() {
         ))}
       </View>
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
@@ -449,7 +453,7 @@ function ActionButton({
   disabled?: boolean;
   tone?: 'primary' | 'success' | 'warning' | 'muted';
 }) {
-  const backgroundColor = tone === 'success' ? theme.success : tone === 'warning' ? theme.warning : tone === 'muted' ? theme.surfaceLight : theme.primary;
+  const backgroundColor = tone === 'success' ? theme.success : tone === 'warning' ? theme.warning : tone === 'muted' ? stream.panelStrong : stream.red;
   return (
     <Pressable style={[styles.actionBtn, { backgroundColor }, disabled && styles.disabled]} onPress={onPress} disabled={disabled || loading}>
       {loading ? <ActivityIndicator size="small" color="#FFF" /> : <MaterialIcons name={icon} size={17} color="#FFF" />}
@@ -468,21 +472,21 @@ function StatPill({ label, value, color }: { label: string; value: string | numb
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
-  content: { padding: theme.spacing.md, gap: 14 },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  content: { gap: 14 },
   contentWide: { maxWidth: 1180, width: '100%', alignSelf: 'center' },
-  hero: { borderRadius: 24, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: 'rgba(99,102,241,0.22)' },
-  heroIcon: { width: 56, height: 56, borderRadius: 18, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 26, fontWeight: '900', color: theme.textPrimary, letterSpacing: -0.5 },
+  hero: { borderRadius: 8, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: 'rgba(229,9,20,0.28)' },
+  heroIcon: { width: 56, height: 56, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 26, fontWeight: '900', color: theme.textPrimary, letterSpacing: 0 },
   subtitle: { marginTop: 6, fontSize: 13, lineHeight: 20, color: theme.textSecondary },
   providerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  providerCard: { flexGrow: 1, minWidth: 150, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, paddingVertical: 13, paddingHorizontal: 12 },
-  providerCardActive: { backgroundColor: theme.primary, borderColor: theme.primaryLight },
+  providerCard: { flexGrow: 1, minWidth: 150, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, paddingVertical: 13, paddingHorizontal: 12 },
+  providerCardActive: { backgroundColor: stream.red, borderColor: stream.red },
   providerText: { color: theme.textSecondary, fontWeight: '800', fontSize: 13 },
   providerTextActive: { color: '#FFF' },
-  card: { borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10 },
+  card: { borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, padding: 14, gap: 10 },
   label: { color: theme.textSecondary, fontSize: 12, fontWeight: '800' },
-  input: { minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, color: theme.textPrimary, paddingHorizontal: 12, fontSize: 13 },
+  input: { minHeight: 46, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong, color: theme.textPrimary, paddingHorizontal: 12, fontSize: 13 },
   textArea: { minHeight: 94, paddingTop: 12, textAlignVertical: 'top' },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   actionBtn: { minHeight: 42, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 14 },
@@ -495,25 +499,25 @@ const styles = StyleSheet.create({
   previewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   previewActions: { flexDirection: 'row', gap: 8 },
   sectionTitle: { color: theme.textPrimary, fontSize: 17, fontWeight: '900', marginTop: 4 },
-  smallBtn: { borderRadius: 999, borderWidth: 1, borderColor: theme.borderLight, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: theme.surface },
+  smallBtn: { borderRadius: 999, borderWidth: 1, borderColor: stream.line, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: stream.panel },
   smallBtnText: { color: theme.textSecondary, fontSize: 11, fontWeight: '800' },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  filterChip: { borderRadius: 999, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, paddingHorizontal: 12, paddingVertical: 8 },
+  filterChip: { borderRadius: 999, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, paddingHorizontal: 12, paddingVertical: 8 },
   filterChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   filterText: { color: theme.textMuted, fontSize: 12, fontWeight: '800', textTransform: 'capitalize' },
   filterTextActive: { color: '#FFF' },
-  emptyCard: { borderRadius: theme.radius.lg, borderWidth: 1, borderStyle: 'dashed', borderColor: theme.borderLight, backgroundColor: theme.surface, minHeight: 140, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 20 },
+  emptyCard: { borderRadius: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: stream.line, backgroundColor: stream.panel, minHeight: 140, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 20 },
   emptyText: { color: theme.textSecondary, fontSize: 13, textAlign: 'center' },
   previewList: { gap: 10 },
-  previewItem: { flexDirection: 'row', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 10, alignItems: 'center' },
-  checkBox: { width: 28, height: 28, borderRadius: 9, borderWidth: 1, borderColor: theme.borderLight, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.backgroundSecondary },
+  previewItem: { flexDirection: 'row', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, padding: 10, alignItems: 'center' },
+  checkBox: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, borderColor: stream.line, alignItems: 'center', justifyContent: 'center', backgroundColor: stream.panelStrong },
   checkBoxActive: { backgroundColor: theme.primary, borderColor: theme.primaryLight },
-  logo: { width: 54, height: 54, borderRadius: 14, backgroundColor: theme.surfaceLight },
+  logo: { width: 54, height: 54, borderRadius: 8, backgroundColor: stream.panelStrong },
   itemTitle: { color: theme.textPrimary, fontSize: 14, fontWeight: '900' },
   itemMeta: { marginTop: 3, color: theme.textSecondary, fontSize: 11 },
   itemUrl: { marginTop: 3, color: theme.textMuted, fontSize: 11 },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  typeChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 8, paddingVertical: 5, backgroundColor: theme.backgroundSecondary },
+  typeChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, borderWidth: 1, borderColor: stream.line, paddingHorizontal: 8, paddingVertical: 5, backgroundColor: stream.panelStrong },
   typeChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   typeText: { color: theme.textMuted, fontSize: 10, fontWeight: '800' },
   typeTextActive: { color: '#FFF' },
@@ -523,7 +527,7 @@ const styles = StyleSheet.create({
   statusHint: { color: theme.textMuted, fontSize: 10, lineHeight: 14 },
   importBar: { position: 'sticky' as any, bottom: 8, borderRadius: 18, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: 'rgba(18,18,26,0.96)', padding: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   historyList: { gap: 8 },
-  historyItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 12 },
+  historyItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, padding: 12 },
   historyTitle: { color: theme.textPrimary, fontSize: 13, fontWeight: '900' },
   historyMeta: { color: theme.textSecondary, fontSize: 11, marginTop: 2 },
   historyUrl: { color: theme.textMuted, fontSize: 10, marginTop: 2 },

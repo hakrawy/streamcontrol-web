@@ -9,6 +9,7 @@ import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
 import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 const defaultSettings: {
   key: string;
@@ -398,7 +399,7 @@ export default function AdminSettings() {
             <Switch
               value={settings[s.key] === 'true'}
               onValueChange={(v) => handleUpdate(s.key, v ? 'true' : 'false')}
-              trackColor={{ false: theme.surfaceLight, true: theme.primaryDark }}
+              trackColor={{ false: stream.panelStrong, true: 'rgba(229,9,20,0.58)' }}
               thumbColor={settings[s.key] === 'true' ? theme.primary : theme.textMuted}
             />
           </View>
@@ -427,7 +428,7 @@ export default function AdminSettings() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: {
     fontSize: 11,
@@ -441,7 +442,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 14,
-    backgroundColor: theme.surface,
+    backgroundColor: stream.panel,
     borderRadius: 14,
     padding: theme.spacing.md,
     marginBottom: 8,
@@ -462,7 +463,7 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   settingInput: {
     height: 38,
-    backgroundColor: theme.surfaceLight,
+    backgroundColor: stream.panelStrong,
     borderRadius: theme.radius.sm,
     paddingHorizontal: 12,
     fontSize: 14,
@@ -475,7 +476,7 @@ const styles = StyleSheet.create({
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.surfaceLight,
+    backgroundColor: stream.panelStrong,
     borderRadius: theme.radius.sm,
     borderWidth: 1,
     borderColor: theme.border,
@@ -485,7 +486,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: theme.surface,
+    backgroundColor: stream.panel,
     borderRadius: 14,
     padding: theme.spacing.md,
     marginBottom: 8,
@@ -493,7 +494,7 @@ const styles = StyleSheet.create({
     borderColor: theme.border,
   },
   infoCard: {
-    backgroundColor: theme.surface,
+    backgroundColor: stream.panel,
     borderRadius: 14,
     padding: theme.spacing.md,
     borderWidth: 1,

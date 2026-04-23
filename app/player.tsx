@@ -2200,7 +2200,6 @@ export default function PlayerScreenWrapper() {
 
 function PlayerScreen() {
   const { user } = useAuth();
-  const { settings } = usePlayerSettings();
   const { url, title, sources, subtitleUrl, viewerContentId, viewerContentType, roomId, initialResumeTime } = useLocalSearchParams<{
     url?: string;
     title?: string;

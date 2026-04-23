@@ -20,10 +20,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../../constants/theme';
-const spacing = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 };
-const radius = { sm: 6, md: 10, lg: 14, xl: 18, full: 9999 };
 import { usePlayerSettings } from '../../contexts/PlayerSettingsContext';
 import type { PlayerSettings } from '../../services/playerSettings';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
+
+const spacing = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 };
+const radius = { sm: 6, md: 10, lg: 14, xl: 18, full: 9999 };
 
 interface SettingSectionProps {
   title: string;
@@ -177,7 +180,7 @@ export default function AdminPlayerSettings() {
       await updateSettings(localSettings);
       setHasChanges(false);
       Alert.alert('Success', 'Player settings saved successfully');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to save settings');
     }
   }, [localSettings, updateSettings]);
@@ -202,9 +205,11 @@ export default function AdminPlayerSettings() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
+      <AdminPageShell title="Player Settings" subtitle="Loading player control center" icon="settings">
+        <View style={[styles.container, styles.centered]}>
+          <ActivityIndicator size="large" color={stream.red} />
+        </View>
+      </AdminPageShell>
     );
   }
 
@@ -226,6 +231,7 @@ export default function AdminPlayerSettings() {
   ];
 
   return (
+    <AdminPageShell title="Player Settings" subtitle="Control the cinematic player, playback behavior, subtitles, and stream health in real time." icon="play-circle-filled">
     <ScrollView 
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
@@ -410,13 +416,14 @@ export default function AdminPlayerSettings() {
         </Pressable>
       </View>
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: 'transparent',
   },
   content: {
     padding: spacing.lg,
@@ -432,7 +439,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: radius.lg,
-    backgroundColor: `${theme.primary}15`,
+    backgroundColor: 'rgba(229,9,20,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
@@ -465,8 +472,10 @@ const styles = StyleSheet.create({
     color: theme.textSecondary,
   },
   sectionContent: {
-    backgroundColor: theme.surface,
-    borderRadius: radius.lg,
+    backgroundColor: stream.panel,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: stream.line,
     overflow: 'hidden',
   },
   settingRow: {
@@ -503,20 +512,20 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: radius.md,
-    backgroundColor: theme.surfaceLight,
+    backgroundColor: stream.panelStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sliderTrack: {
     width: 80,
     height: 4,
-    backgroundColor: theme.border,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: 2,
     overflow: 'hidden',
   },
   sliderFill: {
     height: '100%',
-    backgroundColor: theme.primary,
+    backgroundColor: stream.red,
   },
   sliderValue: {
     fontSize: 12,
@@ -533,10 +542,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
-    backgroundColor: theme.surfaceLight,
+    backgroundColor: stream.panelStrong,
   },
   selectOptionActive: {
-    backgroundColor: theme.primary,
+    backgroundColor: stream.red,
   },
   selectOptionText: {
     fontSize: 13,
@@ -555,12 +564,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    backgroundColor: theme.primary,
+    backgroundColor: stream.red,
     paddingVertical: spacing.lg,
     borderRadius: radius.lg,
   },
   saveButtonDisabled: {
-    backgroundColor: theme.surfaceLight,
+    backgroundColor: stream.panelStrong,
   },
   saveButtonText: {
     fontSize: 16,

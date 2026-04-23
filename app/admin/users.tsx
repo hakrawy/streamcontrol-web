@@ -8,6 +8,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 export default function AdminUsers() {
   const insets = useSafeAreaInsets();
@@ -29,7 +30,7 @@ export default function AdminUsers() {
     ]);
   };
 
-  if (loading) return <AdminPageShell title="Users" subtitle="Loading account controls" icon="people"><View style={[styles.center]}><ActivityIndicator size="large" color={theme.primary} /></View></AdminPageShell>;
+  if (loading) return <AdminPageShell title="Users" subtitle="Loading account controls" icon="people"><View style={[styles.center]}><ActivityIndicator size="large" color={stream.red} /></View></AdminPageShell>;
 
   const adminUsers = users.filter(u => u.role === 'admin');
   const regularUsers = users.filter(u => u.role !== 'admin');
@@ -78,19 +79,19 @@ export default function AdminUsers() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  summaryCard: { flex: 1, backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 14, borderWidth: 1, borderColor: theme.border, borderLeftWidth: 3, gap: 4 },
+  summaryCard: { flex: 1, backgroundColor: stream.panel, borderRadius: 8, padding: 14, borderWidth: 1, borderColor: stream.line, borderLeftWidth: 3, gap: 4 },
   summaryValue: { fontSize: 22, fontWeight: '800', color: '#FFF' },
   summaryLabel: { fontSize: 11, fontWeight: '500', color: theme.textSecondary },
   countText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 12 },
-  userCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  userCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: stream.panel, borderRadius: 8, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: stream.line, gap: 12 },
   avatarWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 18, fontWeight: '700', color: '#FFF' },
   userInfo: { flex: 1, gap: 2 },
   userName: { fontSize: 15, fontWeight: '600', color: '#FFF' },
   userEmail: { fontSize: 12, color: theme.textSecondary },
   roleBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
-  roleBtn: { width: 40, height: 40, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center' },
+  roleBtn: { width: 40, height: 40, borderRadius: 8, backgroundColor: stream.panelStrong, alignItems: 'center', justifyContent: 'center' },
 });

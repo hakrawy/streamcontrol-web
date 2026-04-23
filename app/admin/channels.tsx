@@ -11,6 +11,7 @@ import * as api from '../../services/api';
 import type { Channel } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
 import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 const emptyForm = {
   name: '', logo: '', stream_url: '', category: '', current_program: '',
@@ -183,7 +184,7 @@ export default function AdminChannels() {
     }
   };
 
-  if (loading) return <AdminPageShell title="Channels" subtitle="Loading live catalog controls" icon="live-tv"><View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View></AdminPageShell>;
+  if (loading) return <AdminPageShell title="Channels" subtitle="Loading live catalog controls" icon="live-tv"><View style={styles.center}><ActivityIndicator size="large" color={stream.red} /></View></AdminPageShell>;
 
   const textFields = [
     { key: 'name', label: 'CHANNEL NAME' },
@@ -295,7 +296,7 @@ export default function AdminChannels() {
               <Switch
                 value={Boolean((form as any)[t.key])}
                 onValueChange={v => setForm(p => ({ ...p, [t.key]: v }))}
-                trackColor={{ false: theme.surfaceLight, true: `${t.color}60` }}
+                trackColor={{ false: stream.panelStrong, true: `${t.color}60` }}
                 thumbColor={(form as any)[t.key] ? t.color : theme.textMuted}
               />
             </View>
@@ -344,26 +345,26 @@ export default function AdminChannels() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.primary, height: 48, borderRadius: theme.radius.md, marginBottom: 16 },
   addBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
   bulkToolbar: { gap: 10, marginBottom: 16 },
-  bulkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: theme.radius.md, height: 46 },
+  bulkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: stream.panel, borderWidth: 1, borderColor: stream.line, borderRadius: 8, height: 46 },
   bulkBtnActive: { borderColor: theme.primary, backgroundColor: theme.primaryDark },
   bulkBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  bulkBtnSecondary: { alignItems: 'center', justifyContent: 'center', borderRadius: theme.radius.md, height: 42, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight },
+  bulkBtnSecondary: { alignItems: 'center', justifyContent: 'center', borderRadius: 8, height: 42, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong },
   bulkBtnSecondaryText: { fontSize: 13, fontWeight: '700', color: theme.textSecondary },
   bulkDangerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.error, borderRadius: theme.radius.md, height: 46 },
-  importCard: { backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  importCard: { backgroundColor: stream.panel, borderRadius: 8, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: stream.line, gap: 12 },
   importHint: { fontSize: 13, color: theme.textSecondary },
-  formCard: { backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.border },
+  formCard: { backgroundColor: stream.panel, borderRadius: 8, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: stream.line },
   formTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
   previewRow: { alignItems: 'center', marginBottom: 16 },
   previewLogo: { width: 64, height: 64, borderRadius: 14 },
   fieldWrap: { marginBottom: 12 },
   fieldLabel: { fontSize: 11, fontWeight: '600', color: theme.textMuted, letterSpacing: 0.5, marginBottom: 6 },
-  fieldInput: { height: 44, backgroundColor: theme.surfaceLight, borderRadius: theme.radius.md, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
+  fieldInput: { height: 44, backgroundColor: stream.panelStrong, borderRadius: 8, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: stream.line },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.border },
   toggleDot: { width: 8, height: 8, borderRadius: 4 },
   toggleLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: '#FFF' },
@@ -372,12 +373,12 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 14, fontWeight: '600', color: theme.textSecondary },
   saveBtn: { flex: 1, height: 48, borderRadius: theme.radius.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.surface, borderRadius: theme.radius.md, paddingHorizontal: 12, height: 42, borderWidth: 1, borderColor: theme.border, marginBottom: 12 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: stream.panel, borderRadius: 8, paddingHorizontal: 12, height: 42, borderWidth: 1, borderColor: stream.line, marginBottom: 12 },
   searchInput: { flex: 1, fontSize: 14, color: '#FFF' },
   countText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 12 },
-  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: stream.panel, borderRadius: 8, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: stream.line, gap: 12 },
   checkboxWrap: { width: 28, alignItems: 'center', justifyContent: 'center' },
-  channelLogo: { width: 50, height: 50, borderRadius: theme.radius.md, overflow: 'hidden', backgroundColor: theme.surfaceLight },
+  channelLogo: { width: 50, height: 50, borderRadius: 8, overflow: 'hidden', backgroundColor: stream.panelStrong },
   itemInfo: { flex: 1, gap: 2 },
   itemTitle: { fontSize: 14, fontWeight: '600', color: '#FFF' },
   itemMeta: { fontSize: 12, color: theme.textSecondary },
@@ -385,5 +386,5 @@ const styles = StyleSheet.create({
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   viewerText: { fontSize: 10, color: theme.textMuted },
   itemActions: { gap: 4 },
-  actionBtn: { width: 32, height: 32, borderRadius: theme.radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surfaceLight },
+  actionBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: stream.panelStrong },
 });

@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated as RNAnimated, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -134,7 +134,7 @@ export function Hero({
         end={{ x: 1, y: 0.5 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.heroContent, { paddingHorizontal: layout.contentPad, maxWidth: layout.isPhone ? '100%' : 720 }]}>
+      <Animated.View entering={FadeInDown.duration(360)} style={[styles.heroContent, { paddingHorizontal: layout.contentPad, maxWidth: layout.isPhone ? '100%' : 720 }]}>
         {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
         <Text style={[styles.heroTitle, layout.isPhone && styles.heroTitlePhone]} numberOfLines={3}>{title}</Text>
         <View style={styles.metaRow}>
@@ -149,7 +149,7 @@ export function Hero({
           {onPlay ? <PrimaryButton label="Play" icon="play-arrow" onPress={onPlay} /> : null}
           {onInfo ? <GhostButton label="Details" icon="info-outline" onPress={onInfo} /> : null}
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -284,17 +284,41 @@ export function MediaCard({
   const layout = useLayoutTier();
   const width = wide ? (layout.isPhone ? 255 : 310) : layout.isPhone ? 138 : 164;
   const image = wide ? item.backdrop || item.poster : item.poster || item.backdrop;
+  const scale = React.useRef(new RNAnimated.Value(1)).current;
   return (
-    <Pressable onPress={onPress} style={[styles.mediaCard, { width }]}>
+    <RNAnimated.View style={[styles.mediaCard, { width, transform: [{ scale }] }]}>
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => {
+        try { RNAnimated.spring(scale, { toValue: 0.97, useNativeDriver: true }).start(); } catch {}
+      }}
+      onPressOut={() => {
+        try { RNAnimated.spring(scale, { toValue: 1, useNativeDriver: true }).start(); } catch {}
+      }}
+      {...({
+        onHoverIn: () => {
+          try { RNAnimated.spring(scale, { toValue: 1.06, useNativeDriver: true }).start(); } catch {}
+        },
+        onHoverOut: () => {
+          try { RNAnimated.spring(scale, { toValue: 1, useNativeDriver: true }).start(); } catch {}
+        },
+      } as any)}
+    >
       <View style={[styles.posterFrame, wide ? styles.widePoster : styles.tallPoster]}>
         {image ? <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={220} /> : null}
-        <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.74)']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.34)', 'rgba(0,0,0,0.84)']} style={StyleSheet.absoluteFill} />
+        <View style={styles.cardPlayOverlay}>
+          <View style={styles.cardPlayButton}>
+            <MaterialIcons name="play-arrow" size={18} color="#FFF" />
+          </View>
+        </View>
         {rank ? <Text style={styles.rankNumber}>{rank}</Text> : null}
         {item.is_new ? <Badge label="NEW" /> : null}
       </View>
       <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
       <Text style={styles.cardMeta} numberOfLines={1}>{[item.year, item.genre?.[0], item.rating ? `${item.rating} rating` : null].filter(Boolean).join('  |  ')}</Text>
     </Pressable>
+    </RNAnimated.View>
   );
 }
 
@@ -394,12 +418,14 @@ const styles = StyleSheet.create({
   sectionTitle: { color: stream.text, fontSize: 22, fontWeight: '900', letterSpacing: 0 },
   sectionSubtitle: { color: stream.muted, fontSize: 13, marginTop: 3, letterSpacing: 0 },
   mediaCard: { gap: 8 },
-  posterFrame: { borderRadius: 8, overflow: 'hidden', backgroundColor: stream.panelStrong, borderWidth: 1, borderColor: stream.line },
+  posterFrame: { borderRadius: 8, overflow: 'hidden', backgroundColor: stream.panelStrong, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', shadowColor: stream.red, shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } },
   tallPoster: { aspectRatio: 2 / 3 },
   widePoster: { aspectRatio: 16 / 9 },
   cardTitle: { color: stream.text, fontSize: 14, fontWeight: '800', letterSpacing: 0 },
   cardMeta: { color: stream.muted, fontSize: 12, letterSpacing: 0 },
   rankNumber: { position: 'absolute', left: 8, bottom: -7, color: 'rgba(255,255,255,0.86)', fontSize: 58, fontWeight: '900', letterSpacing: 0 },
+  cardPlayOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', opacity: 0.92 },
+  cardPlayButton: { width: 38, height: 38, borderRadius: 999, backgroundColor: 'rgba(229,9,20,0.88)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   badge: { position: 'absolute', top: 8, left: 8, backgroundColor: stream.red, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   badgeText: { color: '#FFF', fontSize: 10, fontWeight: '900', letterSpacing: 0 },
   channelCard: { width: 310, minHeight: 116, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 8, backgroundColor: stream.panel, borderWidth: 1, borderColor: stream.line },

@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNetInfo } from '@react-native-community/netinfo';
-import { useAuth } from '@/template';
 import { theme } from '../constants/theme';
 
 type ActionButton = {
@@ -42,19 +41,8 @@ export function ErrorStateView(props: StatusStateProps) {
   return <StatusState {...props} icon={props.icon || 'error-outline'} />;
 }
 
-function formatRemainingMinutes(expiresAt?: string | null) {
-  if (!expiresAt) return null;
-  const expiry = new Date(expiresAt).getTime();
-  if (Number.isNaN(expiry)) return null;
-  const remainingMs = expiry - Date.now();
-  if (remainingMs <= 0) return 'Expired';
-  const minutes = Math.ceil(remainingMs / 60000);
-  return minutes <= 1 ? '1 min' : `${minutes} mins`;
-}
-
 export function GlobalSystemBanners() {
   const netInfo = useNetInfo();
-  const auth = useAuth();
 
   const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
   const expiryLabel = null;

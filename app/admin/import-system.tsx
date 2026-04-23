@@ -17,6 +17,8 @@ import {
 import { recordAdminActivity } from '../../services/adminActivity';
 import { theme } from '../../constants/theme';
 import { useLocale } from '../../contexts/LocaleContext';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 type Mode = 'xtream' | 'm3u';
 
@@ -221,7 +223,8 @@ export default function ImportSystemAdmin() {
     : [];
 
   return (
-    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
+    <AdminPageShell title={copy.title} subtitle={copy.subtitle} icon="cloud-sync">
+    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={['rgba(34,211,238,0.18)', 'rgba(99,102,241,0.08)', 'rgba(10,10,15,0)']} style={styles.hero}>
         <View style={styles.heroIcon}>
           <MaterialIcons name="cloud-sync" size={30} color="#FFF" />
@@ -373,6 +376,7 @@ export default function ImportSystemAdmin() {
         )}
       </View>
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
@@ -386,27 +390,27 @@ function ModeButton({ label, icon, active, onPress }: { label: string; icon: key
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
-  hero: { borderRadius: 24, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: 'rgba(34,211,238,0.22)', marginBottom: 14 },
-  heroIcon: { width: 56, height: 56, borderRadius: 18, backgroundColor: '#0891B2', alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  hero: { borderRadius: 8, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: 'rgba(229,9,20,0.28)', marginBottom: 14 },
+  heroIcon: { width: 56, height: 56, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center' },
   title: { color: '#FFF', fontSize: 26, fontWeight: '900' },
   subtitle: { color: theme.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 5 },
   helper: { color: theme.textMuted, fontSize: 12, lineHeight: 18, marginTop: 4 },
   modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
-  modeBtn: { flex: 1, minWidth: 160, height: 46, borderRadius: 14, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  modeBtnActive: { backgroundColor: theme.primary, borderColor: theme.primaryLight },
+  modeBtn: { flex: 1, minWidth: 160, height: 46, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  modeBtnActive: { backgroundColor: stream.red, borderColor: stream.red },
   modeText: { color: theme.textSecondary, fontWeight: '900' },
   modeTextActive: { color: '#FFF' },
-  card: { borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10 },
+  card: { borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, padding: 14, gap: 10 },
   sectionTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
   sectionHint: { color: theme.textSecondary, fontSize: 12, lineHeight: 18, marginBottom: 2 },
-  input: { height: 46, borderRadius: 14, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, color: theme.textPrimary, paddingHorizontal: 12 },
+  input: { height: 46, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong, color: theme.textPrimary, paddingHorizontal: 12 },
   twoCols: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   flexInput: { flex: 1, minWidth: 180 },
   primaryBtn: { minHeight: 44, borderRadius: 14, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 },
   primaryBtnDisabled: { opacity: 0.75 },
   primaryText: { color: '#FFF', fontWeight: '900', fontSize: 13 },
-  summaryCard: { marginTop: 14, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: 'rgba(16,185,129,0.22)', backgroundColor: 'rgba(16,185,129,0.08)', padding: 14, gap: 10 },
+  summaryCard: { marginTop: 14, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(16,185,129,0.22)', backgroundColor: 'rgba(16,185,129,0.08)', padding: 14, gap: 10 },
   summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   summaryTitle: { color: '#E8FFF1', fontSize: 15, fontWeight: '900' },
   summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -418,14 +422,14 @@ const styles = StyleSheet.create({
   warningText: { flex: 1, color: '#FEF3C7', fontSize: 12, lineHeight: 18 },
   errorCard: { marginTop: 14, borderRadius: theme.radius.md, borderWidth: 1, borderColor: 'rgba(239,68,68,0.22)', backgroundColor: 'rgba(239,68,68,0.08)', padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   errorText: { flex: 1, color: '#FECACA', fontSize: 12, lineHeight: 18 },
-  historyCard: { marginTop: 14, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10 },
+  historyCard: { marginTop: 14, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, padding: 14, gap: 10 },
   historyHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   historyTitle: { color: '#FFF', fontSize: 15, fontWeight: '900' },
-  historyClearBtn: { minHeight: 34, borderRadius: 999, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  historyClearBtn: { minHeight: 34, borderRadius: 999, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
   historyClearText: { color: theme.textSecondary, fontSize: 11, fontWeight: '800' },
   historyEmpty: { color: theme.textSecondary, fontSize: 12, lineHeight: 18 },
   historyList: { gap: 10 },
-  historyItem: { borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, padding: 12, gap: 6 },
+  historyItem: { borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong, padding: 12, gap: 6 },
   historyItemHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   historyItemLabel: { color: '#FFF', fontSize: 14, fontWeight: '800', flex: 1 },
   historyBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },

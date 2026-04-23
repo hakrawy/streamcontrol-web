@@ -8,6 +8,8 @@ import { useAlert } from '@/template';
 import { theme } from '../../constants/theme';
 import { useLocale } from '../../contexts/LocaleContext';
 import * as api from '../../services/api';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 export default function AdminRoutingScreen() {
   const insets = useSafeAreaInsets();
@@ -118,17 +120,20 @@ export default function AdminRoutingScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
+      <AdminPageShell title={copy.title} subtitle="Loading imported routing review" icon="route">
+        <View style={[styles.container, styles.center]}>
+          <ActivityIndicator size="large" color={stream.red} />
+        </View>
+      </AdminPageShell>
     );
   }
 
   return (
+    <AdminPageShell title={copy.title} subtitle={copy.subtitle} icon="route">
     <ScrollView
       style={[styles.container, { direction }]}
-      contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 24 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} colors={[theme.primary]} />}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={stream.red} colors={[stream.red]} />}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.hero}>
@@ -187,6 +192,7 @@ export default function AdminRoutingScreen() {
         );
       })}
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
@@ -197,7 +203,7 @@ function Chip({ label, tone }: { label: string; tone: 'current' | 'ok' | 'warn' 
       ? { bg: 'rgba(34,197,94,0.16)', border: 'rgba(34,197,94,0.35)', text: '#BBF7D0' }
       : tone === 'warn'
         ? { bg: 'rgba(245,158,11,0.16)', border: 'rgba(245,158,11,0.35)', text: '#FDE68A' }
-        : { bg: theme.surfaceLight, border: theme.border, text: '#FFF' };
+        : { bg: stream.panelStrong, border: stream.line, text: '#FFF' };
   return (
     <View style={[styles.chip, { backgroundColor: palette.bg, borderColor: palette.border }]}>
       <Text style={[styles.chipText, { color: palette.text }]}>{label}</Text>
@@ -226,9 +232,9 @@ function MoveButton({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { alignItems: 'center', justifyContent: 'center' },
-  hero: { backgroundColor: theme.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, padding: theme.spacing.md, gap: 10, marginBottom: 14 },
+  hero: { backgroundColor: stream.panel, borderRadius: 8, borderWidth: 1, borderColor: stream.line, padding: theme.spacing.md, gap: 10, marginBottom: 14 },
   title: { color: '#FFF', fontSize: 22, fontWeight: '800' },
   subtitle: { color: theme.textSecondary, fontSize: 13, lineHeight: 20 },
   addonName: { color: '#A5B4FC', fontSize: 14, fontWeight: '700' },
@@ -236,22 +242,22 @@ const styles = StyleSheet.create({
   bulkActions: { gap: 8 },
   bulkLabel: { color: theme.textSecondary, fontSize: 12, fontWeight: '700' },
   bulkButtonsRow: { flexDirection: 'row', gap: 8 },
-  searchInput: { height: 46, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, color: '#FFF', paddingHorizontal: 12 },
-  autoFixBtn: { height: 44, borderRadius: theme.radius.md, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  autoFixText: { color: '#000', fontWeight: '800' },
+  searchInput: { height: 46, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong, color: '#FFF', paddingHorizontal: 12 },
+  autoFixBtn: { height: 44, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  autoFixText: { color: '#FFF', fontWeight: '800' },
   empty: { color: theme.textMuted, textAlign: 'center', marginTop: 40 },
-  card: { backgroundColor: theme.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.border, padding: 14, gap: theme.spacing.sm, marginBottom: 12 },
+  card: { backgroundColor: stream.panel, borderRadius: 8, borderWidth: 1, borderColor: stream.line, padding: 14, gap: theme.spacing.sm, marginBottom: 12 },
   headRow: { gap: theme.spacing.sm, alignItems: 'flex-start' },
-  poster: { width: 72, height: 96, borderRadius: 14, backgroundColor: theme.surfaceLight },
+  poster: { width: 72, height: 96, borderRadius: 8, backgroundColor: stream.panelStrong },
   itemTitle: { color: '#FFF', fontSize: 16, fontWeight: '800' },
   itemDesc: { color: theme.textSecondary, fontSize: 12, lineHeight: 18 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
   chipText: { fontSize: 11, fontWeight: '800' },
   actions: { flexDirection: 'row', gap: 8 },
-  moveBtn: { flex: 1, height: 42, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center' },
+  moveBtn: { flex: 1, height: 42, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong, alignItems: 'center', justifyContent: 'center' },
   moveBtnPrimary: { backgroundColor: 'rgba(34,197,94,0.16)', borderColor: 'rgba(34,197,94,0.35)' },
-  moveBtnActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  moveBtnActive: { backgroundColor: stream.red, borderColor: stream.red },
   moveBtnText: { color: '#FFF', fontWeight: '800' },
   moveBtnTextActive: { color: '#FFF' },
 });

@@ -8,6 +8,8 @@ import { theme } from '../../constants/theme';
 import * as subscriptions from '../../services/subscriptions';
 import type { SubscriptionCode } from '../../services/subscriptions';
 import { recordAdminActivity } from '../../services/adminActivity';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 export default function SubscriptionsAdmin() {
   const insets = useSafeAreaInsets();
@@ -85,11 +87,12 @@ export default function SubscriptionsAdmin() {
     ]);
   };
 
-  if (loading) return <View style={[styles.container, styles.center]}><ActivityIndicator size="large" color={theme.primary} /></View>;
+  if (loading) return <AdminPageShell title="Subscription Codes" subtitle="Loading access keys" icon="vpn-key"><View style={[styles.center, { minHeight: 360 }]}><ActivityIndicator size="large" color={stream.red} /></View></AdminPageShell>;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['rgba(16,185,129,0.18)', 'rgba(99,102,241,0.08)', 'rgba(10,10,15,0)']} style={styles.hero}>
+    <AdminPageShell title="Subscription Codes" subtitle="Create access keys, limit usage, track sessions, and disable codes instantly." icon="vpn-key">
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + 28 }} showsVerticalScrollIndicator={false}>
+      <LinearGradient colors={['rgba(229,9,20,0.18)', 'rgba(36,198,220,0.08)', 'rgba(6,7,11,0)']} style={styles.hero}>
         <View style={styles.heroIcon}><MaterialIcons name="vpn-key" size={28} color="#FFF" /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Subscription Codes</Text>
@@ -133,6 +136,7 @@ export default function SubscriptionsAdmin() {
         </View>
       ))}
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
@@ -145,26 +149,26 @@ function Icon({ icon, color, onPress }: { icon: keyof typeof MaterialIcons.glyph
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { alignItems: 'center', justifyContent: 'center' },
-  hero: { borderRadius: 24, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: 'rgba(16,185,129,0.22)', marginBottom: 14 },
-  heroIcon: { width: 56, height: 56, borderRadius: 18, backgroundColor: theme.success, alignItems: 'center', justifyContent: 'center' },
+  hero: { borderRadius: 8, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', marginBottom: 14 },
+  heroIcon: { width: 56, height: 56, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center' },
   title: { color: '#FFF', fontSize: 26, fontWeight: '900' },
   subtitle: { color: theme.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 4 },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
   stat: { minWidth: 120, borderWidth: 1, borderRadius: theme.radius.md, padding: 12 },
   statValue: { fontSize: 20, fontWeight: '900' },
   statLabel: { color: theme.textMuted, fontSize: 11, fontWeight: '800', marginTop: 3 },
-  card: { borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, gap: 10, marginBottom: 12 },
+  card: { borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, padding: 14, gap: 10, marginBottom: 12 },
   cardTitle: { color: '#FFF', fontSize: 16, fontWeight: '900' },
-  input: { height: 46, borderRadius: 14, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.backgroundSecondary, color: '#FFF', paddingHorizontal: 12 },
+  input: { height: 46, borderRadius: 8, borderWidth: 1, borderColor: stream.lineStrong, backgroundColor: 'rgba(255,255,255,0.06)', color: '#FFF', paddingHorizontal: 12 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   flex: { flex: 1, minWidth: 150 },
-  primaryBtn: { height: 44, borderRadius: 14, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  primaryBtn: { height: 44, borderRadius: 8, backgroundColor: stream.red, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   primaryText: { color: '#FFF', fontWeight: '900' },
-  codeCard: { flexDirection: 'row', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 14, marginBottom: 10 },
+  codeCard: { flexDirection: 'row', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, padding: 14, marginBottom: 10 },
   code: { color: '#FFF', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
   sessionText: { color: theme.textMuted, fontSize: 11, marginTop: 3 },
   actions: { flexDirection: 'row', gap: 8 },
-  iconBtn: { width: 38, height: 38, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 38, height: 38, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: stream.line, alignItems: 'center', justifyContent: 'center' },
 });

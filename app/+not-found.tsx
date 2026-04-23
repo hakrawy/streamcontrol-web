@@ -6,17 +6,18 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
+import { stream } from '../components/StreamingDesignSystem';
 
 export default function NotFoundScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={[theme.background, theme.backgroundSecondary]}
+        colors={[stream.bg, '#120205']}
         style={StyleSheet.absoluteFillObject}
       />
       <Animated.View entering={FadeInDown.duration(500)} style={styles.content}>
         <View style={styles.iconWrap}>
-          <MaterialIcons name="explore-off" size={64} color={theme.primary} />
+          <MaterialIcons name="explore-off" size={64} color={stream.red} />
         </View>
         <Text style={styles.code}>404</Text>
         <Text style={styles.title}>الصفحة غير موجودة</Text>
@@ -38,7 +39,7 @@ export default function NotFoundScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: stream.bg,
   },
   content: {
     flex: 1,
@@ -51,18 +52,18 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(99,102,241,0.1)',
+    backgroundColor: 'rgba(229,9,20,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(99,102,241,0.2)',
+    borderColor: 'rgba(229,9,20,0.28)',
     marginBottom: 8,
   },
   code: {
     fontSize: 72,
     fontWeight: '900',
-    color: theme.primary,
-    letterSpacing: -2,
+    color: stream.red,
+    letterSpacing: 0,
   },
   title: {
     fontSize: 22,
@@ -81,10 +82,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: theme.primary,
+    backgroundColor: stream.red,
     paddingHorizontal: 28,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 8,
   },
   homeButtonText: {
     color: '#FFF',

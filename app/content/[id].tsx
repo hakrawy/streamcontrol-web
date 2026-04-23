@@ -589,7 +589,7 @@ export default function ContentDetailScreen() {
           <View style={styles.badgeRow}>
             {content.is_exclusive ? <View style={[styles.infoBadge, { backgroundColor: theme.accent }]}><Text style={[styles.infoBadgeText, { color: '#000' }]}>EXCLUSIVE</Text></View> : null}
             {content.is_new ? <View style={[styles.infoBadge, { backgroundColor: theme.primary }]}><Text style={styles.infoBadgeText}>NEW</Text></View> : null}
-            <View style={[styles.infoBadge, { backgroundColor: theme.surfaceLight }]}><Text style={styles.infoBadgeText}>{isMovie ? 'MOVIE' : 'SERIES'}</Text></View>
+            <View style={[styles.infoBadge, { backgroundColor: stream.panelStrong }]}><Text style={styles.infoBadgeText}>{isMovie ? 'MOVIE' : 'SERIES'}</Text></View>
           </View>
 
           <Text style={styles.title}>{content.title}</Text>
@@ -803,7 +803,7 @@ export default function ContentDetailScreen() {
       </Pressable>
 
       <Animated.View entering={FadeIn.delay(600).duration(400)} style={[styles.stickyBar, { paddingBottom: insets.bottom + 16 }]}>
-        <LinearGradient colors={['transparent', theme.background]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['transparent', stream.bg]} style={StyleSheet.absoluteFill} />
         <Pressable style={styles.stickyPlayBtn} onPress={handlePlay}>
           <MaterialIcons name="play-arrow" size={24} color="#000" />
           <Text style={styles.stickyPlayText}>
@@ -949,7 +949,7 @@ const styles = StyleSheet.create({
   castList: { fontSize: 14, color: theme.textSecondary, lineHeight: 22 },
   qualitySection: { marginBottom: 24 },
   qualityRow: { flexDirection: 'row', gap: 8 },
-  qualityBadge: { paddingHorizontal: theme.spacing.md, paddingVertical: 8, borderRadius: 8, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  qualityBadge: { paddingHorizontal: theme.spacing.md, paddingVertical: 8, borderRadius: 8, backgroundColor: stream.panel, borderWidth: 1, borderColor: stream.line },
   qualityBadgeActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   qualityText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
   qualityTextActive: { color: '#FFF' },

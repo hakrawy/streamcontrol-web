@@ -11,6 +11,8 @@ import * as api from '../../services/api';
 import type { Series, Season, Episode } from '../../services/api';
 import { resolveDownloadUrl } from '../../services/downloadLinks';
 import { useLocale } from '../../contexts/LocaleContext';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 type ViewMode = 'list' | 'form' | 'seasons';
 
@@ -295,12 +297,13 @@ export default function AdminSeries() {
     setShowEpisodeForm(true);
   };
 
-  if (loading) return <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
+  if (loading) return <AdminPageShell title="Series" subtitle="Loading episodic catalog" icon="tv"><View style={{ minHeight: 360, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={stream.red} /></View></AdminPageShell>;
 
   // ===== SEASONS VIEW =====
   if (viewMode === 'seasons' && selectedSeries) {
     return (
-      <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+      <AdminPageShell title={`${selectedSeries.title} Seasons`} subtitle="Manage seasons, episodes, sources, subtitles, and publishing." icon="theaters">
+      <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
         <Pressable style={styles.backRow} onPress={() => { setViewMode('list'); setSelectedSeries(null); }}>
           <MaterialIcons name="arrow-back" size={20} color={theme.primary} />
           <Text style={styles.backText}>Back to Series</Text>
@@ -421,6 +424,7 @@ export default function AdminSeries() {
           </Animated.View>
         ))}
       </ScrollView>
+      </AdminPageShell>
     );
   }
 
@@ -450,7 +454,8 @@ export default function AdminSeries() {
     ];
 
     return (
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+      <AdminPageShell title={editingId ? 'Edit Series' : copy.addSeries} subtitle="Build a cinematic series page with seasons and playback metadata." icon="tv">
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
         <Pressable style={styles.backRow} onPress={resetForm}>
           <MaterialIcons name="arrow-back" size={20} color={theme.primary} />
           <Text style={styles.backText}>Back to List</Text>
@@ -487,7 +492,7 @@ export default function AdminSeries() {
               <Switch
                 value={Boolean((form as any)[t.key])}
                 onValueChange={v => setForm(p => ({ ...p, [t.key]: v }))}
-                trackColor={{ false: theme.surfaceLight, true: `${t.color}60` }}
+                trackColor={{ false: stream.panelStrong, true: `${t.color}60` }}
                 thumbColor={(form as any)[t.key] ? t.color : theme.textMuted}
               />
             </View>
@@ -499,12 +504,14 @@ export default function AdminSeries() {
           </View>
         </View>
       </ScrollView>
+      </AdminPageShell>
     );
   }
 
   // ===== LIST VIEW =====
   return (
-    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+    <AdminPageShell title={copy.series} subtitle="Manage episodic content with the same premium catalog system." icon="tv">
+    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
       <Pressable style={styles.addBtn} onPress={() => { resetForm(); setViewMode('form'); }}>
         <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>{copy.addSeries}</Text>
       </Pressable>
@@ -582,36 +589,37 @@ export default function AdminSeries() {
         </Animated.View>
       ))}
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.primary, height: 48, borderRadius: theme.radius.md, marginBottom: 16 },
   addBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
   bulkToolbar: { gap: 10, marginBottom: 16 },
-  bulkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: theme.radius.md, height: 46 },
+  bulkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: stream.panel, borderWidth: 1, borderColor: stream.line, borderRadius: 8, height: 46 },
   bulkBtnActive: { borderColor: theme.primary, backgroundColor: theme.primaryDark },
   bulkBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  bulkBtnSecondary: { alignItems: 'center', justifyContent: 'center', borderRadius: theme.radius.md, height: 42, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight },
+  bulkBtnSecondary: { alignItems: 'center', justifyContent: 'center', borderRadius: 8, height: 42, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong },
   bulkBtnSecondaryText: { fontSize: 13, fontWeight: '700', color: theme.textSecondary },
   bulkDangerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.error, borderRadius: theme.radius.md, height: 46 },
-  importCard: { backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  importCard: { backgroundColor: stream.panel, borderRadius: 8, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: stream.line, gap: 12 },
   importHint: { fontSize: 13, color: theme.textSecondary },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   backText: { fontSize: 14, fontWeight: '600', color: theme.primary },
-  seriesHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: theme.surface, borderRadius: 14, padding: 14, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.border },
+  seriesHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: stream.panel, borderRadius: 8, padding: 14, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: stream.line },
   seriesThumb: { width: 50, height: 75, borderRadius: 8 },
   seriesTitle: { fontSize: 18, fontWeight: '700', color: '#FFF' },
   seriesMeta: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
-  formCard: { backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.border },
+  formCard: { backgroundColor: stream.panel, borderRadius: 8, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: stream.line },
   formTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
   previewRow: { alignItems: 'center', marginBottom: 16 },
   previewImage: { width: 80, height: 120, borderRadius: 10 },
     fieldWrap: { marginBottom: 12 },
     fieldLabel: { fontSize: 11, fontWeight: '600', color: theme.textMuted, letterSpacing: 0.5, marginBottom: 6 },
-    fieldInput: { height: 44, backgroundColor: theme.surfaceLight, borderRadius: theme.radius.md, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
-    autoFillBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, marginBottom: 12, backgroundColor: theme.surfaceLight, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, paddingVertical: 12 },
+    fieldInput: { height: 44, backgroundColor: stream.panelStrong, borderRadius: 8, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: stream.line },
+    autoFillBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, marginBottom: 12, backgroundColor: stream.panelStrong, borderRadius: 8, borderWidth: 1, borderColor: stream.line, paddingVertical: 12 },
     autoFillText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
     toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.border },
   toggleDot: { width: 8, height: 8, borderRadius: 4 },
@@ -622,7 +630,7 @@ const styles = StyleSheet.create({
   saveBtn: { flex: 1, height: 48, borderRadius: theme.radius.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   countText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 12 },
-  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: stream.panel, borderRadius: 8, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: stream.line, gap: 12 },
   checkboxWrap: { width: 28, alignItems: 'center', justifyContent: 'center' },
   itemPoster: { width: 50, height: 75, borderRadius: 8 },
   itemInfo: { flex: 1, gap: 2 },
@@ -631,13 +639,13 @@ const styles = StyleSheet.create({
   itemBadges: { flexDirection: 'row', gap: 4, marginTop: 4 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   itemActions: { gap: 4 },
-  actionBtn: { width: 32, height: 32, borderRadius: theme.radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surfaceLight },
+  actionBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: stream.panelStrong },
   // Season styles
-  seasonCard: { backgroundColor: theme.surface, borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' },
+  seasonCard: { backgroundColor: stream.panel, borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: stream.line, overflow: 'hidden' },
   seasonHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14 },
   seasonTitle: { fontSize: 16, fontWeight: '700', color: '#FFF' },
   seasonSub: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-  seasonAction: { width: 32, height: 32, borderRadius: theme.radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surfaceLight },
+  seasonAction: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: stream.panelStrong },
   episodeList: { paddingHorizontal: 14, paddingBottom: 14 },
   addEpisodeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, marginBottom: 6 },
   addEpisodeText: { fontSize: 13, fontWeight: '600', color: theme.primary },
@@ -646,6 +654,6 @@ const styles = StyleSheet.create({
   epNumText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
   epTitle: { fontSize: 13, fontWeight: '600', color: '#FFF' },
   epMeta: { fontSize: 11, color: theme.textSecondary, marginTop: 1 },
-  epAction: { width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surfaceLight },
+  epAction: { width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: stream.panelStrong },
   noEpisodes: { fontSize: 13, color: theme.textMuted, textAlign: 'center', paddingVertical: 12 },
 });

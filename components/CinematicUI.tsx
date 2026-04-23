@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
 import { useAdaptivePerformance } from '../hooks/useAdaptivePerformance';
+import { stream } from './StreamingDesignSystem';
 
 export function CinematicBackdrop({ children, style }: { children?: React.ReactNode; style?: ViewStyle }) {
   const perf = useAdaptivePerformance();
@@ -100,7 +101,7 @@ export function GlassButton({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: theme.background, overflow: 'hidden' },
+  backdrop: { flex: 1, backgroundColor: stream.bg, overflow: 'hidden' },
   topWash: { position: 'absolute', top: 0, left: 0, right: 0, height: 240 },
   rightWash: { position: 'absolute', top: 0, right: -80, width: 280, height: '100%', opacity: 0.55 },
   leftWash: { position: 'absolute', bottom: 0, left: -90, width: 260, height: '100%', opacity: 0.45 },

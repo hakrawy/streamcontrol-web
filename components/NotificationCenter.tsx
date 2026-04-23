@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 import type { AppNotification } from '../services/notifications';
+import { stream } from './StreamingDesignSystem';
 
 export default function NotificationCenter({
   visible,
@@ -91,14 +92,14 @@ const styles = StyleSheet.create({
   iconWrap: { width: 38, height: 38, borderRadius: theme.radius.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
   title: { color: '#FFF', fontSize: 17, fontWeight: '900' },
   subtitle: { color: theme.textSecondary, fontSize: 11, marginTop: 2 },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: stream.panel, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: stream.line },
   actionsRow: { flexDirection: 'row', gap: 8 },
   actionBtn: { flex: 1, minHeight: 40, borderRadius: theme.radius.md, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  actionBtnGhost: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  actionBtnGhost: { backgroundColor: stream.panel, borderWidth: 1, borderColor: stream.line },
   actionText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
   actionTextGhost: { color: theme.textSecondary },
   emptyText: { color: theme.textSecondary, fontSize: 12, textAlign: 'center', paddingVertical: 16 },
-  noteCard: { flexDirection: 'row', gap: 10, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, padding: 12, alignItems: 'flex-start' },
+  noteCard: { flexDirection: 'row', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, padding: 12, alignItems: 'flex-start' },
   noteCardUnread: { borderColor: 'rgba(96,165,250,0.35)', backgroundColor: 'rgba(96,165,250,0.08)' },
   levelDot: { width: 10, height: 10, borderRadius: 999, marginTop: 4 },
   levelSuccess: { backgroundColor: theme.success },

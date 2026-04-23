@@ -8,6 +8,8 @@ import { useAlert } from '@/template';
 import { theme } from '../../constants/theme';
 import { useLocale } from '../../contexts/LocaleContext';
 import * as api from '../../services/api';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 type Status = 'healthy' | 'needs_config' | 'warning' | 'error' | 'disabled';
 
@@ -153,11 +155,12 @@ export default function AdminAddons() {
     );
   };
 
-  if (loading) return <View style={[styles.container, styles.center]}><ActivityIndicator size="large" color={theme.primary} /></View>;
+  if (loading) return <AdminPageShell title="Stremio Addons" subtitle="Loading add-on command center" icon="extension"><View style={[styles.center, { minHeight: 360 }]}><ActivityIndicator size="large" color={stream.red} /></View></AdminPageShell>;
 
   return (
+    <AdminPageShell title="Stremio Addons" subtitle={t.hint} icon="extension">
     <>
-      <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 24 }}>
+      <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <View style={styles.card}>
           <Text style={styles.title}>{t.title}</Text>
           <Text style={styles.muted}>{t.hint}</Text>
@@ -187,7 +190,7 @@ export default function AdminAddons() {
                 </View>
                 <View style={styles.center}>
                   <Text style={styles.muted}>{addon.enabled ? (ar ? 'مفعلة' : 'Enabled') : t.disabled}</Text>
-                  <Switch value={addon.enabled} onValueChange={async (value) => { await api.updateAddon(addon.id, { enabled: value } as any); await load(); }} trackColor={{ false: theme.surfaceLight, true: `${theme.primary}55` }} thumbColor={addon.enabled ? theme.primary : theme.textMuted} />
+                  <Switch value={addon.enabled} onValueChange={async (value) => { await api.updateAddon(addon.id, { enabled: value } as any); await load(); }} trackColor={{ false: stream.panelStrong, true: 'rgba(229,9,20,0.55)' }} thumbColor={addon.enabled ? stream.red : theme.textMuted} />
                 </View>
               </View>
               {kind !== 'stream' ? (
@@ -217,6 +220,7 @@ export default function AdminAddons() {
         </View></View>
       </Modal>
     </>
+    </AdminPageShell>
   );
 }
 
@@ -224,25 +228,25 @@ function Chip({ label, active, onPress }: { label: string; active?: boolean; onP
 function Icon({ icon, color, onPress }: { icon: React.ComponentProps<typeof MaterialIcons>['name']; color: string; onPress: () => void }) { return <Pressable style={styles.icon} onPress={onPress}><MaterialIcons name={icon} size={18} color={color} /></Pressable>; }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: theme.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.border, padding: theme.spacing.md, gap: 10, marginBottom: 12 },
+  card: { backgroundColor: stream.panel, borderRadius: 8, borderWidth: 1, borderColor: stream.line, padding: theme.spacing.md, gap: 10, marginBottom: 12, shadowColor: stream.red, shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } },
   title: { color: '#FFF', fontSize: 22, fontWeight: '800' },
   name: { color: '#FFF', fontSize: 16, fontWeight: '800' },
   muted: { color: theme.textSecondary, fontSize: 12, lineHeight: 18 },
-  input: { height: 46, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, color: '#FFF', paddingHorizontal: 12 },
+  input: { height: 46, borderRadius: 8, borderWidth: 1, borderColor: stream.lineStrong, backgroundColor: 'rgba(255,255,255,0.06)', color: '#FFF', paddingHorizontal: 12 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   rowStart: { gap: theme.spacing.sm, alignItems: 'flex-start' },
-  btn: { minWidth: 100, height: 42, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
-  primary: { backgroundColor: theme.primary, borderColor: theme.primary },
+  btn: { minWidth: 100, height: 42, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: stream.line, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  primary: { backgroundColor: stream.red, borderColor: stream.red },
   btnText: { color: '#FFF', fontWeight: '700' },
-  preview: { borderRadius: 14, backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border, padding: 12, gap: 6 },
-  logo: { width: 52, height: 52, borderRadius: 14, backgroundColor: theme.surfaceLight },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border },
-  chipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  preview: { borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.24)', borderWidth: 1, borderColor: stream.line, padding: 12, gap: 6 },
+  logo: { width: 52, height: 52, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.07)' },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: stream.line },
+  chipActive: { backgroundColor: stream.red, borderColor: stream.red },
   chipText: { color: theme.textSecondary, fontSize: 12, fontWeight: '700' },
   chipTextActive: { color: '#FFF' },
-  icon: { width: 38, height: 38, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 38, height: 38, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' },
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  modal: { width: '100%', maxWidth: 560, borderRadius: 18, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, padding: theme.spacing.md, gap: 10 },
+  modal: { width: '100%', maxWidth: 560, borderRadius: 8, backgroundColor: stream.panelStrong, borderWidth: 1, borderColor: stream.lineStrong, padding: theme.spacing.md, gap: 10 },
 });

@@ -10,6 +10,7 @@ import { theme } from '../../constants/theme';
 import * as api from '../../services/api';
 import type { Banner } from '../../services/api';
 import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 const emptyForm = {
   title: '', subtitle: '', backdrop: '', badge: '', content_id: '', content_type: 'movie' as string,
@@ -65,7 +66,7 @@ export default function AdminBanners() {
     ]);
   };
 
-  if (loading) return <AdminPageShell title="Banners" subtitle="Loading cinematic hero rails" icon="image"><View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View></AdminPageShell>;
+  if (loading) return <AdminPageShell title="Banners" subtitle="Loading cinematic hero rails" icon="image"><View style={styles.center}><ActivityIndicator size="large" color={stream.red} /></View></AdminPageShell>;
 
   const textFields = [
     { key: 'title', label: 'TITLE' },
@@ -128,7 +129,7 @@ export default function AdminBanners() {
             <Switch
               value={form.is_active}
               onValueChange={v => setForm(p => ({ ...p, is_active: v }))}
-              trackColor={{ false: theme.surfaceLight, true: `${theme.success}60` }}
+              trackColor={{ false: stream.panelStrong, true: `${theme.success}60` }}
               thumbColor={form.is_active ? theme.success : theme.textMuted}
             />
           </View>
@@ -168,20 +169,20 @@ export default function AdminBanners() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.primary, height: 48, borderRadius: theme.radius.md, marginBottom: 16 },
   addBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
-  formCard: { backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.border },
+  formCard: { backgroundColor: stream.panel, borderRadius: 8, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: stream.line },
   formTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
   previewRow: { alignItems: 'center', marginBottom: 16 },
   previewImage: { width: '100%', height: 120, borderRadius: theme.radius.md, marginBottom: 6 },
   previewLabel: { fontSize: 11, color: theme.textMuted },
   fieldWrap: { marginBottom: 12 },
   fieldLabel: { fontSize: 11, fontWeight: '600', color: theme.textMuted, letterSpacing: 0.5, marginBottom: 6 },
-  fieldInput: { height: 44, backgroundColor: theme.surfaceLight, borderRadius: theme.radius.md, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
+  fieldInput: { height: 44, backgroundColor: stream.panelStrong, borderRadius: 8, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: stream.line },
   typeRow: { flexDirection: 'row', gap: 8 },
-  typeChip: { flex: 1, height: 40, borderRadius: theme.radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border },
+  typeChip: { flex: 1, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: stream.panelStrong, borderWidth: 1, borderColor: stream.line },
   typeChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   typeText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
   typeTextActive: { color: '#FFF' },
@@ -194,7 +195,7 @@ const styles = StyleSheet.create({
   saveBtn: { flex: 1, height: 48, borderRadius: theme.radius.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   countText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 12 },
-  bannerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  bannerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: stream.panel, borderRadius: 8, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: stream.line, gap: 12 },
   bannerThumb: { width: 80, height: 50, borderRadius: 8 },
   bannerInfo: { flex: 1, gap: 2 },
   bannerTitle: { fontSize: 14, fontWeight: '600', color: '#FFF' },
@@ -203,5 +204,5 @@ const styles = StyleSheet.create({
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   orderText: { fontSize: 10, color: theme.textMuted },
   bannerActions: { gap: 4 },
-  actionBtn: { width: 32, height: 32, borderRadius: theme.radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surfaceLight },
+  actionBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: stream.panelStrong },
 });

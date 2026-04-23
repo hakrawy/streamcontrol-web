@@ -11,6 +11,8 @@ import * as api from '../../services/api';
 import type { Movie } from '../../services/api';
 import { resolveDownloadUrl } from '../../services/downloadLinks';
 import { useLocale } from '../../contexts/LocaleContext';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 const emptyForm = {
   title: '', description: '', poster: '', backdrop: '', stream_url: '', trailer_url: '', subtitle_url: '', download_url: '',
@@ -188,7 +190,7 @@ export default function AdminMovies() {
     ? movies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()))
     : movies;
 
-  if (loading) return <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
+  if (loading) return <AdminPageShell title="Movies" subtitle="Loading cinema catalog" icon="movie"><View style={{ minHeight: 360, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={stream.red} /></View></AdminPageShell>;
 
   const textFields: { key: keyof typeof emptyForm; label: string; placeholder?: string; multiline?: boolean }[] = [
     { key: 'title', label: 'TITLE' },
@@ -218,7 +220,8 @@ export default function AdminMovies() {
   ];
 
   return (
-    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
+    <AdminPageShell title={copy.movies} subtitle="Manage posters, streams, subtitles, downloads, and publishing in a cinematic catalog console." icon="movie">
+    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
       <Pressable style={styles.addBtn} onPress={() => { resetForm(); setShowForm(true); }}>
         <MaterialIcons name="add" size={20} color="#FFF" /><Text style={styles.addBtnText}>{copy.addMovie}</Text>
       </Pressable>
@@ -299,7 +302,7 @@ export default function AdminMovies() {
               <Switch
                 value={Boolean(form[t.key])}
                 onValueChange={v => setForm(p => ({ ...p, [t.key]: v }))}
-                trackColor={{ false: theme.surfaceLight, true: `${t.color}60` }}
+                trackColor={{ false: stream.panelStrong, true: `${t.color}60` }}
                 thumbColor={form[t.key] ? t.color : theme.textMuted}
               />
             </View>
@@ -350,31 +353,32 @@ export default function AdminMovies() {
         </Animated.View>
       ))}
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.primary, height: 48, borderRadius: theme.radius.md, marginBottom: 16 },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: stream.red, height: 48, borderRadius: 8, marginBottom: 16 },
   addBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
   bulkToolbar: { gap: 10, marginBottom: 16 },
-  bulkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: theme.radius.md, height: 46 },
+  bulkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: stream.panel, borderWidth: 1, borderColor: stream.line, borderRadius: 8, height: 46 },
   bulkBtnActive: { borderColor: theme.primary, backgroundColor: theme.primaryDark },
   bulkBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  bulkBtnSecondary: { alignItems: 'center', justifyContent: 'center', borderRadius: theme.radius.md, height: 42, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight },
+  bulkBtnSecondary: { alignItems: 'center', justifyContent: 'center', borderRadius: 8, height: 42, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panelStrong },
   bulkBtnSecondaryText: { fontSize: 13, fontWeight: '700', color: theme.textSecondary },
   bulkDangerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.error, borderRadius: theme.radius.md, height: 46 },
-  importCard: { backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  importCard: { backgroundColor: stream.panel, borderRadius: 8, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: stream.line, gap: 12 },
   importHint: { fontSize: 13, color: theme.textSecondary },
-  formCard: { backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.border },
+  formCard: { backgroundColor: stream.panel, borderRadius: 8, padding: 20, marginBottom: theme.spacing.md, borderWidth: 1, borderColor: stream.line },
   formTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
   previewRow: { alignItems: 'center', marginBottom: 16 },
   previewImage: { width: 80, height: 120, borderRadius: theme.radius.md, marginBottom: 6 },
     previewLabel: { fontSize: 11, color: theme.textMuted },
     fieldWrap: { marginBottom: 12 },
     fieldLabel: { fontSize: 11, fontWeight: '600', color: theme.textMuted, letterSpacing: 0.5, marginBottom: 6 },
-    fieldInput: { height: 44, backgroundColor: theme.surfaceLight, borderRadius: theme.radius.md, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
-    autoFillBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, backgroundColor: theme.surfaceLight, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, paddingVertical: 12 },
+    fieldInput: { height: 44, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, paddingHorizontal: 14, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: stream.lineStrong },
+    autoFillBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, backgroundColor: stream.panelStrong, borderRadius: 8, borderWidth: 1, borderColor: stream.line, paddingVertical: 12 },
     autoFillText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
     toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.border },
   toggleDot: { width: 8, height: 8, borderRadius: 4 },
@@ -382,12 +386,12 @@ const styles = StyleSheet.create({
   formActions: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: 16 },
   cancelBtn: { flex: 1, height: 48, borderRadius: theme.radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
   cancelText: { fontSize: 14, fontWeight: '600', color: theme.textSecondary },
-  saveBtn: { flex: 1, height: 48, borderRadius: theme.radius.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
+  saveBtn: { flex: 1, height: 48, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.surface, borderRadius: theme.radius.md, paddingHorizontal: 12, height: 40, borderWidth: 1, borderColor: theme.border, marginBottom: 12 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: stream.panel, borderRadius: 8, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: stream.lineStrong, marginBottom: 12 },
   searchInput: { flex: 1, fontSize: 14, color: '#FFF' },
   countText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 12 },
-  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.border, gap: 12 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: stream.panel, borderRadius: 8, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: stream.line, gap: 12 },
   checkboxWrap: { width: 28, alignItems: 'center', justifyContent: 'center' },
   checkboxWrapActive: { opacity: 1 },
   itemPoster: { width: 50, height: 75, borderRadius: 8 },
@@ -397,5 +401,5 @@ const styles = StyleSheet.create({
   itemBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   itemActions: { gap: 4 },
-  actionBtn: { width: 32, height: 32, borderRadius: theme.radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surfaceLight },
+  actionBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: stream.panelStrong },
 });

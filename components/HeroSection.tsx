@@ -7,28 +7,28 @@
  */
 
 import React, { memo, useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
 import type { ContentItem } from '../services/api';
+import { stream } from './StreamingDesignSystem';
 
 interface HeroSectionProps {
   items: ContentItem[];
   autoPlay?: boolean;
 }
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const HERO_HEIGHT = Math.min(500, SCREEN_HEIGHT * 0.65);
-
 export const HeroSection = memo(function HeroSection({ 
   items, 
   autoPlay = true,
 }: HeroSectionProps) {
   const router = useRouter();
+  const { height } = useWindowDimensions();
+  const heroHeight = Math.min(500, height * 0.65);
   const [activeIndex, setActiveIndex] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
@@ -57,7 +57,7 @@ export const HeroSection = memo(function HeroSection({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { height: heroHeight }]}>
       {/* Background Image */}
       <Animated.View style={styles.backgroundContainer}>
         <Image
@@ -70,7 +70,7 @@ export const HeroSection = memo(function HeroSection({
         {/* Gradient Overlays */}
         <LinearGradient
           colors={['transparent', 'rgba(5,7,13,0.4)', '#05070D']}
-          style={styles.bottomGradient}
+          style={[styles.bottomGradient, { height: heroHeight * 0.6 }]}
           pointerEvents="none"
         />
         <LinearGradient
@@ -147,9 +147,8 @@ export const HeroSection = memo(function HeroSection({
 
 const styles = StyleSheet.create({
   container: {
-    height: HERO_HEIGHT,
     position: 'relative',
-    backgroundColor: theme.background,
+    backgroundColor: stream.bg,
   },
   backgroundContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -170,7 +169,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: HERO_HEIGHT * 0.6,
   },
   content: {
     position: 'absolute',

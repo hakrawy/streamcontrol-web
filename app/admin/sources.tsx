@@ -7,6 +7,8 @@ import { theme } from '../../constants/theme';
 import { useLocale } from '../../contexts/LocaleContext';
 import * as api from '../../services/api';
 import type { Movie, PlaybackSourceRecord, Series } from '../../services/api';
+import { AdminPageShell } from '../../components/AdminPageShell';
+import { stream } from '../../components/StreamingDesignSystem';
 
 const emptyForm = {
   addon_or_provider_name: '',
@@ -153,15 +155,17 @@ export default function AdminSources() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
+      <AdminPageShell title="Playback Sources" subtitle="Loading source records" icon="dns">
+        <View style={[styles.centered, { minHeight: 360 }]}>
+          <ActivityIndicator size="large" color={stream.red} />
+        </View>
+      </AdminPageShell>
     );
   }
 
   return (
-    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: insets.bottom + 20 }} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>{copy.title}</Text>
+    <AdminPageShell title={copy.title} subtitle="Attach real streams to catalog items while keeping player behavior connected to admin data." icon="dns">
+    <ScrollView style={[styles.container, { direction }]} contentContainerStyle={{ paddingBottom: insets.bottom + 20 }} showsVerticalScrollIndicator={false}>
 
       <View style={styles.card}>
         <View style={styles.toggleRow}>
@@ -270,34 +274,35 @@ export default function AdminSources() {
         ))}
       </View>
     </ScrollView>
+    </AdminPageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   centered: { alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 24, fontWeight: '800', color: '#FFF', marginBottom: 16 },
-  card: { backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: theme.spacing.md, borderWidth: 1, borderColor: theme.border, gap: 10, marginBottom: 14 },
+  card: { backgroundColor: stream.panel, borderRadius: 8, padding: theme.spacing.md, borderWidth: 1, borderColor: stream.line, gap: 10, marginBottom: 14 },
   toggleRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border },
-  chipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: stream.line },
+  chipActive: { backgroundColor: stream.red, borderColor: stream.red },
   chipText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
   chipTextActive: { color: '#FFF' },
-  input: { minHeight: 44, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surfaceLight, paddingHorizontal: 14, paddingVertical: 10, color: '#FFF' },
+  input: { minHeight: 44, borderRadius: 8, borderWidth: 1, borderColor: stream.lineStrong, backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 14, paddingVertical: 10, color: '#FFF' },
   notes: { minHeight: 88, textAlignVertical: 'top' },
   list: { gap: 8 },
-  listItem: { paddingHorizontal: 14, paddingVertical: theme.spacing.sm, borderRadius: theme.radius.md, backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.border },
-  listItemActive: { borderColor: theme.primary, backgroundColor: theme.primaryDark },
+  listItem: { paddingHorizontal: 14, paddingVertical: theme.spacing.sm, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: stream.line },
+  listItemActive: { borderColor: stream.red, backgroundColor: 'rgba(229,9,20,0.22)' },
   listTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   listMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#FFF' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
   switchLabel: { color: '#FFF', fontSize: 13, fontWeight: '600' },
-  primaryBtn: { height: 46, borderRadius: theme.radius.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
+  primaryBtn: { height: 46, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center' },
   primaryBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
-  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.surfaceLight, borderRadius: theme.radius.md, padding: 12, borderWidth: 1, borderColor: theme.border },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 12, borderWidth: 1, borderColor: stream.line },
   sourceTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   sourceMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
   sourceHint: { fontSize: 11, color: theme.textMuted, marginTop: 2 },
-  iconBtn: { width: 36, height: 36, borderRadius: theme.radius.md, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 36, height: 36, borderRadius: 8, backgroundColor: stream.panelStrong, alignItems: 'center', justifyContent: 'center' },
 });
