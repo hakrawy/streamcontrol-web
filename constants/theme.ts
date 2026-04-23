@@ -1,49 +1,49 @@
 import { Platform } from 'react-native';
 
 export const theme = {
-  // Core Colors - Midnight Cinema / Neon Glass
-  primary: '#38BDF8',
-  primaryLight: '#7DD3FC',
-  primaryDark: '#0284C7',
-  accent: '#F59E0B',
-  accentLight: '#FBBF24',
+  // Core Colors - Premium Streaming / Netflix-grade Cinema
+  primary: '#E50914',
+  primaryLight: '#FF3B45',
+  primaryDark: '#9F0710',
+  accent: '#F5C451',
+  accentLight: '#FFE08A',
 
   // Backgrounds
-  background: '#05070D',
-  backgroundSecondary: '#0C1220',
-  surface: '#111827',
-  surfaceLight: '#172033',
-  surfaceHighlight: '#1E2A44',
+  background: '#06070B',
+  backgroundSecondary: '#0B0D12',
+  surface: '#11141B',
+  surfaceLight: '#171A22',
+  surfaceHighlight: '#20242E',
 
   // Text
   textPrimary: '#F8FAFC',
-  textSecondary: '#B6C2D1',
-  textMuted: '#748197',
-  textAccent: '#7DD3FC',
+  textSecondary: '#B7BEC9',
+  textMuted: '#737B89',
+  textAccent: '#FFFFFF',
 
   // Status
   success: '#10B981',
   error: '#EF4444',
   warning: '#F59E0B',
-  info: '#3B82F6',
-  live: '#EF4444',
+  info: '#24C6DC',
+  live: '#E50914',
 
   // Borders
-  border: '#243045',
-  borderLight: '#334155',
+  border: '#252A33',
+  borderLight: '#343A45',
 
   // Gradients
-  gradientPrimary: ['#38BDF8', '#0EA5E9'] as const,
-  gradientAccent: ['#F59E0B', '#D97706'] as const,
-  gradientDark: ['rgba(5,7,13,0)', 'rgba(5,7,13,0.78)', '#05070D'] as const,
-  gradientHero: ['transparent', 'rgba(5,7,13,0.56)', '#05070D'] as const,
-  gradientCard: ['rgba(17,24,39,0.82)', 'rgba(17,24,39,0.96)'] as const,
+  gradientPrimary: ['#E50914', '#7F050B'] as const,
+  gradientAccent: ['#F5C451', '#B7791F'] as const,
+  gradientDark: ['rgba(6,7,11,0)', 'rgba(6,7,11,0.78)', '#06070B'] as const,
+  gradientHero: ['transparent', 'rgba(6,7,11,0.56)', '#06070B'] as const,
+  gradientCard: ['rgba(17,20,27,0.82)', 'rgba(17,20,27,0.96)'] as const,
 
   // Typography
   typography: {
-    heroTitle: { fontSize: 30, fontWeight: '800' as const, color: '#F8FAFC', letterSpacing: -0.7 },
+    heroTitle: { fontSize: 34, fontWeight: '900' as const, color: '#F8FAFC', letterSpacing: 0 },
     heroSubtitle: { fontSize: 14, fontWeight: '500' as const, color: '#B6C2D1' },
-    sectionTitle: { fontSize: 18, fontWeight: '800' as const, color: '#F8FAFC', letterSpacing: -0.35 },
+    sectionTitle: { fontSize: 20, fontWeight: '900' as const, color: '#F8FAFC', letterSpacing: 0 },
     cardTitle: { fontSize: 14, fontWeight: '700' as const, color: '#F8FAFC' },
     cardSubtitle: { fontSize: 12, fontWeight: '400' as const, color: '#B6C2D1' },
     body: { fontSize: 15, fontWeight: '400' as const, color: '#F8FAFC' },
@@ -55,7 +55,7 @@ export const theme = {
     buttonPrimary: { fontSize: 16, fontWeight: '800' as const, color: '#FFFFFF' },
     buttonSecondary: { fontSize: 14, fontWeight: '700' as const, color: '#FFFFFF' },
     detail: {
-      title: { fontSize: 25, fontWeight: '800' as const, color: '#F8FAFC', letterSpacing: -0.6 },
+      title: { fontSize: 30, fontWeight: '900' as const, color: '#F8FAFC', letterSpacing: 0 },
       meta: { fontSize: 13, fontWeight: '500' as const, color: '#B6C2D1' },
       description: { fontSize: 15, fontWeight: '400' as const, color: '#D7E2F0', lineHeight: 24 },
       sectionLabel: { fontSize: 11, fontWeight: '700' as const, color: '#748197', textTransform: 'uppercase' as const, letterSpacing: 1 },
@@ -78,12 +78,12 @@ export const theme = {
     xxxl: 64,
   },
 
-  // Border Radius (consistent 12-16px)
+  // Border Radius (reference uses compact, crisp cards)
   radius: {
     sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
+    md: 8,
+    lg: 8,
+    xl: 8,
     full: 9999,
   },
 
@@ -117,14 +117,14 @@ export const theme = {
       opacity: 0.85,
     },
     fadeGradient: ['transparent', 'rgba(5,7,13,0.56)', '#05070D'] as const,
-    cardGlow: '0 0 20px rgba(56, 189, 248, 0.15)',
+    cardGlow: '0 0 22px rgba(229, 9, 20, 0.18)',
   },
 
   // Cards (consistent)
   cards: {
     aspectRatio: 0.65,
     width: 140,
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 12,
   },
 };

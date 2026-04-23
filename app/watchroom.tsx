@@ -15,6 +15,7 @@ import { useAppContext } from '../contexts/AppContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { recordRoomTelemetry } from '../services/watchroomTelemetry';
 import { startWatchRoomRealtime, type WatchRoomRealtimeStatus, type RoomPresenceMember, type RoomPlaybackEvent } from '../services/watchroomRealtime';
+import { stream } from '../components/StreamingDesignSystem';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -1057,7 +1058,7 @@ export default function WatchRoomScreen() {
 
   if (joinedRoom && selectedRoom) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background, direction }]}>
+      <View style={[styles.container, { backgroundColor: stream.bg, direction }]}>
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <View style={[styles.roomHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -1353,7 +1354,7 @@ export default function WatchRoomScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, direction }]}>
+    <View style={[styles.container, { backgroundColor: stream.bg, direction }]}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={[styles.listHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Pressable onPress={() => router.back()}><MaterialIcons name="close" size={28} color="#FFF" /></Pressable>
@@ -1442,31 +1443,31 @@ export default function WatchRoomScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  listHeader: { alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  listTitle: { fontSize: 20, fontWeight: '700', color: '#FFF' },
-  createRoomBtn: { alignItems: 'center', gap: 4, backgroundColor: theme.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  createRoomText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
-  heroImage: { width: SCREEN_WIDTH, height: 160 },
+  container: { flex: 1, backgroundColor: stream.bg },
+  listHeader: { alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: stream.line, backgroundColor: 'rgba(8,9,13,0.94)' },
+  listTitle: { fontSize: 20, fontWeight: '900', color: '#FFF', letterSpacing: 0 },
+  createRoomBtn: { alignItems: 'center', gap: 6, backgroundColor: stream.red, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
+  createRoomText: { fontSize: 14, fontWeight: '900', color: '#FFF' },
+  heroImage: { width: SCREEN_WIDTH, height: 220 },
   heroOverlay: { position: 'absolute', bottom: 16, left: 16, right: 16 },
-  heroTitle: { fontSize: 22, fontWeight: '800', color: '#FFF', marginBottom: 4 },
-  heroSubtitle: { fontSize: 14, color: theme.textSecondary },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: theme.textMuted, letterSpacing: 1, marginTop: 8 },
-  createCard: { marginHorizontal: 16, marginBottom: 16, backgroundColor: theme.surface, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: theme.border },
-  createTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 16 },
+  heroTitle: { fontSize: 30, fontWeight: '900', color: '#FFF', marginBottom: 6, letterSpacing: 0 },
+  heroSubtitle: { fontSize: 14, color: stream.muted },
+  sectionLabel: { fontSize: 12, fontWeight: '900', color: stream.muted, letterSpacing: 0, marginTop: 12, textTransform: 'uppercase' },
+  createCard: { marginHorizontal: 16, marginBottom: 16, backgroundColor: stream.panelStrong, borderRadius: 8, padding: 20, borderWidth: 1, borderColor: stream.line },
+  createTitle: { fontSize: 20, fontWeight: '900', color: '#FFF', marginBottom: 16 },
   selectedContentText: { fontSize: 13, color: theme.textSecondary, marginBottom: 12 },
-  createInput: { height: 48, backgroundColor: theme.surfaceLight, borderRadius: 12, paddingHorizontal: 16, fontSize: 15, color: '#FFF', borderWidth: 1, borderColor: theme.border, marginBottom: 16 },
+  createInput: { height: 50, backgroundColor: stream.panel, borderRadius: 8, paddingHorizontal: 16, fontSize: 15, color: '#FFF', borderWidth: 1, borderColor: stream.line, marginBottom: 16 },
   createActions: { gap: 12 },
-  createCancelBtn: { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
-  createCancelText: { fontSize: 14, fontWeight: '600', color: theme.textSecondary },
-  createSubmitBtn: { flex: 1, height: 44, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
-  createSubmitText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
-  roomListCard: { alignItems: 'center', backgroundColor: theme.surface, borderRadius: 14, padding: 12, gap: 12, borderWidth: 1, borderColor: theme.border },
-  roomListPoster: { width: 70, height: 100, borderRadius: 8 },
+  createCancelBtn: { flex: 1, height: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: stream.line },
+  createCancelText: { fontSize: 14, fontWeight: '800', color: stream.muted },
+  createSubmitBtn: { flex: 1, height: 44, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center' },
+  createSubmitText: { fontSize: 14, fontWeight: '900', color: '#FFF' },
+  roomListCard: { alignItems: 'center', backgroundColor: stream.panel, borderRadius: 8, padding: 12, gap: 12, borderWidth: 1, borderColor: stream.line },
+  roomListPoster: { width: 92, height: 126, borderRadius: 8 },
   roomListInfo: { flex: 1, gap: 4 },
-  roomListName: { fontSize: 15, fontWeight: '700', color: '#FFF' },
-  roomListContent: { fontSize: 12, color: theme.textSecondary },
-  roomListCode: { fontSize: 11, fontWeight: '600', color: theme.primary },
+  roomListName: { fontSize: 16, fontWeight: '900', color: '#FFF' },
+  roomListContent: { fontSize: 12, color: stream.muted },
+  roomListCode: { fontSize: 11, fontWeight: '900', color: stream.red },
   roomListBottom: { alignItems: 'center', gap: 10, marginTop: 4 },
   roomListParticipants: { alignItems: 'center', gap: 4 },
   roomListParticipantText: { fontSize: 12, fontWeight: '600', color: theme.primary },
@@ -1476,17 +1477,17 @@ const styles = StyleSheet.create({
   privacyLocked: { backgroundColor: 'rgba(245,158,11,0.16)' },
   roomListActions: { alignItems: 'center', gap: 10 },
   inlineDeleteBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239,68,68,0.12)' },
-  joinBtn: { backgroundColor: theme.primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 },
-  joinBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  roomHeader: { alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
-  roomHeaderTitle: { fontSize: 16, fontWeight: '700', color: '#FFF' },
+  joinBtn: { backgroundColor: stream.red, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 8 },
+  joinBtnText: { fontSize: 14, fontWeight: '900', color: '#FFF' },
+  roomHeader: { alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: stream.line, backgroundColor: 'rgba(8,9,13,0.94)' },
+  roomHeaderTitle: { fontSize: 17, fontWeight: '900', color: '#FFF' },
   roomHeaderMeta: { alignItems: 'center', gap: 6, marginTop: 2 },
   roomLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.live },
   roomHeaderSub: { fontSize: 12, color: theme.textSecondary },
   deleteRoomBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(239,68,68,0.22)', alignItems: 'center', justifyContent: 'center' },
-  videoArea: { width: SCREEN_WIDTH, height: SCREEN_WIDTH * 0.5625, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
+  videoArea: { width: SCREEN_WIDTH, height: SCREEN_WIDTH * 0.5625, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: stream.line },
   videoControls: { zIndex: 1 },
-  videoBigPlayBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  videoBigPlayBtn: { width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(229,9,20,0.9)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   hostBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   hostBadgeText: { fontSize: 11, fontWeight: '600', color: '#FFF' },
   roleBadge: { position: 'absolute', top: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)' },
@@ -1561,7 +1562,7 @@ const styles = StyleSheet.create({
   pollOptionText: { flex: 1, fontSize: 13, color: '#FFF', fontWeight: '700' },
   pollOptionCount: { fontSize: 12, color: theme.textSecondary, fontWeight: '700' },
   emptyPollText: { color: theme.textSecondary, textAlign: 'center', paddingVertical: 8, fontSize: 13 },
-  chatContainer: { flex: 1, backgroundColor: theme.backgroundSecondary },
+  chatContainer: { flex: 1, backgroundColor: stream.bg },
   chatMsg: { gap: 10 },
   chatAvatarFallback: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
   chatAvatarText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
@@ -1569,7 +1570,7 @@ const styles = StyleSheet.create({
   chatName: { fontSize: 13, fontWeight: '700', color: '#FFF' },
   chatTime: { fontSize: 11, color: theme.textMuted },
   chatText: { fontSize: 14, color: '#D1D5DB', lineHeight: 20, marginTop: 2 },
-  chatInputRow: { alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background },
-  chatInput: { flex: 1, height: 42, backgroundColor: theme.surface, borderRadius: 21, paddingHorizontal: 16, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border },
-  chatSendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
+  chatInputRow: { alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: stream.line, backgroundColor: 'rgba(8,9,13,0.96)' },
+  chatInput: { flex: 1, height: 44, backgroundColor: stream.panel, borderRadius: 8, paddingHorizontal: 16, fontSize: 14, color: '#FFF', borderWidth: 1, borderColor: stream.line },
+  chatSendBtn: { width: 44, height: 44, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center' },
 });

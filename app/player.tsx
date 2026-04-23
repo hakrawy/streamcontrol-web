@@ -11,6 +11,7 @@ import { WebView } from 'react-native-webview';
 import HlsLibrary, { Events, ErrorTypes } from 'hls.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../constants/theme';
+import { stream } from '../components/StreamingDesignSystem';
 import { usePlayerSettings } from '../contexts/PlayerSettingsContext';
 import { useAuth } from '@/template';
 import * as api from '../services/api';
@@ -267,10 +268,10 @@ function SourceSelector({
   return (
     <View style={styles.sourcesSheet}>
       <View style={styles.sourcesSheetHeader}>
-        <Text style={styles.sourcesSheetEyebrow}>PLAYBACK SOURCES</Text>
-        <Text style={styles.sourcesSheetTitle}>Servers</Text>
+        <Text style={styles.sourcesSheetEyebrow}>UP NEXT / SOURCES</Text>
+        <Text style={styles.sourcesSheetTitle}>Episode Sidebar</Text>
         <Text style={styles.sourcesSheetSubtitle}>
-          Switch instantly if one source is slow, blocked, or lower quality than expected.
+          Pick the best stream instantly, like a premium episode rail.
         </Text>
       </View>
 
@@ -2457,14 +2458,14 @@ const styles = StyleSheet.create({
   settingsRowBtn: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, paddingVertical: 6 },
   settingsRowText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
 
-  container: { flex: 1, backgroundColor: '#05070D' },
+  container: { flex: 1, backgroundColor: stream.bg },
   videoContainer: { flex: 1 },
-  video: { flex: 1, backgroundColor: '#05070D' },
-  webFrame: { width: '100%', height: '100%', borderWidth: 0, backgroundColor: '#05070D' },
+  video: { flex: 1, backgroundColor: stream.bg },
+  webFrame: { width: '100%', height: '100%', borderWidth: 0, backgroundColor: stream.bg },
 
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(5,7,13,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.28)',
     justifyContent: 'space-between',
     zIndex: 1000,
     elevation: 12,
@@ -2477,10 +2478,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   centerPlayBtn: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(229,9,20,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -2495,60 +2496,60 @@ const styles = StyleSheet.create({
   backButton: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    backgroundColor: 'rgba(0,0,0,0.54)',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
-    shadowColor: '#38BDF8',
+    borderColor: 'rgba(255,255,255,0.18)',
+    shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
   titleWrap: { flex: 1 },
-  titleText: { fontSize: 18, fontWeight: '800', color: '#FFF', letterSpacing: -0.3 },
+  titleText: { fontSize: 18, fontWeight: '900', color: '#FFF', letterSpacing: 0 },
   sourceStatusText: { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
 
   topBarBtn: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.54)',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topBarBtnActive: { backgroundColor: 'rgba(99,102,241,0.9)' },
+  topBarBtnActive: { backgroundColor: stream.red, borderColor: 'rgba(255,255,255,0.34)' },
   speedText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
 
   sourcesSheet: {
-    backgroundColor: 'rgba(5, 7, 13, 0.98)',
-    borderRadius: 24,
+    backgroundColor: 'rgba(8, 9, 13, 0.96)',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.2)',
+    borderColor: 'rgba(255,255,255,0.14)',
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
   },
   sourcesSheetHeader: { gap: 4 },
-  sourcesSheetEyebrow: { fontSize: 11, fontWeight: '800', color: '#A5B4FC', letterSpacing: 1.2 },
-  sourcesSheetTitle: { fontSize: 14, fontWeight: '700', color: '#FFF' },
+  sourcesSheetEyebrow: { fontSize: 11, fontWeight: '900', color: stream.red, letterSpacing: 0 },
+  sourcesSheetTitle: { fontSize: 16, fontWeight: '900', color: '#FFF' },
   sourcesSheetSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.64)' },
   sourcesRow: { gap: 8, paddingRight: 16 },
   sourceChip: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 9,
-    borderRadius: 999,
+    borderRadius: 8,
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  sourceChipActive: { backgroundColor: '#FFF', borderColor: '#FFF' },
+  sourceChipActive: { backgroundColor: stream.red, borderColor: stream.red },
   sourceChipText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
-  sourceChipTextActive: { color: '#000' },
+  sourceChipTextActive: { color: '#FFF' },
   sourceChipMeta: { fontSize: 10, color: 'rgba(255,255,255,0.68)', marginTop: 2 },
-  sourceChipMetaActive: { color: 'rgba(0,0,0,0.6)' },
+  sourceChipMetaActive: { color: 'rgba(255,255,255,0.75)' },
 
   speedMenu: {
     position: 'absolute',
@@ -2572,36 +2573,38 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(0,0,0,0.44)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   disabledControl: { opacity: 0.4 },
   playPauseBtn: {
     width: 78,
     height: 78,
     borderRadius: 39,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(229,9,20,0.92)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  bottomBar: { paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md, gap: 10 },
+  bottomBar: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg, gap: 12 },
   progressContainer: { marginBottom: 8 },
   progressTrack: {
-    height: 4,
+    height: 5,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 2,
     overflow: 'visible',
   },
-  progressFill: { height: 4, backgroundColor: theme.primary, borderRadius: 2 },
+  progressFill: { height: 5, backgroundColor: stream.red, borderRadius: 999 },
   progressThumb: {
     position: 'absolute',
     top: -5,
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: theme.primary,
+    backgroundColor: stream.red,
     marginLeft: -7,
   },
   timeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -2628,7 +2631,7 @@ const styles = StyleSheet.create({
 
   unsupportedContainer: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: stream.bg,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: theme.spacing.lg,
@@ -2640,7 +2643,7 @@ const styles = StyleSheet.create({
 
   streamHealthOverlay: {
     position: 'absolute',
-    top: 16,
+    top: 78,
     right: 16,
     zIndex: 35,
     flexDirection: 'row',
@@ -2648,7 +2651,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
     maxWidth: 260,
   },
@@ -2668,7 +2671,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.85)',
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: 14,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.5)',
     maxWidth: '80%',
@@ -2683,7 +2686,7 @@ const styles = StyleSheet.create({
     minWidth: 160,
     paddingHorizontal: 18,
     paddingVertical: 14,
-    borderRadius: 18,
+    borderRadius: 8,
     backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',

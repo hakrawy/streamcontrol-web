@@ -16,8 +16,9 @@ import PlaybackSourceSheet from '../../components/PlaybackSourceSheet';
 import { PremiumLoader } from '../../components/PremiumLoader';
 import { useAdaptivePerformance } from '../../hooks/useAdaptivePerformance';
 import { getDownloadSourceLabel, resolveDownloadUrl } from '../../services/downloadLinks';
+import { stream, useLayoutTier } from '../../components/StreamingDesignSystem';
 
-const BACKDROP_HEIGHT = 380;
+const BACKDROP_HEIGHT = 520;
 
 function parsePreviewContent(rawValue?: string): ContentItem | null {
   if (!rawValue) return null;
@@ -75,6 +76,7 @@ function buildContentRoute(item: ContentItem) {
 export default function ContentDetailScreen() {
   const { id, preview } = useLocalSearchParams<{ id: string; preview?: string }>();
   const insets = useSafeAreaInsets();
+  const layout = useLayoutTier();
   const router = useRouter();
   const { showAlert } = useAlert();
   const { addToFavorites, removeFromFavorites, isFavorite, watchHistory } = useAppContext();
@@ -569,10 +571,21 @@ export default function ContentDetailScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
         <View style={{ height: BACKDROP_HEIGHT }}>
           <Image source={{ uri: safeBackdrop }} style={StyleSheet.absoluteFill} contentFit="cover" transition={perf.imageTransition} />
-          <LinearGradient colors={['rgba(10,10,15,0.2)', 'rgba(10,10,15,0.6)', theme.background]} style={StyleSheet.absoluteFill} locations={[0, 0.5, 1]} />
+          <LinearGradient colors={['rgba(6,7,11,0.08)', 'rgba(6,7,11,0.58)', stream.bg]} style={StyleSheet.absoluteFill} locations={[0, 0.48, 1]} />
+          <LinearGradient colors={['rgba(6,7,11,0.92)', 'rgba(6,7,11,0.22)', 'rgba(6,7,11,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
+          <View style={[styles.heroOverlay, { paddingHorizontal: layout.contentPad }]}>
+            <View style={styles.detailPosterCard}>
+              <Image source={{ uri: safePoster }} style={styles.detailPosterImage} contentFit="cover" transition={perf.imageTransition} />
+            </View>
+            <View style={styles.heroTextBlock}>
+              <Text style={styles.detailKicker}>{isMovie ? 'MOVIE' : 'SERIES'} SPOTLIGHT</Text>
+              <Text style={styles.heroDetailTitle} numberOfLines={3}>{content.title}</Text>
+              <Text style={styles.heroDetailCopy} numberOfLines={3}>{safeDescription}</Text>
+            </View>
+          </View>
         </View>
 
-        <Animated.View entering={FadeInUp.duration(500)} style={styles.infoSection}>
+        <Animated.View entering={FadeInUp.duration(500)} style={[styles.infoSection, { maxWidth: layout.maxWidth as any, paddingHorizontal: layout.contentPad }]}>
           <View style={styles.badgeRow}>
             {content.is_exclusive ? <View style={[styles.infoBadge, { backgroundColor: theme.accent }]}><Text style={[styles.infoBadgeText, { color: '#000' }]}>EXCLUSIVE</Text></View> : null}
             {content.is_new ? <View style={[styles.infoBadge, { backgroundColor: theme.primary }]}><Text style={styles.infoBadgeText}>NEW</Text></View> : null}
@@ -596,7 +609,7 @@ export default function ContentDetailScreen() {
 
           <View style={styles.actionRow}>
             <Pressable style={styles.playBtn} onPress={handlePlay}>
-              {sourcesLoading ? <ActivityIndicator size="small" color="#000" /> : <MaterialIcons name="play-arrow" size={26} color="#000" />}
+              {sourcesLoading ? <ActivityIndicator size="small" color="#FFF" /> : <MaterialIcons name="play-arrow" size={26} color="#FFF" />}
               <Text style={styles.playBtnText}>{sourcesLoading ? 'Loading...' : 'Play'}</Text>
             </Pressable>
             <Pressable style={styles.trailerBtn} onPress={handlePlayTrailer}>
@@ -852,41 +865,48 @@ export default function ContentDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
-  infoSection: { paddingHorizontal: theme.spacing.md, marginTop: -60 },
+  container: { flex: 1, backgroundColor: stream.bg },
+  heroOverlay: { position: 'absolute', left: 0, right: 0, bottom: 46, flexDirection: 'row', alignItems: 'flex-end', gap: 22 },
+  detailPosterCard: { width: 150, aspectRatio: 2 / 3, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', backgroundColor: stream.panelStrong, shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 22, shadowOffset: { width: 0, height: 12 } },
+  detailPosterImage: { width: '100%', height: '100%' },
+  heroTextBlock: { flex: 1, maxWidth: 680, paddingBottom: 6 },
+  detailKicker: { color: stream.red, fontSize: 12, fontWeight: '900', letterSpacing: 0, marginBottom: 8 },
+  heroDetailTitle: { color: '#FFF', fontSize: 46, lineHeight: 50, fontWeight: '900', letterSpacing: 0 },
+  heroDetailCopy: { color: '#D8DEE9', fontSize: 15, lineHeight: 23, marginTop: 12 },
+  infoSection: { alignSelf: 'center', width: '100%', marginTop: -20 },
   badgeRow: { flexDirection: 'row', gap: theme.spacing.xs, marginBottom: 10 },
-  infoBadge: { paddingHorizontal: theme.spacing.sm, paddingVertical: 4, borderRadius: 4 },
+  infoBadge: { paddingHorizontal: theme.spacing.sm, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   infoBadgeText: { fontSize: 11, fontWeight: '700', color: '#FFF', letterSpacing: 0.5 },
-  title: { fontSize: 28, fontWeight: '800', color: '#FFF', letterSpacing: -0.5, marginBottom: 10 },
+  title: { fontSize: 30, fontWeight: '900', color: '#FFF', letterSpacing: 0, marginBottom: 10 },
   originalTitle: { fontSize: 14, color: theme.textMuted, marginTop: -4, marginBottom: 12 },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing.sm, marginBottom: 20 },
   ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   ratingText: { fontSize: 15, fontWeight: '700', color: theme.accent },
   metaText: { fontSize: 14, color: theme.textSecondary, fontWeight: '500' },
   genrePills: { flexDirection: 'row', gap: 6 },
-  genrePill: { backgroundColor: theme.surfaceLight, paddingHorizontal: theme.spacing.sm, paddingVertical: 4, borderRadius: 12 },
+  genrePill: { backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: theme.spacing.sm, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: stream.line },
   genrePillText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
   actionRow: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: 18 },
-  playBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FFF', height: 52, borderRadius: 12 },
-  playBtnText: { fontSize: 17, fontWeight: '700', color: '#000' },
-  trailerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme.surfaceLight, height: 52, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1, borderColor: theme.border },
+  playBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: stream.red, height: 54, borderRadius: 8 },
+  playBtnText: { fontSize: 17, fontWeight: '900', color: '#FFF' },
+  trailerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)', height: 54, paddingHorizontal: 24, borderRadius: 8, borderWidth: 1, borderColor: stream.lineStrong },
   trailerBtnText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
-    secondaryActionBtn: { width: 52, height: 52, borderRadius: 12, backgroundColor: theme.surfaceLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
+    secondaryActionBtn: { width: 54, height: 54, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: stream.lineStrong },
     secondaryActionBtnDisabled: { opacity: 0.4 },
     downloadHint: { fontSize: 12, color: theme.textMuted, marginBottom: 18 },
     emptyEpisodesWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: theme.spacing.sm, width: '100%' },
   emptyEpisodesText: { fontSize: 14, color: theme.textMuted, textAlign: 'center' },
   quickActions: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 },
-  quickAction: { alignItems: 'center', gap: 6 },
+  quickAction: { alignItems: 'center', gap: 6, minWidth: 92, minHeight: 66, borderRadius: 8, borderWidth: 1, borderColor: stream.line, backgroundColor: stream.panel, justifyContent: 'center' },
   quickActionText: { fontSize: 11, fontWeight: '500', color: theme.textSecondary },
   description: { fontSize: 15, color: '#D1D5DB', lineHeight: 24, marginBottom: 20 },
   detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, marginBottom: 22 },
   detailCard: {
     width: '48%',
-    backgroundColor: theme.surface,
+    backgroundColor: stream.panel,
     borderWidth: 1,
-    borderColor: theme.border,
-    borderRadius: 14,
+    borderColor: stream.line,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 6,
@@ -894,10 +914,10 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 11, fontWeight: '700', color: theme.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
   detailValue: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   runtimeCard: {
-    backgroundColor: '#101724',
-    borderRadius: 18,
+    backgroundColor: stream.panelStrong,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(99,102,241,0.25)',
+    borderColor: stream.lineStrong,
     padding: 16,
     gap: 14,
     marginBottom: 24,
@@ -933,13 +953,13 @@ const styles = StyleSheet.create({
   qualityBadgeActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   qualityText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
   qualityTextActive: { color: '#FFF' },
-  seasonTab: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
-  seasonTabActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  seasonTab: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, backgroundColor: stream.panel, borderWidth: 1, borderColor: stream.line },
+  seasonTabActive: { backgroundColor: '#FFF', borderColor: '#FFF' },
   seasonTabText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
-  seasonTabTextActive: { color: '#FFF' },
+  seasonTabTextActive: { color: '#05070D' },
   episodesGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },
   episodeCardWrap: { width: Platform.OS === 'web' ? '50%' : '100%', paddingHorizontal: 6, marginBottom: 12 },
-  episodeCard: { gap: theme.spacing.sm, backgroundColor: theme.surface, borderRadius: 14, padding: 10, borderWidth: 1, borderColor: theme.border, minHeight: 260 },
+  episodeCard: { gap: theme.spacing.sm, backgroundColor: stream.panel, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: stream.line, minHeight: 260 },
   episodeThumbnailWrap: { width: '100%', height: 150, borderRadius: 10, overflow: 'hidden' },
   episodeThumbnail: { width: '100%', height: '100%' },
   episodePlayOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
@@ -949,13 +969,13 @@ const styles = StyleSheet.create({
   episodeNumber: { fontSize: 11, fontWeight: '600', color: theme.primary, letterSpacing: 0.5 },
   episodeTitle: { fontSize: 14, fontWeight: '600', color: '#FFF' },
   episodeDesc: { fontSize: 12, color: theme.textMuted, lineHeight: 17 },
-  episodeDownloadBtn: { marginTop: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: theme.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  episodeDownloadBtn: { marginTop: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: stream.red, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   episodeDownloadText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
-  relatedPoster: { width: 120, height: 180, borderRadius: 10, marginBottom: 6 },
+  relatedPoster: { width: 132, height: 198, borderRadius: 8, marginBottom: 8 },
   relatedTitle: { fontSize: 12, fontWeight: '600', color: '#FFF', marginBottom: 2 },
   relatedRating: { fontSize: 11, fontWeight: '700', color: theme.accent },
   backBtn: { position: 'absolute', left: 16, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
   stickyBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: theme.spacing.md, paddingTop: 30 },
-  stickyPlayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: theme.spacing.xs, backgroundColor: '#FFF', height: 52, borderRadius: 12 },
-  stickyPlayText: { fontSize: 16, fontWeight: '700', color: '#000' },
+  stickyPlayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: theme.spacing.xs, backgroundColor: stream.red, height: 52, borderRadius: 8 },
+  stickyPlayText: { fontSize: 16, fontWeight: '900', color: '#FFF' },
 });

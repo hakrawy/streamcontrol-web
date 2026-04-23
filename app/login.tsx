@@ -10,6 +10,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
 import { useLocale } from '../contexts/LocaleContext';
 import { validateSubscriptionCode } from '../services/subscriptions';
+import { stream } from '../components/StreamingDesignSystem';
 
 type AuthMode = 'login' | 'register' | 'otp' | 'subscription';
 
@@ -220,20 +221,20 @@ export default function LoginScreen() {
       />
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(2,6,23,0.18)', 'rgba(6,24,38,0.7)', 'rgba(2,8,24,0.96)', theme.background]}
+        colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.66)', 'rgba(6,7,11,0.94)', stream.bg]}
         style={StyleSheet.absoluteFill}
         locations={[0, 0.3, 0.7, 1]}
       />
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(16,185,129,0.24)', 'transparent']}
+        colors={['rgba(229,9,20,0.22)', 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.topGlow}
       />
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(56,189,248,0.28)', 'transparent']}
+        colors={['rgba(255,255,255,0.10)', 'transparent']}
         start={{ x: 1, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.sideGlow}
@@ -264,7 +265,7 @@ export default function LoginScreen() {
                 <Text style={styles.heroPillText}>{copy.fantasy}</Text>
               </View>
               <View style={styles.logoBadge}>
-                <LinearGradient colors={['#60A5FA', '#22C55E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.logoBadgeGradient}>
+                <LinearGradient colors={[stream.red, '#8B0008']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.logoBadgeGradient}>
                   <MaterialIcons name="play-circle-filled" size={54} color="#F8FAFC" />
                 </LinearGradient>
               </View>
@@ -428,7 +429,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: stream.bg },
   topGlow: {
     position: 'absolute',
     top: -90,
@@ -452,9 +453,9 @@ const styles = StyleSheet.create({
     width: 360,
     height: 360,
     borderRadius: 180,
-    backgroundColor: 'rgba(20,184,166,0.08)',
+    backgroundColor: 'rgba(229,9,20,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(125,211,252,0.08)',
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   portalRing: {
     position: 'absolute',
@@ -464,7 +465,7 @@ const styles = StyleSheet.create({
     height: 310,
     borderRadius: 155,
     borderWidth: 2,
-    borderColor: 'rgba(125,211,252,0.14)',
+    borderColor: 'rgba(255,255,255,0.14)',
     backgroundColor: 'rgba(15,23,42,0.05)',
   },
   lightOrbA: {
@@ -474,8 +475,8 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: 'rgba(190,242,100,0.95)',
-    shadowColor: '#BEF264',
+    backgroundColor: 'rgba(229,9,20,0.95)',
+    shadowColor: '#E50914',
     shadowOpacity: 0.8,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
@@ -487,8 +488,8 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(125,211,252,0.95)',
-    shadowColor: '#7DD3FC',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    shadowColor: '#FFFFFF',
     shadowOpacity: 0.8,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
@@ -500,8 +501,8 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: 'rgba(251,191,36,0.9)',
-    shadowColor: '#FBBF24',
+    backgroundColor: 'rgba(229,9,20,0.9)',
+    shadowColor: '#E50914',
     shadowOpacity: 0.8,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
@@ -509,10 +510,10 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingTop: 48, paddingBottom: 40 },
   logoSection: { alignItems: 'center', marginBottom: 36, gap: 10 },
   localeRow: { width: '100%', maxWidth: 480, alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  localeLabel: { color: '#BFDBFE', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
+  localeLabel: { color: stream.muted, fontSize: 12, fontWeight: '900', letterSpacing: 0 },
   localeSwitch: { gap: 8, backgroundColor: 'rgba(9,15,30,0.5)', borderRadius: 999, padding: 5, borderWidth: 1, borderColor: 'rgba(148,163,184,0.16)' },
   localeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
-  localeBtnActive: { backgroundColor: 'rgba(96,165,250,0.22)' },
+  localeBtnActive: { backgroundColor: 'rgba(229,9,20,0.72)' },
   localeBtnText: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
   localeBtnTextActive: { color: '#F8FAFC' },
   heroPill: {
@@ -524,16 +525,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: 'rgba(190,242,100,0.18)',
+    borderColor: 'rgba(229,9,20,0.28)',
     marginBottom: 6,
   },
-  heroPillText: { color: '#E2F7D5', fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+  heroPillText: { color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 0 },
   logoBadge: {
     borderRadius: 999,
     padding: 2,
     backgroundColor: 'rgba(255,255,255,0.12)',
     marginBottom: 4,
-    shadowColor: '#22C55E',
+    shadowColor: stream.red,
     shadowOpacity: 0.34,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 10 },
@@ -545,25 +546,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  appName: { fontSize: 38, fontWeight: '800', color: '#F8FAFC', letterSpacing: -1.15 },
+  appName: { fontSize: 38, fontWeight: '900', color: '#F8FAFC', letterSpacing: 0 },
   tagline: { fontSize: 14, color: '#D7E3F4', fontWeight: '600', textAlign: 'center' },
   clockCard: {
     width: '100%',
     maxWidth: 480,
-    backgroundColor: 'rgba(7,12,25,0.58)',
+    backgroundColor: 'rgba(8,9,13,0.76)',
     borderWidth: 1,
-    borderColor: 'rgba(125,211,252,0.14)',
-    borderRadius: 18,
+    borderColor: stream.line,
+    borderRadius: 8,
     paddingVertical: 16,
     paddingHorizontal: 18,
     gap: 6,
     alignItems: 'center',
   },
   clockLabel: { fontSize: 12, fontWeight: '700', color: 'rgba(191,219,254,0.8)', textTransform: 'uppercase', letterSpacing: 1.3 },
-  clockValue: { fontSize: 32, fontWeight: '800', color: '#F8FAFC', letterSpacing: 1.2 },
+  clockValue: { fontSize: 32, fontWeight: '900', color: '#F8FAFC', letterSpacing: 0 },
   loadingTrack: { width: '100%', height: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginTop: 2 },
-  loadingFill: { width: '38%', height: '100%', borderRadius: 999, backgroundColor: 'rgba(96,165,250,0.55)' },
-  loadingFillActive: { width: '100%', backgroundColor: '#22C55E' },
+  loadingFill: { width: '38%', height: '100%', borderRadius: 999, backgroundColor: 'rgba(229,9,20,0.55)' },
+  loadingFillActive: { width: '100%', backgroundColor: stream.red },
   featureRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -575,7 +576,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: 'rgba(9,15,30,0.58)',
+    backgroundColor: stream.panel,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -588,11 +589,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   formCard: {
-    backgroundColor: 'rgba(7,12,24,0.82)',
-    borderRadius: 28,
+    backgroundColor: 'rgba(8,9,13,0.9)',
+    borderRadius: 8,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(125,211,252,0.18)',
+    borderColor: stream.line,
     shadowColor: '#020617',
     shadowOpacity: 0.34,
     shadowRadius: 28,
@@ -602,12 +603,12 @@ const styles = StyleSheet.create({
   formSubtitle: { fontSize: 14, color: theme.textSecondary, marginBottom: 24 },
   inputWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: theme.surface, borderRadius: 12, paddingHorizontal: 16, height: 52,
-    marginBottom: 12, borderWidth: 1, borderColor: theme.border,
+    backgroundColor: stream.panel, borderRadius: 8, paddingHorizontal: 16, height: 52,
+    marginBottom: 12, borderWidth: 1, borderColor: stream.line,
   },
   input: { flex: 1, fontSize: 15, color: '#FFF' },
   primaryBtn: {
-    backgroundColor: theme.primary, height: 52, borderRadius: 12,
+    backgroundColor: stream.red, height: 52, borderRadius: 8,
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center', justifyContent: 'center', marginTop: 8,

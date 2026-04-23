@@ -97,6 +97,8 @@ export function TopNav({
   );
 }
 
+export const TopNavbar = TopNav;
+
 export function Hero({
   title,
   subtitle,
@@ -152,6 +154,8 @@ export function Hero({
   );
 }
 
+export const HeroBanner = Hero;
+
 export function PrimaryButton({ label, icon, onPress }: { label: string; icon?: keyof typeof MaterialIcons.glyphMap; onPress?: () => void }) {
   return (
     <Pressable style={styles.primaryButton} onPress={onPress}>
@@ -193,6 +197,76 @@ export function Rail({ children }: { children: ReactNode }) {
     >
       {children}
     </ScrollView>
+  );
+}
+
+export const SectionRow = Rail;
+
+export function BottomNav({ children }: { children: ReactNode }) {
+  return <View style={styles.bottomNav}>{children}</View>;
+}
+
+export function Sidebar({
+  title = 'Ali Control',
+  items,
+}: {
+  title?: string;
+  items: { label: string; icon: keyof typeof MaterialIcons.glyphMap; active?: boolean; onPress?: () => void }[];
+}) {
+  return (
+    <View style={styles.sidebar}>
+      <View style={styles.sidebarBrand}>
+        <View style={styles.brandMark}>
+          <MaterialIcons name="play-arrow" size={20} color="#FFF" />
+        </View>
+        <Text style={styles.sidebarTitle}>{title}</Text>
+      </View>
+      <View style={{ gap: 8 }}>
+        {items.map((item) => (
+          <Pressable key={item.label} onPress={item.onPress} style={[styles.sidebarItem, item.active && styles.sidebarItemActive]}>
+            <MaterialIcons name={item.icon} size={19} color={item.active ? '#FFF' : stream.muted} />
+            <Text style={[styles.sidebarItemText, item.active && styles.sidebarItemTextActive]}>{item.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+export function PlayerControls({
+  title,
+  isPlaying,
+  progress = 0,
+  onBack,
+  onToggle,
+}: {
+  title: string;
+  isPlaying: boolean;
+  progress?: number;
+  onBack?: () => void;
+  onToggle?: () => void;
+}) {
+  return (
+    <View style={styles.playerControls}>
+      <LinearGradient colors={['rgba(0,0,0,0.86)', 'rgba(0,0,0,0)']} style={styles.playerTopFade} />
+      <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.9)']} style={styles.playerBottomFade} />
+      <View style={styles.playerTopbar}>
+        <Pressable onPress={onBack} style={styles.navIcon}>
+          <MaterialIcons name="arrow-back" size={22} color="#FFF" />
+        </Pressable>
+        <Text style={styles.playerTitle} numberOfLines={1}>{title}</Text>
+      </View>
+      <View style={styles.playerCenter}>
+        <Pressable onPress={onToggle} style={styles.playerBigButton}>
+          <MaterialIcons name={isPlaying ? 'pause' : 'play-arrow'} size={54} color="#FFF" />
+        </Pressable>
+      </View>
+      <View style={styles.playerBottom}>
+        <View style={styles.playerTrack}>
+          <View style={[styles.playerFill, { width: `${Math.max(0, Math.min(1, progress)) * 100}%` }]} />
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -345,4 +419,22 @@ const styles = StyleSheet.create({
   resultPoster: { width: 74, height: 94, borderRadius: 7, overflow: 'hidden', backgroundColor: stream.panelStrong },
   resultTitle: { color: '#FFF', fontSize: 16, fontWeight: '900', letterSpacing: 0 },
   resultMeta: { color: stream.muted, fontSize: 12, marginTop: 5, letterSpacing: 0 },
+  bottomNav: { position: 'absolute', left: 0, right: 0, bottom: 0, minHeight: 70, borderTopWidth: 1, borderTopColor: stream.line, backgroundColor: 'rgba(8,9,13,0.96)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  sidebar: { width: 228, minHeight: '100%', backgroundColor: 'rgba(8,9,13,0.96)', borderRightWidth: 1, borderRightColor: stream.line, padding: 16, gap: 24 },
+  sidebarBrand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  sidebarTitle: { color: '#FFF', fontSize: 17, fontWeight: '900' },
+  sidebarItem: { minHeight: 44, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12 },
+  sidebarItemActive: { backgroundColor: stream.red },
+  sidebarItemText: { color: stream.muted, fontSize: 13, fontWeight: '850' as any },
+  sidebarItemTextActive: { color: '#FFF' },
+  playerControls: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },
+  playerTopFade: { position: 'absolute', top: 0, left: 0, right: 0, height: 150 },
+  playerBottomFade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 180 },
+  playerTopbar: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 18 },
+  playerTitle: { color: '#FFF', fontSize: 17, fontWeight: '900', flex: 1 },
+  playerCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  playerBigButton: { width: 96, height: 96, borderRadius: 999, backgroundColor: 'rgba(229,9,20,0.88)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' },
+  playerBottom: { padding: 18 },
+  playerTrack: { height: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.24)', overflow: 'hidden' },
+  playerFill: { height: '100%', backgroundColor: stream.red },
 });

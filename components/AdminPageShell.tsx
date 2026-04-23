@@ -25,7 +25,7 @@ export function AdminPageShell({
       />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ width: '100%', maxWidth: layout.maxWidth as any, alignSelf: 'center', paddingHorizontal: layout.contentPad, paddingBottom: 40 }}
+        contentContainerStyle={{ width: '100%', maxWidth: layout.isDesktop ? 1180 : layout.maxWidth as any, alignSelf: 'center', paddingHorizontal: layout.contentPad, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>

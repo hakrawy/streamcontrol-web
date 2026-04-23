@@ -10,6 +10,7 @@ import { defaultPreferences, getPreferences, resetPreferences, updatePreferences
 import { useAppContext } from '../../contexts/AppContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { AppLanguage, localizePreferenceValue } from '../../constants/i18n';
+import { stream } from '../../components/StreamingDesignSystem';
 
 type SettingsSlug =
   | 'edit-profile'
@@ -318,31 +319,31 @@ export default function SettingsDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: { flex: 1, backgroundColor: stream.bg },
   centered: { justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  headerButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#FFF' },
-  card: { backgroundColor: theme.surface, borderRadius: 16, padding: 18, borderWidth: 1, borderColor: theme.border, marginBottom: 16 },
-  sectionTitle: { fontSize: 12, fontWeight: '700', color: theme.textMuted, letterSpacing: 0.8, marginBottom: 12, textTransform: 'uppercase' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: stream.line, backgroundColor: 'rgba(8,9,13,0.96)' },
+  headerButton: { width: 42, height: 42, borderRadius: 8, backgroundColor: stream.panel, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: stream.line },
+  headerTitle: { fontSize: 18, fontWeight: '900', color: '#FFF', letterSpacing: 0 },
+  card: { backgroundColor: stream.panel, borderRadius: 8, padding: 18, borderWidth: 1, borderColor: stream.line, marginBottom: 16 },
+  sectionTitle: { fontSize: 12, fontWeight: '900', color: stream.muted, letterSpacing: 0, marginBottom: 12, textTransform: 'uppercase' },
   profilePreview: { alignItems: 'center', marginBottom: 18 },
   avatarPreview: { width: 88, height: 88, borderRadius: 44 },
-  avatarFallback: { width: 88, height: 88, borderRadius: 44, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
-  avatarFallbackText: { fontSize: 34, fontWeight: '700', color: '#FFF' },
-  input: { height: 48, backgroundColor: theme.surfaceLight, borderRadius: 12, paddingHorizontal: 14, color: '#FFF', borderWidth: 1, borderColor: theme.border, marginBottom: 10 },
-  primaryButton: { height: 48, borderRadius: 12, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  primaryButtonText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
-  secondaryButton: { height: 46, borderRadius: 12, borderWidth: 1, borderColor: theme.borderLight, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
-  secondaryButtonText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: '#FFF' },
-  rowSubtitle: { fontSize: 12, color: theme.textSecondary, marginTop: 2, lineHeight: 18 },
-  metricCard: { backgroundColor: theme.surfaceLight, borderRadius: 14, padding: 16, marginBottom: 12 },
-  metricValue: { fontSize: 24, fontWeight: '800', color: '#FFF' },
-  metricLabel: { fontSize: 13, color: theme.textSecondary, marginTop: 4 },
-  optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.border },
-  optionRowActive: { backgroundColor: 'rgba(99,102,241,0.08)' },
-  optionText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
-  optionTextActive: { color: theme.primaryLight },
+  avatarFallback: { width: 88, height: 88, borderRadius: 44, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center' },
+  avatarFallbackText: { fontSize: 34, fontWeight: '900', color: '#FFF' },
+  input: { height: 50, backgroundColor: stream.panelStrong, borderRadius: 8, paddingHorizontal: 14, color: '#FFF', borderWidth: 1, borderColor: stream.line, marginBottom: 10 },
+  primaryButton: { height: 48, borderRadius: 8, backgroundColor: stream.red, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  primaryButtonText: { fontSize: 15, fontWeight: '900', color: '#FFF' },
+  secondaryButton: { height: 46, borderRadius: 8, borderWidth: 1, borderColor: stream.lineStrong, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
+  secondaryButtonText: { fontSize: 14, fontWeight: '900', color: '#FFF' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: stream.line },
+  rowTitle: { fontSize: 15, fontWeight: '850' as any, color: '#FFF' },
+  rowSubtitle: { fontSize: 12, color: stream.muted, marginTop: 2, lineHeight: 18 },
+  metricCard: { backgroundColor: stream.panelStrong, borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: stream.line },
+  metricValue: { fontSize: 26, fontWeight: '900', color: '#FFF' },
+  metricLabel: { fontSize: 13, color: stream.muted, marginTop: 4 },
+  optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: stream.line },
+  optionRowActive: { backgroundColor: 'rgba(229,9,20,0.12)' },
+  optionText: { fontSize: 15, fontWeight: '850' as any, color: '#FFF' },
+  optionTextActive: { color: '#FFF' },
   articleText: { fontSize: 14, color: '#D1D5DB', lineHeight: 24, marginBottom: 12 },
 });
