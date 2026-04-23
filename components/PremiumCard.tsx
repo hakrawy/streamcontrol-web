@@ -6,15 +6,15 @@
  */
 
 import React, { memo, ReactNode } from 'react';
-import { Pressable, StyleSheet, ViewStyle, Image } from 'react-native';
+import { Pressable, StyleSheet, ViewStyle } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
   withSpring,
   withTiming,
-  interpolate,
 } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
+import { stream } from './StreamingDesignSystem';
 
 interface PremiumCardProps {
   children?: ReactNode;
@@ -63,11 +63,22 @@ export const PremiumCard = memo(function PremiumCard({
     });
   };
 
+  const handleHoverIn = () => {
+    if (disabled) return;
+    scale.value = withSpring(1.035, { damping: 16, stiffness: 260 });
+  };
+
+  const handleHoverOut = () => {
+    if (disabled) return;
+    scale.value = withSpring(1, { damping: 16, stiffness: 260 });
+  };
+
   return (
     <AnimatedPressable
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      {...({ onHoverIn: handleHoverIn, onHoverOut: handleHoverOut } as any)}
       disabled={disabled}
       style={[
         styles.card,
@@ -83,12 +94,15 @@ export const PremiumCard = memo(function PremiumCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: theme.radius.md,
+    borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: theme.surface,
+    backgroundColor: stream.panel,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    ...theme.shadows.card,
+    borderColor: 'rgba(255,255,255,0.13)',
+    shadowColor: stream.red,
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 12 },
   },
   noPadding: {
     paddingHorizontal: 0,

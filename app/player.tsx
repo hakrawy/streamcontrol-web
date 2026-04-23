@@ -12,6 +12,7 @@ import HlsLibrary, { Events, ErrorTypes } from 'hls.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../constants/theme';
 import { stream } from '../components/StreamingDesignSystem';
+import { CinematicPlayerExperience } from '../components/CinematicPlayerExperience';
 import { usePlayerSettings } from '../contexts/PlayerSettingsContext';
 import { useAuth } from '@/template';
 import * as api from '../services/api';
@@ -841,6 +842,9 @@ function WebDirectPlayer({
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const isLiveStream = duration <= 0;
+  const inspectionText = activeSource?.inspection
+    ? `${mapInspectionToUserMessage(activeSource.inspection)}${activeSource.inspection.httpStatus ? ` | HTTP ${activeSource.inspection.httpStatus}` : ''}`
+    : '';
 
   return (
     <View ref={containerRef} style={styles.container}>
@@ -874,6 +878,78 @@ function WebDirectPlayer({
       </Pressable>
 
       {showControls ? (
+        <CinematicPlayerExperience
+          title={title || 'Now Playing'}
+          subtitle={isLiveStream ? 'Live stream' : `${getMediaKindLabel(mediaKind)} player`}
+          isPlaying={isPlaying}
+          isLive={isLiveStream}
+          currentTime={currentTime}
+          duration={duration}
+          progress={progress}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+          sources={sources}
+          activeSourceIndex={selectedSourceIndex}
+          showSources={showSourcesPanel}
+          showSettings={showSettingsMenu}
+          showQuality={showQualityMenu}
+          hasCaptions={Boolean(subtitleUrl)}
+          captionsEnabled={captionsEnabled}
+          qualityLevels={hlsLevels}
+          currentQuality={currentLevel}
+          playbackSpeed={playbackSpeed}
+          videoFit={videoFit}
+          errorText={playbackError}
+          helperText={[
+            activeSource?.proxyRequired ? 'This source may require proxy or custom headers for browser playback.' : '',
+            subtitleUrl ? (captionsEnabled ? 'Subtitles are enabled for this source.' : 'Subtitles available. Tap CC to show them.') : '',
+            inspectionText,
+          ].filter(Boolean).join('  |  ')}
+          onBack={() => {
+            videoRef.current?.pause();
+            router.back();
+          }}
+          onTogglePlay={togglePlay}
+          onSeek={seek}
+          onSeekRatio={seekToRatio}
+          onTrackLayout={(event) => setProgressTrackWidth(event.nativeEvent.layout.width)}
+          onToggleSources={() => {
+            setShowSourcesPanel((prev) => !prev);
+            setShowSettingsMenu(false);
+            setShowQualityMenu(false);
+          }}
+          onSelectSource={(index) => {
+            onSelectSource(index);
+            void pushRoomEvent('source_change', {
+              source_index: index,
+              position_ms: Math.round((videoRef.current?.currentTime || 0) * 1000),
+            });
+            setShowSourcesPanel(false);
+          }}
+          onToggleSettings={() => {
+            setShowSettingsMenu((prev) => !prev);
+            setShowQualityMenu(false);
+            setShowSourcesPanel(false);
+          }}
+          onToggleCaptions={toggleCaptions}
+          onToggleFullscreen={toggleFullscreen}
+          onRetry={onRetryPlayback}
+          onOpenExternal={() => Linking.openURL(playbackUrl)}
+          onChangeSpeed={changeSpeed}
+          onChangeFit={(fit) => {
+            setVideoFit(fit);
+            setShowSettingsMenu(false);
+          }}
+          onToggleQuality={() => {
+            setShowQualityMenu((prev) => !prev);
+            setShowSettingsMenu(false);
+            setShowSourcesPanel(false);
+          }}
+          onChangeQuality={changeQuality}
+        />
+      ) : null}
+
+      {false && showControls ? (
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
@@ -1129,8 +1205,7 @@ function WebDirectPlayer({
 
             {activeSource?.inspection ? (
               <Text style={styles.helperText}>
-                {mapInspectionToUserMessage(activeSource.inspection)}
-                {activeSource.inspection.httpStatus ? ` • HTTP ${activeSource.inspection.httpStatus}` : ''}
+                {inspectionText}
               </Text>
             ) : null}
 
@@ -1454,6 +1529,17 @@ function NativeDirectVideoPlayer({
     setShowSettingsMenu(false);
   }, [player]);
 
+  const seekToRatio = useCallback((ratio: number) => {
+    if (!Number.isFinite(player.duration) || player.duration <= 0) return;
+    const nextTime = Math.max(0, Math.min(player.duration * ratio, player.duration));
+    player.currentTime = nextTime;
+    setCurrentTime(nextTime);
+    void pushRoomEvent('seek', {
+      position_ms: Math.round(nextTime * 1000),
+      playback_rate: player.playbackRate || 1,
+    });
+  }, [player, pushRoomEvent]);
+
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
@@ -1464,6 +1550,61 @@ function NativeDirectVideoPlayer({
       </Pressable>
 
       {showControls ? (
+        <CinematicPlayerExperience
+          title={title || 'Now Playing'}
+          subtitle={`${getMediaKindLabel(mediaKind)} player`}
+          isPlaying={isPlaying}
+          isLive={duration <= 0}
+          currentTime={currentTime}
+          duration={duration}
+          progress={progress}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+          sources={sources}
+          activeSourceIndex={selectedSourceIndex}
+          showSources={showSourcesPanel}
+          showSettings={showSettingsMenu}
+          hasCaptions={Boolean(subtitleUrl)}
+          captionsEnabled={Boolean(subtitleUrl)}
+          playbackSpeed={playbackSpeed}
+          videoFit={videoFit}
+          helperText={subtitleUrl ? 'This stream includes subtitles. For advanced caption rendering, web playback works best.' : ''}
+          onBack={() => {
+            player.pause();
+            router.back();
+          }}
+          onTogglePlay={togglePlay}
+          onSeek={seek}
+          onSeekRatio={seekToRatio}
+          onToggleSources={() => {
+            setShowSourcesPanel((prev) => !prev);
+            setShowSettingsMenu(false);
+          }}
+          onSelectSource={(index) => {
+            onSelectSource(index);
+            void pushRoomEvent('source_change', {
+              source_index: index,
+              position_ms: Math.round((player.currentTime || 0) * 1000),
+            });
+            setShowSourcesPanel(false);
+          }}
+          onToggleSettings={() => {
+            setShowSettingsMenu((prev) => !prev);
+            setShowSourcesPanel(false);
+          }}
+          onToggleCaptions={() => undefined}
+          onToggleFullscreen={toggleFullscreen}
+          onRetry={onRetryPlayback}
+          onOpenExternal={() => Linking.openURL(url)}
+          onChangeSpeed={changeSpeed}
+          onChangeFit={(fit) => {
+            setVideoFit(fit);
+            setShowSettingsMenu(false);
+          }}
+        />
+      ) : null}
+
+      {false && showControls ? (
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
@@ -1795,6 +1936,40 @@ function DashPlayer({
       </Pressable>
 
       {showControls ? (
+        <CinematicPlayerExperience
+          title={title || 'Now Playing'}
+          subtitle="DASH player"
+          isPlaying
+          isLive
+          currentTime={0}
+          duration={0}
+          progress={0}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+          sources={sources}
+          activeSourceIndex={selectedSourceIndex}
+          showSources={showSourcesPanel}
+          showSettings={false}
+          playbackSpeed={1}
+          videoFit="contain"
+          helperText="DASH playback is running inside a cinematic shell. Switch source if playback is blocked."
+          onBack={() => router.back()}
+          onTogglePlay={() => undefined}
+          onSeek={() => undefined}
+          onToggleSources={() => setShowSourcesPanel((prev) => !prev)}
+          onSelectSource={(index) => {
+            onSelectSource(index);
+            setShowSourcesPanel(false);
+          }}
+          onToggleSettings={() => undefined}
+          onToggleFullscreen={() => undefined}
+          onRetry={() => undefined}
+          onChangeSpeed={() => undefined}
+          onChangeFit={() => undefined}
+        />
+      ) : null}
+
+      {false && showControls ? (
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
@@ -1897,6 +2072,41 @@ function EmbeddedPlayer({
       </Pressable>
 
       {showControls ? (
+        <CinematicPlayerExperience
+          title={title || 'Now Playing'}
+          subtitle={`${getMediaKindLabel(mediaKind)} source`}
+          isPlaying
+          isLive
+          currentTime={0}
+          duration={0}
+          progress={0}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+          sources={sources}
+          activeSourceIndex={selectedSourceIndex}
+          showSources={showSourcesPanel}
+          showSettings={false}
+          playbackSpeed={1}
+          videoFit="contain"
+          helperText="Embedded pages may block playback. Switch servers or open externally if needed."
+          onBack={() => router.back()}
+          onTogglePlay={() => undefined}
+          onSeek={() => undefined}
+          onToggleSources={() => setShowSourcesPanel((prev) => !prev)}
+          onSelectSource={(index) => {
+            onSelectSource(index);
+            setShowSourcesPanel(false);
+          }}
+          onToggleSettings={() => undefined}
+          onToggleFullscreen={() => undefined}
+          onRetry={() => undefined}
+          onOpenExternal={() => Linking.openURL(originalUrl)}
+          onChangeSpeed={() => undefined}
+          onChangeFit={() => undefined}
+        />
+      ) : null}
+
+      {false && showControls ? (
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}

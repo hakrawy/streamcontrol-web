@@ -6,7 +6,7 @@
  */
 
 import React, { memo } from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import Animated, { 
@@ -19,6 +19,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
+import { stream } from './StreamingDesignSystem';
 import type { ContentItem } from '../services/api';
 
 interface ContentCardProps {
@@ -27,8 +28,6 @@ interface ContentCardProps {
   showRating?: boolean;
   aspectRatio?: number;
 }
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Card dimensions (consistent with design system)
 const CARD_SIZES = {
@@ -70,6 +69,14 @@ export const ContentCard = memo(function ContentCard({
     opacity.value = withTiming(1, { duration: theme.animations.fast });
   };
 
+  const handleHoverIn = () => {
+    scale.value = withSpring(1.07, { damping: 16, stiffness: 260 });
+  };
+
+  const handleHoverOut = () => {
+    scale.value = withSpring(1, { damping: 16, stiffness: 260 });
+  };
+
   const handlePress = () => {
     router.push(`/content/${item.id}`);
   };
@@ -85,6 +92,7 @@ export const ContentCard = memo(function ContentCard({
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      {...({ onHoverIn: handleHoverIn, onHoverOut: handleHoverOut } as any)}
       entering={FadeIn.duration(200)}
       style={[styles.card, { width: dimensions.width }, animatedStyle]}
     >
@@ -114,10 +122,12 @@ export const ContentCard = memo(function ContentCard({
         )}
         
         {/* Gradient Overlay */}
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.6)']}
-          style={styles.gradient}
-        />
+        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.18)', 'rgba(0,0,0,0.82)']} style={styles.gradient} />
+        <View style={styles.hoverOverlay}>
+          <View style={styles.playGlyph}>
+            <MaterialIcons name="play-arrow" size={18} color="#FFF" />
+          </View>
+        </View>
       </View>
       
       {/* Info Section */}
@@ -172,16 +182,20 @@ export const ContentRow = memo(function ContentRow({
 const styles = StyleSheet.create({
   card: {
     marginRight: theme.spacing.md,
-    backgroundColor: theme.surface,
-    borderRadius: theme.radius.md,
+    backgroundColor: stream.panel,
+    borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    shadowColor: stream.red,
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 12 },
   },
   posterWrap: {
     width: '100%',
     position: 'relative',
-    backgroundColor: theme.surfaceLight,
+    backgroundColor: stream.panelStrong,
   },
   poster: {
     width: '100%',
@@ -191,16 +205,31 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
   },
+  hoverOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  playGlyph: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    backgroundColor: 'rgba(229,9,20,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   liveBadge: {
     position: 'absolute',
     top: theme.spacing.xs,
     left: theme.spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(229,9,20,0.86)',
     paddingHorizontal: theme.spacing.xs,
     paddingVertical: 2,
-    borderRadius: theme.radius.sm,
+    borderRadius: 6,
   },
   liveDot: {
     width: 6,
@@ -220,10 +249,10 @@ const styles = StyleSheet.create({
     right: theme.spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.62)',
     paddingHorizontal: theme.spacing.xs,
     paddingVertical: 2,
-    borderRadius: theme.radius.sm,
+    borderRadius: 6,
   },
   ratingText: {
     color: theme.accent,
@@ -235,12 +264,12 @@ const styles = StyleSheet.create({
     padding: theme.spacing.sm,
   },
   title: {
-    color: theme.textPrimary,
+    color: stream.text,
     fontSize: 13,
     fontWeight: '600',
   },
   year: {
-    color: theme.textMuted,
+    color: stream.muted,
     fontSize: 11,
     marginTop: 2,
   },
@@ -248,7 +277,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   rowTitle: {
-    color: theme.textPrimary,
+    color: stream.text,
     fontSize: 18,
     fontWeight: '800',
     marginBottom: theme.spacing.md,
